@@ -23,6 +23,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 REPO_URL="https://github.com/KingGekko/trading-bot/archive/refs/heads/main.zip"
+GIT_REPO="https://github.com/KingGekko/trading-bot.git"
 INSTALL_DIR="/opt/trading-bot"
 BACKUP_DIR="/opt/trading-bot-backup"
 CLOUD_INIT_DIR="/opt/cloud-init-scripts"
@@ -43,6 +44,35 @@ check_sudo() {
         echo "Please run with sudo:"
         echo "  sudo ./deploy_trading_bot.sh"
         exit 1
+    fi
+}
+
+# Function to check and install essential tools
+check_and_install_tools() {
+    log_message "Checking and installing essential tools..."
+    
+    local tools_missing=()
+    
+    # Check for essential tools
+    for tool in curl wget git unzip tar; do
+        if ! command -v "$tool" >/dev/null 2>&1; then
+            tools_missing+=("$tool")
+        fi
+    done
+    
+    if [ ${#tools_missing[@]} -gt 0 ]; then
+        echo -e "${YELLOW}⚠️ Missing tools: ${tools_missing[*]}${NC}"
+        echo "Installing missing tools..."
+        
+        # Update package lists
+        apt-get update
+        
+        # Install missing tools
+        apt-get install -y "${tools_missing[@]}"
+        
+        echo -e "${GREEN}✅ Essential tools installed${NC}"
+    else
+        echo -e "${GREEN}✅ All essential tools available${NC}"
     fi
 }
 
@@ -72,37 +102,112 @@ backup_existing() {
     fi
 }
 
-# Function to download trading bot source
+# Function to download trading bot source with fallbacks
 download_source() {
     log_message "Downloading trading bot source code..."
     
     cd /tmp
     
-    # Download the source
-    echo "📥 Downloading from $REPO_URL..."
-    curl -L -o trading-bot.zip "$REPO_URL"
+    # Try multiple download methods with fallbacks
+    local download_success=false
     
-    if [ ! -f "trading-bot.zip" ]; then
-        echo -e "${RED}❌ Failed to download trading bot source${NC}"
+    # Method 1: Try git clone first (most reliable)
+    if command -v git >/dev/null 2>&1; then
+        echo "🌐 Attempting git clone..."
+        if git clone "$GIT_REPO" trading-bot-git 2>/dev/null; then
+            echo "✅ Git clone successful"
+            rm -rf "$INSTALL_DIR"
+            mv trading-bot-git "$INSTALL_DIR"
+            download_success=true
+        else
+            echo "❌ Git clone failed, trying alternative methods..."
+        fi
+    fi
+    
+    # Method 2: Try ZIP download and extraction
+    if [ "$download_success" = false ] && command -v unzip >/dev/null 2>&1; then
+        echo "📥 Attempting ZIP download..."
+        if curl -L -o trading-bot.zip "$REPO_URL" 2>/dev/null; then
+            echo "📦 Extracting source code..."
+            if unzip -q trading-bot.zip 2>/dev/null; then
+                if [ -d "trading-bot-main" ]; then
+                    rm -rf "$INSTALL_DIR"
+                    mv trading-bot-main "$INSTALL_DIR"
+                    download_success=true
+                    echo "✅ ZIP extraction successful"
+                fi
+            fi
+            rm -f trading-bot.zip
+        fi
+    fi
+    
+    # Method 3: Try tar.gz download and extraction
+    if [ "$download_success" = false ] && command -v tar >/dev/null 2>&1; then
+        echo "📥 Attempting tar.gz download..."
+        local tar_url="https://github.com/KingGekko/trading-bot/archive/refs/heads/main.tar.gz"
+        if curl -L -o trading-bot.tar.gz "$tar_url" 2>/dev/null; then
+            echo "📦 Extracting source code..."
+            if tar -xzf trading-bot.tar.gz 2>/dev/null; then
+                if [ -d "trading-bot-main" ]; then
+                    rm -rf "$INSTALL_DIR"
+                    mv trading-bot-main "$INSTALL_DIR"
+                    download_success=true
+                    echo "✅ TAR extraction successful"
+                fi
+            fi
+            rm -f trading-bot.tar.gz
+        fi
+    fi
+    
+    # Method 4: Manual file download as last resort
+    if [ "$download_success" = false ]; then
+        echo "📥 Attempting manual file download..."
+        mkdir -p "$INSTALL_DIR"
+        
+        # Download essential files
+        local files=(
+            "Cargo.toml"
+            "build.rs"
+            "README.md"
+            "src/main.rs"
+            "src/ollama/mod.rs"
+            "src/ollama/ollama_client.rs"
+            "src/ollama/ollama_config.rs"
+            "src/ollama/ollama_receipt.rs"
+            "setup/install.sh"
+            "setup/update.sh"
+            "setup/README.md"
+            "proto/receipt.proto"
+        )
+        
+        local download_count=0
+        for file in "${files[@]}"; do
+            local dir=$(dirname "$file")
+            mkdir -p "$INSTALL_DIR/$dir"
+            
+            local url="https://raw.githubusercontent.com/KingGekko/trading-bot/main/$file"
+            if curl -s -o "$INSTALL_DIR/$file" "$url" 2>/dev/null; then
+                ((download_count++))
+            fi
+        done
+        
+        if [ $download_count -gt 0 ]; then
+            download_success=true
+            echo "✅ Manual download successful ($download_count files)"
+        fi
+    fi
+    
+    if [ "$download_success" = false ]; then
+        echo -e "${RED}❌ All download methods failed${NC}"
+        echo "Please check your internet connection and try again"
         exit 1
     fi
     
-    # Extract the source
-    echo "📦 Extracting source code..."
-    unzip -q trading-bot.zip
+    # Set proper permissions
+    chmod -R 755 "$INSTALL_DIR"
+    find "$INSTALL_DIR" -name "*.sh" -exec chmod +x {} \;
     
-    # Move to installation directory
-    if [ -d "trading-bot-main" ]; then
-        rm -rf "$INSTALL_DIR"
-        mv trading-bot-main "$INSTALL_DIR"
-        echo -e "${GREEN}✅ Source code extracted to $INSTALL_DIR${NC}"
-    else
-        echo -e "${RED}❌ Failed to extract source code${NC}"
-        exit 1
-    fi
-    
-    # Clean up downloaded files
-    rm -f trading-bot.zip
+    echo -e "${GREEN}✅ Source code downloaded to $INSTALL_DIR${NC}"
     
     cd - > /dev/null
 }
@@ -536,6 +641,9 @@ main() {
     
     # Check sudo privileges
     check_sudo
+    
+    # Check and install essential tools
+    check_and_install_tools
     
     # Create directories
     create_directories
