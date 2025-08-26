@@ -13,88 +13,98 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Function to install Git from source - DEFINED FIRST
-install_git_from_source() {
-    echo "Installing Git from source..."
+# Function to install Git from pre-compiled binary - DEFINED FIRST
+install_git_from_binary() {
+    echo "Installing Git from pre-compiled binary..."
     
     if command -v curl &> /dev/null; then
-        echo "Downloading Git source directly..."
+        echo "Downloading Git binary for Linux..."
         
-        # Create temporary directory for Git build
-        mkdir -p /tmp/git_build
-        cd /tmp/git_build
+        # Create temporary directory for Git installation
+        mkdir -p /tmp/git_install
+        cd /tmp/git_install
         
-        # Try multiple Git download sources with better error handling
-        echo "Attempting to download Git source from GitHub..."
-        
-        # Method 1: Try direct GitHub release with proper headers
-        if curl -L -H "Accept: application/octet-stream" -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz; then
-            # Verify the downloaded file is actually a tarball
-            if file git.tar.gz | grep -q "gzip compressed data"; then
-                echo "Git source downloaded successfully from GitHub"
-            else
-                echo "Downloaded file is not a valid tarball, trying alternative source..."
-                rm -f git.tar.gz
-                
-                # Method 2: Try kernel.org mirror
-                if curl -L -o git.tar.gz https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.44.0.tar.gz; then
-                    if file git.tar.gz | grep -q "gzip compressed data"; then
-                        echo "Git source downloaded successfully from kernel.org"
-                    else
-                        echo "Kernel.org download also failed, trying direct source..."
-                        rm -f git.tar.gz
-                        
-                        # Method 3: Try direct source with verbose output
-                        if curl -v -L -o git.tar.gz https://github.com/git/git/archive/refs/tags/v2.44.0.tar.gz; then
-                            if file git.tar.gz | grep -q "gzip compressed data"; then
-                                echo "Git source downloaded successfully from GitHub archive"
-                            else
-                                echo "All download methods failed. File contents:"
-                                head -5 git.tar.gz
-                                echo "Error: All Git download methods failed"
-                                exit 1
-                            fi
-                        else
-                            echo "Error: All Git download methods failed"
-                            exit 1
-                        fi
-                    fi
-                else
-                    echo "Error: Failed to download Git from kernel.org"
-                    exit 1
-                fi
-            fi
+        # Detect architecture
+        ARCH=$(uname -m)
+        if [ "$ARCH" = "x86_64" ]; then
+            GIT_ARCH="amd64"
+        elif [ "$ARCH" = "aarch64" ]; then
+            GIT_ARCH="arm64"
         else
-            echo "Error: Failed to download Git from GitHub"
+            echo "Unsupported architecture: $ARCH"
             exit 1
         fi
         
-        # Extract and build
-        echo "Extracting Git source..."
+        # Download pre-compiled Git binary (no OpenSSL build required)
+        echo "Downloading Git binary for $ARCH..."
+        
+        # Try multiple sources for Git binary
+        if curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0-linux-$GIT_ARCH.tar.gz; then
+            echo "Git binary downloaded successfully from GitHub"
+        elif curl -L -o git.tar.gz https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.44.0-linux-$GIT_ARCH.tar.gz; then
+            echo "Git binary downloaded successfully from kernel.org"
+        else
+            echo "Failed to download Git binary, trying alternative approach..."
+            
+            # Alternative: Download static binary from GitHub releases
+            if curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0-linux-$GIT_ARCH.tar.gz; then
+                echo "Git static binary downloaded successfully"
+            else
+                echo "Error: All Git download methods failed"
+                echo "Falling back to package manager installation..."
+                
+                # Try to install via package manager as last resort
+                if command -v yum &> /dev/null; then
+                    echo "Installing Git via yum..."
+                    sudo yum install -y git
+                    if command -v git &> /dev/null; then
+                        echo "Git installed successfully via yum"
+                        cd ~
+                        rm -rf /tmp/git_install
+                        return 0
+                    fi
+                elif command -v dnf &> /dev/null; then
+                    echo "Installing Git via dnf..."
+                    sudo dnf install -y git
+                    if command -v git &> /dev/null; then
+                        echo "Git installed successfully via dnf"
+                        cd ~
+                        rm -rf /tmp/git_install
+                        return 0
+                    fi
+                fi
+                
+                echo "Error: All Git installation methods failed"
+                exit 1
+            fi
+        fi
+        
+        # Extract the binary
+        echo "Extracting Git binary..."
         tar -xzf git.tar.gz
         
-        # Handle different directory names from different sources
-        if [ -d "git-2.44.0" ]; then
-            cd git-2.44.0
-        elif [ -d "git-v2.44.0" ]; then
-            cd git-v2.44.0
-        else
-            echo "Error: Unexpected directory structure after extraction"
+        # Find the extracted directory
+        GIT_DIR=$(find . -maxdepth 1 -type d -name "git-*" | head -1)
+        if [ -z "$GIT_DIR" ]; then
+            echo "Error: Could not find extracted Git directory"
             ls -la
             exit 1
         fi
         
-        echo "Building Git from source..."
-        make prefix=/usr/local all
+        echo "Found Git directory: $GIT_DIR"
         
-        echo "Installing Git..."
-        sudo make prefix=/usr/local install
+        # Install Git binary
+        echo "Installing Git binary..."
+        sudo cp -r "$GIT_DIR"/* /usr/local/
+        
+        # Create symlinks
+        sudo ln -sf /usr/local/bin/git /usr/bin/git
         
         # Clean up
         cd ~
-        rm -rf /tmp/git_build
+        rm -rf /tmp/git_install
         
-        echo "Git built and installed from source successfully!"
+        echo "Git binary installed successfully!"
     else
         echo "Error: curl not available. Please install Git manually:"
         echo "sudo yum install -y git"
@@ -164,9 +174,9 @@ sudo pkill -9 -f apt 2>/dev/null || true
 # Wait for processes to clean up
 sleep 2
 
-# Install Git from source (no package managers needed)
-echo "Building Git from source (no package managers required)..."
-install_git_from_source
+# Install Git from pre-compiled binary (no package managers needed)
+echo "Installing Git from pre-compiled binary (no build required)..."
+install_git_from_binary
 
 # Verify Git installation
 if command -v git &> /dev/null; then
