@@ -119,12 +119,82 @@ cd /tmp/openssl_install
 
 # Download OpenSSL source
 echo "Downloading OpenSSL 3.4.4 source (latest stable version)..."
-curl -L -o openssl.tar.gz https://www.openssl.org/source/openssl-3.4.4.tar.gz
+echo "Note: This may take a few minutes depending on your internet connection..."
+
+# Try multiple download methods for OpenSSL
+if curl -L -o openssl.tar.gz https://www.openssl.org/source/openssl-3.4.4.tar.gz; then
+    echo "OpenSSL 3.4.4 downloaded successfully"
+elif curl -L -o openssl.tar.gz https://github.com/openssl/openssl/archive/refs/tags/openssl-3.4.4.tar.gz; then
+    echo "OpenSSL 3.4.4 downloaded successfully from GitHub mirror"
+else
+    echo "Error: Failed to download OpenSSL 3.4.4"
+    echo "Trying alternative version: OpenSSL 3.3.0..."
+    if curl -L -o openssl.tar.gz https://www.openssl.org/source/openssl-3.3.0.tar.gz; then
+        echo "OpenSSL 3.3.0 downloaded successfully (fallback version)"
+        # Update directory references for 3.3.0
+        sed -i 's/openssl-3.4.4/openssl-3.3.0/g' /tmp/openssl_install/install.sh
+    else
+        echo "Error: Failed to download OpenSSL. Please check your internet connection."
+        exit 1
+    fi
+fi
+
+# Verify the downloaded file
+if [ ! -f "openssl.tar.gz" ]; then
+    echo "Error: openssl.tar.gz not found after download"
+    exit 1
+fi
+
+# Check file size (should be several MB)
+FILE_SIZE=$(stat -c%s "openssl.tar.gz" 2>/dev/null || stat -f%z "openssl.tar.gz" 2>/dev/null || echo "0")
+if [ "$FILE_SIZE" -lt 1000000 ]; then
+    echo "Error: Downloaded file is too small ($FILE_SIZE bytes). Download may have failed."
+    exit 1
+fi
+
+echo "Download completed. File size: $FILE_SIZE bytes"
 
 # Extract
 echo "Extracting OpenSSL source..."
-tar -xzf openssl.tar.gz
-cd openssl-3.4.4
+echo "Checking file format..."
+
+# Check if it's a valid tar.gz file
+if file openssl.tar.gz | grep -q "gzip compressed data"; then
+    echo "File appears to be a valid gzip compressed tar archive"
+else
+    echo "Warning: File may not be a valid gzip compressed tar archive"
+    echo "File type: $(file openssl.tar.gz)"
+    echo "Attempting extraction anyway..."
+fi
+
+# Try to extract with error handling
+if tar -tzf openssl.tar.gz > /dev/null 2>&1; then
+    echo "Archive appears to be valid, proceeding with extraction..."
+    if tar -xzf openssl.tar.gz; then
+        echo "OpenSSL source extracted successfully"
+    else
+        echo "Error: Failed to extract OpenSSL source"
+        exit 1
+    fi
+else
+    echo "Error: Invalid or corrupted tar.gz file"
+    echo "Please check your internet connection and try again"
+    exit 1
+fi
+
+# Check what was extracted
+if [ -d "openssl-3.4.4" ]; then
+    echo "Found OpenSSL 3.4.4 directory"
+    cd openssl-3.4.4
+elif [ -d "openssl-3.3.0" ]; then
+    echo "Found OpenSSL 3.3.0 directory (fallback version)"
+    cd openssl-3.3.0
+else
+    echo "Error: Could not find OpenSSL source directory after extraction"
+    echo "Contents of current directory:"
+    ls -la
+    exit 1
+fi
 
 # Check if required tools exist
 echo "Checking build tools..."
