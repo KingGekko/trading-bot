@@ -203,11 +203,8 @@ sub realscript {
 1;
 EOF
 
-# Also create it in the current working directory
-cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm ./FindBin.pm
-
-# Set environment variable to include current directory in Perl's @INC
-export PERL5LIB=".:$PERL5LIB"
+# Set environment variable to include OpenSSL source directory in Perl's @INC
+export PERL5LIB="/tmp/openssl_install/openssl-3.0.12:$PERL5LIB"
 
 # Also try to install to system paths as backup
 echo "Installing FindBin.pm to system Perl paths as backup..."
@@ -221,12 +218,12 @@ sudo mkdir -p /usr/lib64/perl5/vendor_perl
 sudo mkdir -p /usr/share/perl5/vendor_perl
 
 # Install to all paths
-sudo cp FindBin.pm /usr/local/lib64/perl5/5.32/
-sudo cp FindBin.pm /usr/lib64/perl5/
-sudo cp FindBin.pm /usr/share/perl5/
-sudo cp FindBin.pm /usr/lib64/perl5/vendor_perl/
-sudo cp FindBin.pm /usr/share/perl5/vendor_perl/
-sudo cp FindBin.pm /usr/local/share/perl5/5.32/
+sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/local/lib64/perl5/5.32/
+sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/lib64/perl5/
+sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/share/perl5/
+sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/lib64/perl5/vendor_perl/
+sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/share/perl5/vendor_perl/
+sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/local/share/perl5/5.32/
 
 # Set permissions
 sudo chmod 644 /usr/local/lib64/perl5/5.32/FindBin.pm
@@ -238,7 +235,7 @@ sudo chmod 644 /usr/local/share/perl5/5.32/FindBin.pm
 
 # Test if the module works
 echo "Testing FindBin.pm module..."
-if perl -e "use FindBin; print 'FindBin module working from current directory\n';" 2>/dev/null; then
+if perl -e "use FindBin; print 'FindBin module working from OpenSSL directory\n';" 2>/dev/null; then
     echo "FindBin module verified and working!"
 else
     echo "Warning: FindBin module test failed, but continuing..."
