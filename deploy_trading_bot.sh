@@ -359,9 +359,11 @@ run_installation() {
         echo "🔨 Building trading bot manually..."
         cd "$INSTALL_DIR"
         
-        # Source Rust environment
+        # Source Rust environment and set default toolchain
         if [ -f "/root/.cargo/env" ]; then
             source /root/.cargo/env
+            echo "🦀 Setting default Rust toolchain..."
+            rustup default stable
         fi
         
         # Build the trading bot
@@ -370,7 +372,25 @@ run_installation() {
             cargo build --release
             echo "✅ Trading bot built successfully"
         else
-            echo "⚠️ Cargo not available, skipping build"
+            echo "⚠️ Cargo not available, trying to fix Rust environment..."
+            
+            # Try to fix Rust environment
+            if [ -f "/root/.cargo/bin/rustup" ]; then
+                echo "🔧 Fixing Rust toolchain..."
+                /root/.cargo/bin/rustup default stable
+                source /root/.cargo/env
+                
+                # Try building again
+                if command -v cargo >/dev/null 2>&1; then
+                    echo "🦀 Building with Cargo (retry)..."
+                    cargo build --release
+                    echo "✅ Trading bot built successfully"
+                else
+                    echo "❌ Failed to fix Rust environment"
+                fi
+            else
+                echo "❌ Rust not properly installed"
+            fi
         fi
         
         if [ $? -eq 0 ]; then
