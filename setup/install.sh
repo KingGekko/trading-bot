@@ -116,91 +116,149 @@ echo -e "${GREEN}✅ Package manager installation completed!${NC}"
 
 # Now install OpenSSL development packages using the available package manager
 echo "📦 Installing OpenSSL development packages (required for build)..."
-case $DISTRO in
-    "debian")
-        echo "🔧 Running: sudo apt install -y libssl-dev pkg-config"
-        sudo apt install -y libssl-dev pkg-config
+echo ""
+echo "🎯 Choose installation method:"
+echo "1. Use package manager (yum/dnf) - may be slow"
+echo "2. Download OpenSSL directly - faster, more reliable"
+echo ""
+echo -e "${BLUE}Which method? (1 or 2)${NC}"
+read -r method_choice
+
+case $method_choice in
+    "1")
+        echo "📦 Using package manager installation..."
+        case $DISTRO in
+            "debian")
+                echo "🔧 Running: sudo apt install -y libssl-dev pkg-config"
+                sudo apt install -y libssl-dev pkg-config
+                ;;
+            "redhat")
+                if command -v dnf &> /dev/null; then
+                    echo "🔧 Running: sudo dnf install -y openssl-devel pkg-config"
+                    echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
+                    echo "   ps aux | grep dnf"
+                    echo "   sudo dnf list installed | grep openssl"
+                    sudo dnf install -y openssl-devel pkg-config
+                elif command -v microdnf &> /dev/null; then
+                    echo "🔧 Running: sudo microdnf install -y openssl-devel pkg-config"
+                    echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
+                    echo "   ps aux | grep microdnf"
+                    sudo microdnf install -y openssl-devel pkg-config
+                else
+                    echo "🔧 Running: sudo yum install -y openssl-devel pkg-config"
+                    echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
+                    echo "   ps aux | grep yum"
+                    echo "   sudo yum list installed | grep openssl"
+                    sudo yum install -y openssl-devel pkg-config
+                fi
+                ;;
+            "alpine"
+                echo "🔧 Running: sudo apk add openssl-dev pkgconfig"
+                sudo apk add openssl-dev pkgconfig
+                ;;
+            *)
+                echo -e "${RED}⚠️  Unknown distribution. Please install OpenSSL manually:${NC}"
+                echo ""
+                echo "CentOS/RHEL: sudo yum install -y openssl-devel pkg-config"
+                echo "Ubuntu/Debian: sudo apt install -y libssl-dev pkg-config"
+                echo "Alpine: sudo apk add openssl-dev pkgconfig"
+                echo ""
+                echo "After installing OpenSSL, run this script again."
+                exit 1
+                ;;
+        esac
         ;;
-    "redhat")
-        if command -v dnf &> /dev/null; then
-            echo "🔧 Running: sudo dnf install -y openssl-devel pkg-config"
-            echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
-            echo "   ps aux | grep dnf"
-            echo "   sudo dnf list installed | grep openssl"
-            echo ""
-            echo "🔄 Installing packages... (this may take 2-5 minutes)"
-            
-            # Run yum with verbose output and timeout
-            if timeout 300 sudo yum install -y openssl-devel pkg-config; then
-                echo "✅ OpenSSL packages installed successfully!"
-            else
-                echo -e "${RED}❌ Package installation failed or timed out${NC}"
-                echo ""
-                echo "🔍 Troubleshooting steps:"
-                echo "1. Check if yum is stuck: ps aux | grep yum"
-                echo "2. Kill stuck process: sudo kill -9 [PID]"
-                echo "3. Clear yum cache: sudo yum clean all"
-                echo "4. Try again or install manually:"
-                echo "   sudo yum install -y openssl-devel pkg-config"
-                exit 1
-            fi
-        elif command -v microdnf &> /dev/null; then
-            echo "🔧 Running: sudo microdnf install -y openssl-devel pkg-config"
-            echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
-            echo "   ps aux | grep microdnf"
-            echo ""
-            echo "🔄 Installing packages... (this may take 2-5 minutes)"
-            
-            # Run yum with verbose output and timeout
-            if timeout 300 sudo microdnf install -y openssl-devel pkg-config; then
-                echo "✅ OpenSSL packages installed successfully!"
-            else
-                echo -e "${RED}❌ Package installation failed or timed out${NC}"
-                echo ""
-                echo "🔍 Troubleshooting steps:"
-                echo "1. Check if microdnf is stuck: ps aux | grep microdnf"
-                echo "2. Kill stuck process: sudo kill -9 [PID]"
-                echo "3. Clear microdnf cache: sudo microdnf clean all"
-                echo "4. Try again or install manually:"
-                echo "   sudo microdnf install -y openssl-devel pkg-config"
-                exit 1
-            fi
-        else
-            echo "🔧 Running: sudo yum install -y openssl-devel pkg-config"
-            echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
-            echo "   ps aux | grep yum"
-            echo "   sudo yum list installed | grep openssl"
-            echo ""
-            echo "🔄 Installing packages... (this may take 2-5 minutes)"
-            
-            # Run yum with verbose output and timeout
-            if timeout 300 sudo yum install -y openssl-devel pkg-config; then
-                echo "✅ OpenSSL packages installed successfully!"
-            else
-                echo -e "${RED}❌ Package installation failed or timed out${NC}"
-                echo ""
-                echo "🔍 Troubleshooting steps:"
-                echo "1. Check if yum is stuck: ps aux | grep yum"
-                echo "2. Kill stuck process: sudo kill -9 [PID]"
-                echo "3. Clear yum cache: sudo yum clean all"
-                echo "4. Try again or install manually:"
-                echo "   sudo yum install -y openssl-devel pkg-config"
-                exit 1
+    "2")
+        echo "📥 Downloading OpenSSL directly..."
+        echo "⏳ This method is faster and more reliable"
+        
+        # Create temporary directory
+        mkdir -p /tmp/openssl_install
+        cd /tmp/openssl_install
+        
+        # Download OpenSSL source
+        echo "📥 Downloading OpenSSL 3.0.12 source..."
+        curl -L -o openssl.tar.gz https://www.openssl.org/source/openssl-3.0.12.tar.gz
+        
+        # Extract
+        echo "📁 Extracting OpenSSL source..."
+        tar -xzf openssl.tar.gz
+        cd openssl-3.0.12
+        
+        # Install build dependencies (minimal)
+        echo "📦 Installing minimal build dependencies..."
+        if command -v yum &> /dev/null; then
+            sudo yum install -y gcc make perl
+        elif command -v dnf &> /dev/null; then
+            sudo dnf install -y gcc make perl
+        elif command -v apt &> /dev/null; then
+            sudo apt install -y gcc make perl
+        fi
+        
+        # Configure and build
+        echo "🔧 Configuring OpenSSL..."
+        ./config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl
+        
+        echo "🔨 Building OpenSSL (this may take 5-10 minutes)..."
+        make -j$(nproc)
+        
+        echo "📦 Installing OpenSSL..."
+        sudo make install
+        
+        # Set environment variables
+        export OPENSSL_DIR="/usr/local/openssl"
+        export OPENSSL_INCLUDE_DIR="/usr/local/openssl/include"
+        export OPENSSL_LIB_DIR="/usr/local/openssl/lib64"
+        export PKG_CONFIG_PATH="/usr/local/openssl/lib64/pkgconfig"
+        
+        # Create pkg-config file
+        echo "🔧 Creating pkg-config configuration..."
+        sudo mkdir -p /usr/local/openssl/lib64/pkgconfig
+        sudo tee /usr/local/openssl/lib64/pkgconfig/openssl.pc > /dev/null <<EOF
+prefix=/usr/local/openssl
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib64
+includedir=\${prefix}/include
+
+Name: OpenSSL
+Description: Secure Sockets Layer and cryptography libraries
+Version: 3.0.12
+Requires: 
+Libs: -L\${libdir} -lssl -lcrypto
+Cflags: -I\${includedir}
+EOF
+        
+        # Install pkg-config if not available
+        if ! command -v pkg-config &> /dev/null; then
+            echo "📦 Installing pkg-config..."
+            if command -v yum &> /dev/null; then
+                sudo yum install -y pkg-config
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y pkg-config
+            elif command -v apt &> /dev/null; then
+                sudo apt install -y pkg-config
             fi
         fi
-        ;;
-    "alpine")
-        echo "🔧 Running: sudo apk add openssl-dev pkgconfig"
-        sudo apk add openssl-dev pkgconfig
+        
+        echo "✅ OpenSSL installed successfully to /usr/local/openssl"
+        echo "🔧 Environment variables set for this session"
+        
+        # Clean up
+        cd ~
+        rm -rf /tmp/openssl_install
+        
+        # Verify installation
+        echo "🔍 Verifying OpenSSL installation..."
+        if [ -f "/usr/local/openssl/bin/openssl" ]; then
+            echo "✅ OpenSSL binary found: $(/usr/local/openssl/bin/openssl version)"
+        fi
+        
+        if [ -f "/usr/local/openssl/lib64/pkgconfig/openssl.pc" ]; then
+            echo "✅ pkg-config file created successfully"
+        fi
         ;;
     *)
-        echo -e "${RED}⚠️  Unknown distribution. Please install OpenSSL manually:${NC}"
-        echo ""
-        echo "CentOS/RHEL: sudo yum install -y openssl-devel pkg-config"
-        echo "Ubuntu/Debian: sudo apt install -y libssl-dev pkg-config"
-        echo "Alpine: sudo apk add openssl-dev pkgconfig"
-        echo ""
-        echo "After installing OpenSSL, run this script again."
+        echo -e "${RED}❌ Invalid choice. Please run the script again and choose 1 or 2.${NC}"
         exit 1
         ;;
 esac
