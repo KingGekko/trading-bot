@@ -45,6 +45,11 @@ check_sudo() {
         echo "  sudo ./deploy_trading_bot.sh"
         exit 1
     fi
+    
+    # Check if we're running as root (which is correct for sudo)
+    if [ "$EUID" -eq 0 ]; then
+        echo -e "${GREEN}✅ Running with admin privileges${NC}"
+    fi
 }
 
 # Function to check and install essential tools
@@ -248,7 +253,29 @@ run_installation() {
     if [ -f "install.sh" ]; then
         echo "🔧 Running installation script..."
         chmod +x install.sh
-        ./install.sh
+        
+        # Create a temporary user for running the install script
+        # since the install script requires non-root execution
+        if ! id "trading-bot-user" &>/dev/null; then
+            echo "👤 Creating temporary user for installation..."
+            useradd -m -s /bin/bash trading-bot-user
+            usermod -aG sudo trading-bot-user
+            echo "trading-bot-user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/trading-bot-user
+        fi
+        
+        # Copy the setup directory to the user's home
+        cp -r "$INSTALL_DIR/setup" /home/trading-bot-user/
+        chown -R trading-bot-user:trading-bot-user /home/trading-bot-user/setup
+        
+        # Run the install script as the non-root user
+        echo "🔧 Running installation as trading-bot-user..."
+        su - trading-bot-user -c "cd setup && ./install.sh"
+        
+        # Copy back any generated files
+        if [ -d "/home/trading-bot-user/.cargo" ]; then
+            cp -r /home/trading-bot-user/.cargo /root/
+            echo "✅ Rust environment copied to root user"
+        fi
         
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✅ Installation completed successfully${NC}"
