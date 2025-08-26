@@ -11,6 +11,25 @@ This folder contains the complete installation script for the Rust trading bot.
 curl -fsSL https://raw.githubusercontent.com/KingGekko/trading-bot/main/setup/install.sh -o install.sh && chmod +x install.sh && ./install.sh
 ```
 
+## 🔄 Future Updates
+
+**For future code updates, use the update script (much faster):**
+
+```bash
+# From setup directory
+cd setup && ./update.sh
+
+# OR from trading-bot root
+cd trading-bot && ../setup/update.sh
+```
+
+**The update script will:**
+- 📥 Pull latest code from GitHub
+- 🔨 Rebuild only the binary (5-15 minutes)
+- 🧪 Test the updated version
+- 💾 Preserve your config and logs
+- ❌ Skip dependency reinstallation
+
 ## 📋 What Gets Installed
 
 - **System Dependencies**: Build tools, OpenSSL, pkg-config
