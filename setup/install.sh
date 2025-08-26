@@ -176,7 +176,127 @@ if command_exists protoc; then
     protoc_version=$(protoc --version)
     echo "✅ $protoc_version is installed"
 else
-    echo "❌ protobuf-compiler installation failed"
+    echo "❌ protobuf-compiler installation failed, trying alternative methods..."
+    
+    # Try alternative installation methods
+    echo "🔄 Trying alternative protobuf installation methods..."
+    
+    # Method 1: Try installing from different package names
+    if apt-cache show protobuf-compiler &> /dev/null; then
+        echo "📦 Installing protobuf-compiler..."
+        sudo apt-get install -y protobuf-compiler
+    elif apt-cache show protobuf-c-compiler &> /dev/null; then
+        echo "📦 Installing protobuf-c-compiler..."
+        sudo apt-get install -y protobuf-c-compiler
+    else
+        echo "🔄 Installing from source..."
+        
+        # Install build dependencies
+        sudo apt-get install -y build-essential cmake pkg-config
+        
+        # Download and install protobuf from source
+        PROTOC_VERSION="25.3"
+        PROTOC_DIR="/tmp/protoc"
+        
+        mkdir -p "$PROTOC_DIR"
+        cd "$PROTOC_DIR"
+        
+        # Download protobuf source
+        echo "📥 Downloading protobuf $PROTOC_VERSION source..."
+        curl -L -o protobuf.tar.gz "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protobuf-$PROTOC_VERSION.tar.gz"
+        
+        if [ -f "protobuf.tar.gz" ]; then
+            tar -xzf protobuf.tar.gz
+            cd "protobuf-$PROTOC_VERSION"
+            
+            # Configure and build
+            echo "🔨 Building protobuf from source..."
+            ./configure --prefix=/usr/local
+            make -j$(nproc)
+            sudo make install
+            sudo ldconfig
+            
+            echo "✅ Protobuf built and installed from source"
+        else
+            echo "❌ Failed to download protobuf source"
+            exit 1
+        fi
+        
+        cd - > /dev/null
+        rm -rf "$PROTOC_DIR"
+    fi
+    
+    # Verify installation again
+    if command_exists protoc; then
+        protoc_version=$(protoc --version)
+        echo "✅ $protoc_version is now installed"
+    else
+        echo "❌ All protobuf installation methods failed"
+        echo "Please install protobuf manually:"
+        echo "  Ubuntu/Debian: sudo apt-get install protobuf-compiler"
+        echo "  Or download from: https://github.com/protocolbuffers/protobuf/releases"
+        exit 1
+    fi
+fi
+
+# Set PROTOC environment variable if needed
+if [ -z "$PROTOC" ]; then
+    PROTOC_PATH=$(which protoc)
+    if [ -n "$PROTOC_PATH" ]; then
+        echo "🔧 Setting PROTOC environment variable..."
+        export PROTOC="$PROTOC_PATH"
+        echo "export PROTOC=\"$PROTOC_PATH\"" >> ~/.bashrc
+        echo "export PROTOC=\"$PROTOC_PATH\"" >> ~/.profile
+    fi
+fi
+
+# Additional protobuf installation methods for different systems
+echo "🔧 Installing additional protobuf tools and libraries..."
+
+# Install protobuf development libraries
+if apt-cache show libprotobuf-dev &> /dev/null; then
+    echo "📦 Installing libprotobuf-dev..."
+    sudo apt-get install -y libprotobuf-dev
+fi
+
+if apt-cache show protobuf-c-compiler &> /dev/null; then
+    echo "📦 Installing protobuf-c-compiler..."
+    sudo apt-get install -y protobuf-c-compiler
+fi
+
+# Install additional protobuf tools
+if apt-cache show protobuf-compiler-grpc &> /dev/null; then
+    echo "📦 Installing protobuf-compiler-grpc..."
+    sudo apt-get install -y protobuf-compiler-grpc
+fi
+
+# Verify final protobuf installation
+echo "🔍 Final protobuf verification..."
+if command_exists protoc; then
+    protoc_version=$(protoc --version)
+    echo "✅ $protoc_version is installed and working"
+    
+    # Test protobuf compilation
+    echo "🧪 Testing protobuf compilation..."
+    if [ -f "proto/receipt.proto" ]; then
+        if protoc --cpp_out=/tmp proto/receipt.proto 2>/dev/null; then
+            echo "✅ Protobuf compilation test passed"
+            rm -f /tmp/receipt.pb.h /tmp/receipt.pb.cc
+        else
+            echo "❌ Protobuf compilation test failed"
+            echo "This might indicate a deeper issue with the installation"
+        fi
+    else
+        echo "⚠️ No proto files found to test compilation"
+    fi
+    
+    # Show protoc location and environment
+    echo "📍 Protoc location: $(which protoc)"
+    echo "🔧 PROTOC environment variable: ${PROTOC:-'Not set'}"
+    
+else
+    echo "❌ Protobuf installation verification failed"
+    echo "Please check the installation and try again"
     exit 1
 fi
 
