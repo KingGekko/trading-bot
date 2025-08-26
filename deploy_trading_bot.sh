@@ -96,6 +96,10 @@ setup_python_environment() {
     echo "🔄 Upgrading pip in virtual environment..."
     /opt/trading-bot-venv/bin/pip install --upgrade pip
     
+    # Configure pip to not use --user flag
+    echo "⚙️ Configuring pip settings..."
+    /opt/trading-bot-venv/bin/pip config set install.user false
+    
     # Set proper permissions for the virtual environment
     chmod -R 755 /opt/trading-bot-venv
     chown -R trading-bot-user:trading-bot-user /opt/trading-bot-venv 2>/dev/null || true
@@ -292,13 +296,22 @@ run_installation() {
         # Run the install script as the non-root user with virtual environment
         echo "🔧 Running installation as trading-bot-user..."
         
+        # Create a modified install script that removes --user flags
+        cp install.sh install.sh.modified
+        
+        # Remove --user flags from pip commands
+        sed -i 's/--user//g' install.sh.modified
+        
         # Set environment variables to force virtual environment usage
         export PIP_USER=no
         export PIP_REQUIRE_VIRTUALENV=true
         export VIRTUAL_ENV=/opt/trading-bot-venv
         
-        # Run the install script with proper environment
-        su - trading-bot-user -c "cd setup && source /opt/trading-bot-venv/bin/activate && export PIP_USER=no && export PIP_REQUIRE_VIRTUALENV=true && ./install.sh"
+        # Run the modified install script with proper environment
+        su - trading-bot-user -c "cd setup && source /opt/trading-bot-venv/bin/activate && export PIP_USER=no && export PIP_REQUIRE_VIRTUALENV=true && ./install.sh.modified"
+        
+        # Clean up modified script
+        rm install.sh.modified
         
         # Copy back any generated files
         if [ -d "/home/trading-bot-user/.cargo" ]; then
