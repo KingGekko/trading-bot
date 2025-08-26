@@ -53,11 +53,29 @@ fi
 
 # Check if project directory exists
 if [ ! -d "$PROJECT_PATH" ]; then
-    echo -e "${RED}❌ Trading bot directory not found!${NC}"
+    echo -e "${YELLOW}⚠️  Trading bot directory not found!${NC}"
     echo ""
-    echo "Please run the full installation first:"
-    echo "  curl -fsSL https://raw.githubusercontent.com/KingGekko/trading-bot/main/setup/install.sh -o install.sh && chmod +x install.sh && ./install.sh"
-    exit 1
+    echo "Creating trading bot directory and downloading source code..."
+    
+    # Create the directory
+    mkdir -p "$PROJECT_PATH"
+    
+    # Clone the repository
+    if [ "$PROJECT_PATH" = "." ]; then
+        # We're in the trading-bot root, so clone here
+        git clone https://github.com/KingGekko/trading-bot.git temp-clone
+        mv temp-clone/* .
+        mv temp-clone/.* . 2>/dev/null || true
+        rmdir temp-clone
+    else
+        # We're in setup directory, clone to parent
+        cd "$(dirname "$PROJECT_PATH")"
+        git clone https://github.com/KingGekko/trading-bot.git
+        cd - > /dev/null
+    fi
+    
+    echo -e "${GREEN}✅ Trading bot directory created and source code downloaded!${NC}"
+    echo ""
 fi
 
 # Check if Rust is available
