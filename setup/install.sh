@@ -120,12 +120,7 @@ if apt-cache show libssl3 &> /dev/null; then
     echo "Installing libssl3 (Ubuntu 22.04+)..."
     sudo apt install -y libssl3
 else
-    echo "libssl3 not available (older Ubuntu version), skipping..."
-fi
-
-# Try to install additional SSL packages for older versions
-if apt-cache show libssl1.1 &> /dev/null; then
-    echo "Installing libssl1.1 (Ubuntu 18.04-20.04)..."
+    echo "libssl3 not available (Ubuntu 20.04), installing libssl1.1 instead..."
     sudo apt install -y libssl1.1
 fi
 
