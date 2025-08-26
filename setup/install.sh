@@ -27,7 +27,7 @@ echo "  4. Install and configure Ollama AI"
 echo "  5. Download AI models (tinyllama + optional extras)"
 echo "  6. Test the complete installation"
 echo ""
-echo -e "${YELLOW}⏳ Estimated time: 5-15 minutes (depending on internet speed)${NC}"
+echo -e "${YELLOW}⏳ Estimated time: 10-20 minutes (depending on internet speed)${NC}"
 echo ""
 
 # Confirmation
@@ -68,10 +68,36 @@ fi
 
 echo -e "${BLUE}📋 Detected OS: $DISTRO_NAME${NC}"
 
-# Skip package manager updates and dependency installation
-echo "⏭️  Skipping package manager updates (not needed for basic installation)"
-echo "⏭️  Skipping dependency installation (will install as needed during build)"
-echo -e "${GREEN}✅ Dependencies step completed!${NC}"
+# Install essential build dependencies
+echo "📦 Installing essential build dependencies..."
+case $DISTRO in
+    "debian")
+        sudo apt install -y build-essential libssl-dev pkg-config curl unzip
+        ;;
+    "redhat")
+        if command -v dnf &> /dev/null; then
+            sudo dnf install -y gcc gcc-c++ openssl-devel pkg-config curl unzip
+        else
+            sudo yum install -y gcc gcc-c++ openssl-devel pkg-config curl unzip
+        fi
+        ;;
+    "alpine")
+        sudo apk add build-base openssl-dev pkgconfig curl unzip
+        ;;
+    *)
+        echo -e "${YELLOW}⚠️  Unknown distribution. Please install dependencies manually:${NC}"
+        echo "Required: gcc, openssl-dev, pkg-config, curl, unzip"
+        echo ""
+        echo "CentOS/RHEL: sudo yum install -y gcc gcc-c++ openssl-devel pkg-config curl unzip"
+        echo "Ubuntu/Debian: sudo apt install -y build-essential libssl-dev pkg-config curl unzip"
+        echo "Alpine: sudo apk add build-base openssl-dev pkgconfig curl unzip"
+        echo ""
+        echo "After installing dependencies, run this script again."
+        exit 1
+        ;;
+esac
+
+echo -e "${GREEN}✅ Dependencies installed successfully!${NC}"
 
 # ============================================================================
 # STEP 2: INSTALL RUST
