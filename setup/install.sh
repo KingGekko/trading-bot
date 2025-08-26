@@ -118,13 +118,13 @@ mkdir -p /tmp/openssl_install
 cd /tmp/openssl_install
 
 # Download OpenSSL source
-echo "Downloading OpenSSL 3.0.12 source..."
-curl -L -o openssl.tar.gz https://www.openssl.org/source/openssl-3.0.12.tar.gz
+echo "Downloading OpenSSL 3.4.4 source (latest stable version)..."
+curl -L -o openssl.tar.gz https://www.openssl.org/source/openssl-3.4.4.tar.gz
 
 # Extract
 echo "Extracting OpenSSL source..."
 tar -xzf openssl.tar.gz
-cd openssl-3.0.12
+cd openssl-3.4.4
 
 # Check if required tools exist
 echo "Checking build tools..."
@@ -160,7 +160,7 @@ echo "Creating working FindBin.pm module..."
 
 # Create a working FindBin.pm module directly in the OpenSSL source directory
 echo "Creating FindBin.pm in OpenSSL directory..."
-cat > /tmp/openssl_install/openssl-3.0.12/FindBin.pm << 'EOF'
+cat > /tmp/openssl_install/openssl-3.4.4/FindBin.pm << 'EOF'
 package FindBin;
 use strict;
 use warnings;
@@ -206,8 +206,8 @@ EOF
 
 # Create OpenSSL::fallback.pm module that OpenSSL also needs
 echo "Creating OpenSSL::fallback.pm module..."
-mkdir -p /tmp/openssl_install/openssl-3.0.12/OpenSSL
-cat > /tmp/openssl_install/openssl-3.0.12/OpenSSL/fallback.pm << 'EOF'
+mkdir -p /tmp/openssl_install/openssl-3.4.4/OpenSSL
+cat > /tmp/openssl_install/openssl-3.4.4/OpenSSL/fallback.pm << 'EOF'
 package OpenSSL::fallback;
 use strict;
 use warnings;
@@ -231,14 +231,14 @@ sub fallback {
 EOF
 
 # Check if the files were created successfully
-if [ -f "/tmp/openssl_install/openssl-3.0.12/FindBin.pm" ]; then
+if [ -f "/tmp/openssl_install/openssl-3.4.4/FindBin.pm" ]; then
     echo "FindBin.pm created successfully in OpenSSL directory"
 else
     echo "Error: Failed to create FindBin.pm"
     exit 1
 fi
 
-if [ -f "/tmp/openssl_install/openssl-3.0.12/OpenSSL/fallback.pm" ]; then
+if [ -f "/tmp/openssl_install/openssl-3.4.4/OpenSSL/fallback.pm" ]; then
     echo "OpenSSL::fallback.pm created successfully in OpenSSL directory"
 else
     echo "Error: Failed to create OpenSSL::fallback.pm"
@@ -246,7 +246,7 @@ else
 fi
 
 # Set environment variable to include OpenSSL source directory in Perl's @INC
-export PERL5LIB="/tmp/openssl_install/openssl-3.0.12:$PERL5LIB"
+export PERL5LIB="/tmp/openssl_install/openssl-3.4.4:$PERL5LIB"
 echo "Set PERL5LIB to include OpenSSL directory: $PERL5LIB"
 
 # Test if the modules work
