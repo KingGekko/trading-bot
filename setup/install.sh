@@ -83,7 +83,6 @@ sudo apt install -y \
     git \
     pkg-config \
     libssl-dev \
-    libssl3 \
     ca-certificates \
     software-properties-common \
     apt-transport-https \
@@ -107,13 +106,23 @@ sudo apt install -y \
     libtinfo-dev \
     libc6-dev \
     libgcc-s1 \
-    libstdc++6 \
-    libc6 \
-    libgcc-s1 \
-    libstdc++6 \
-    libc6 \
-    libgcc-s1 \
     libstdc++6
+
+# Try to install libssl3 (available in Ubuntu 22.04+)
+echo ""
+echo "Installing additional SSL packages..."
+if apt-cache show libssl3 &> /dev/null; then
+    echo "Installing libssl3 (Ubuntu 22.04+)..."
+    sudo apt install -y libssl3
+else
+    echo "libssl3 not available (older Ubuntu version), skipping..."
+fi
+
+# Try to install additional SSL packages for older versions
+if apt-cache show libssl1.1 &> /dev/null; then
+    echo "Installing libssl1.1 (Ubuntu 18.04-20.04)..."
+    sudo apt install -y libssl1.1
+fi
 
 echo ""
 echo "Installing additional development tools..."
