@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package trading_bot;
+
+import "google/protobuf/timestamp.proto";
+
+// Ollama receipt with comprehensive performance metrics
+message OllamaReceipt {
+  // Basic request information
+  string request_id = 1;
+  string request_type = 2;
+  string model_name = 3;
+  string model_version = 4;
+  
+  // Timing information
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+  uint64 duration_ms = 7;
+  uint64 duration_ns = 8;
+  
+  // Content metrics
+  uint32 prompt_length = 9;
+  uint32 response_length = 10;
+  uint32 tokens_generated = 11;
+  uint32 tokens_per_second = 12;
+  
+  // Performance metrics
+  float chars_per_second = 13;
+  float words_per_second = 14;
+  float response_quality_score = 15;
+  
+  // Model characteristics
+  ModelPerformance model_performance = 16;
+  ModelCapabilities model_capabilities = 17;
+  
+  // Request context
+  RequestContext request_context = 18;
+  
+  // Success/failure information
+  bool success = 19;
+  string error_message = 20;
+  string error_code = 21;
+  
+  // System information
+  SystemInfo system_info = 22;
+  
+  // Metadata
+  map<string, string> metadata = 23;
+}
+
+// Model performance characteristics
+message ModelPerformance {
+  string speed_category = 1;  // "ultra-fast", "fast", "moderate", "slow"
+  uint32 expected_response_time_ms = 2;
+  float speed_score = 3;  // 0.0 to 1.0
+  string performance_tier = 4;  // "basic", "good", "excellent", "best"
+}
+
+// Model capabilities
+message ModelCapabilities {
+  uint32 max_context_length = 1;
+  uint32 max_output_length = 2;
+  repeated string supported_tasks = 3;
+  bool supports_streaming = 4;
+  bool supports_function_calling = 5;
+  string model_family = 6;  // "llama", "phi", "gemma", "qwen", etc.
+}
+
+// Request context
+message RequestContext {
+  string user_id = 1;
+  string session_id = 2;
+  string prompt_category = 3;
+  string prompt_complexity = 4;  // "simple", "moderate", "complex"
+  repeated string prompt_keywords = 5;
+}
+
+// System information
+message SystemInfo {
+  string os_type = 1;
+  string os_version = 2;
+  string ollama_version = 3;
+  string trading_bot_version = 4;
+  uint64 available_memory_mb = 5;
+  uint32 cpu_cores = 6;
+  string gpu_type = 7;
+  float gpu_memory_gb = 8;
+}
+
+// Model comparison result
+message ModelComparison {
+  string comparison_id = 1;
+  google.protobuf.Timestamp comparison_time = 2;
+  repeated ModelTestResult test_results = 3;
+  ModelRecommendation recommendation = 4;
+}
+
+// Individual model test result
+message ModelTestResult {
+  string model_name = 1;
+  OllamaReceipt receipt = 2;
+  float performance_score = 3;
+  string ranking = 4;  // "1st", "2nd", "3rd", etc.
+}
+
+// Model recommendation based on testing
+message ModelRecommendation {
+  string best_overall_model = 1;
+  string best_speed_model = 2;
+  string best_quality_model = 3;
+  string best_balanced_model = 4;
+  repeated string recommended_models = 5;
+  string recommendation_reason = 6;
+}
+
+// Batch receipt log
+message ReceiptLog {
+  repeated OllamaReceipt receipts = 1;
+  google.protobuf.Timestamp log_created = 2;
+  string log_version = 3;
+  uint32 total_receipts = 4;
+  uint32 successful_requests = 5;
+  uint32 failed_requests = 6;
+} 

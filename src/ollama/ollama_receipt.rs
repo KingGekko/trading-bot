@@ -1,8 +1,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::fs::OpenOptions;
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::time::Instant;
+use std::path::Path;
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OllamaReceipt {
@@ -47,14 +51,95 @@ impl OllamaReceipt {
     }
 
     pub fn save_to_log(&self, log_directory: &str) -> Result<(), std::io::Error> {
-        // Ensure log directory exists
-        std::fs::create_dir_all(log_directory)?;
+        // Try multiple fallback locations for logging
+        let temp_dir = std::env::var("TEMP").unwrap_or_else(|_| "./temp".to_string());
+        let _tmpdir = std::env::var("TMPDIR").unwrap_or_else(|_| "/tmp".to_string());
         
+        let fallback_locations = [
+            log_directory,
+            "./logs",
+            "./ollama_logs",
+            #[cfg(unix)]
+            "/tmp/ollama_logs",
+            #[cfg(windows)]
+            "./temp/ollama_logs",
+            #[cfg(windows)]
+            temp_dir.as_str(),
+            #[cfg(unix)]
+            _tmpdir.as_str(),
+        ];
+
+        for location in &fallback_locations {
+            match self.try_save_to_location(location) {
+                Ok(_) => {
+                    log::info!("Receipt saved to: {}", location);
+                    return Ok(());
+                }
+                Err(e) => {
+                    log::warn!("Failed to save to {}: {}", location, e);
+                    continue;
+                }
+            }
+        }
+
+        // If all locations fail, log to stderr as last resort
+        log::error!("All log locations failed, logging to stderr");
+        eprintln!("RECEIPT_LOG: {}", serde_json::to_string_pretty(self).unwrap_or_default());
+        
+        Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "Failed to save receipt to any log location"
+        ))
+    }
+
+    fn try_save_to_location(&self, location: &str) -> Result<(), std::io::Error> {
+        // Ensure directory exists with proper permissions
+        let path = Path::new(location);
+        if !path.exists() {
+            fs::create_dir_all(path)?;
+            
+            // Set directory permissions to 755 (rwxr-xr-x) if on Unix
+            #[cfg(unix)]
+            {
+                if let Ok(metadata) = fs::metadata(path) {
+                    let mut perms = metadata.permissions();
+                    perms.set_mode(0o755);
+                    fs::set_permissions(path, perms).ok();
+                }
+            }
+        }
+
+        // Check if directory is writable
+        if !path.is_dir() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Path is not a directory"
+            ));
+        }
+
         let log_file = if self.success {
-            format!("{}/success_receipts.jsonl", log_directory)
+            path.join("success_receipts.jsonl")
         } else {
-            format!("{}/failure_receipts.jsonl", log_directory)
+            path.join("failure_receipts.jsonl")
         };
+
+        // Create file with proper permissions if it doesn't exist
+        if !log_file.exists() {
+            let _file = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(&log_file)?;
+            
+            // Set file permissions to 644 (rw-r--r--) if on Unix
+            #[cfg(unix)]
+            {
+                if let Ok(metadata) = _file.metadata() {
+                    let mut perms = metadata.permissions();
+                    perms.set_mode(0o644);
+                    _file.set_permissions(perms).ok();
+                }
+            }
+        }
 
         let mut file = OpenOptions::new()
             .create(true)
@@ -66,11 +151,19 @@ impl OllamaReceipt {
         let json_pretty = serde_json::to_string_pretty(self)?;
         writeln!(file, "{}", json_pretty)?;
         
+        // Ensure data is flushed to disk
+        file.flush()?;
+        
         Ok(())
     }
 
     pub fn load_receipts_from_file(file_path: &str) -> Result<Vec<OllamaReceipt>, Box<dyn std::error::Error>> {
         use std::fs;
+
+        // Check if file exists
+        if !Path::new(file_path).exists() {
+            return Ok(Vec::new());
+        }
 
         let content = fs::read_to_string(file_path)?;
         if content.trim().is_empty() {
@@ -170,9 +263,13 @@ impl OllamaReceipt {
             error_info
         );
 
-        // Save to log file
-        if let Err(e) = self.save_to_log(log_directory) {
-            log::error!("Failed to save receipt to log file: {}", e);
+        // Save to log file with better error handling
+        match self.save_to_log(log_directory) {
+            Ok(_) => log::debug!("Receipt saved successfully"),
+            Err(e) => {
+                log::error!("Failed to save receipt to log file: {}", e);
+                // Don't fail the entire operation, just log the error
+            }
         }
     }
 

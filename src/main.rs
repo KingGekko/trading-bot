@@ -2,10 +2,71 @@ use anyhow::Result;
 use clap::{Arg, Command};
 use dotenv::dotenv;
 use std::io::{self, Write};
+use std::fs;
+use std::path::Path;
 
 mod ollama;
 
-use ollama::{OllamaClient, Config, OllamaReceipt};
+use ollama::{OllamaClient, Config, OllamaReceipt, ProtobufReceipt};
+
+/// Ensure log directory exists with proper permissions
+fn ensure_log_directory(log_directory: &str) -> Result<()> {
+    let path = Path::new(log_directory);
+    
+    // Create directory if it doesn't exist
+    if !path.exists() {
+        fs::create_dir_all(path)?;
+        log::info!("Created log directory: {}", log_directory);
+    }
+    
+    // Ensure directory is writable
+    if !path.is_dir() {
+        return Err(anyhow::anyhow!("Log path is not a directory: {}", log_directory));
+    }
+    
+    // Check if directory is writable by trying to create a test file
+    let test_file = path.join(".test_write");
+    if let Err(e) = fs::write(&test_file, "test") {
+        log::warn!("Log directory not writable: {} ({}). Trying fallback locations...", log_directory, e);
+        
+        // Try fallback locations
+        let temp_dir = std::env::var("TEMP").unwrap_or_else(|_| "./temp".to_string());
+        let fallback_locations = [
+            "./logs", 
+            "./ollama_logs", 
+            #[cfg(unix)]
+            "/tmp/ollama_logs",
+            #[cfg(windows)]
+            "./temp/ollama_logs",
+            #[cfg(windows)]
+            temp_dir.as_str(),
+        ];
+        for fallback in &fallback_locations {
+            let fallback_path = Path::new(fallback);
+            if !fallback_path.exists() {
+                if let Ok(_) = fs::create_dir_all(fallback_path) {
+                    log::info!("Using fallback log directory: {}", fallback);
+                    return Ok(());
+                }
+            } else if fallback_path.is_dir() {
+                let test_fallback = fallback_path.join(".test_write");
+                if fs::write(&test_fallback, "test").is_ok() {
+                    fs::remove_file(test_fallback).ok();
+                    log::info!("Using fallback log directory: {}", fallback);
+                    return Ok(());
+                }
+            }
+        }
+        
+        log::warn!("All log directories failed. Logging will be limited.");
+    } else {
+        // Clean up test file
+        fs::remove_file(test_file).ok();
+        log::info!("Log directory is writable: {}", log_directory);
+    }
+    
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -53,12 +114,51 @@ async fn main() -> Result<()> {
                 .long("stream")
                 .value_name("PROMPT")
                 .help("Send a prompt with real-time streaming response"),
+        )
+        .arg(
+            Arg::new("model")
+                .short('m')
+                .long("model")
+                .value_name("MODEL_NAME")
+                .help("Override auto-detection and use specific Ollama model"),
+        )
+        .arg(
+            Arg::new("benchmark")
+                .short('b')
+                .long("benchmark")
+                .value_name("PROMPT")
+                .help("Benchmark multiple models with the same prompt and save results to protobuf"),
         );
 
     let matches = app.get_matches();
 
     // Load configuration
-    let config = Config::from_env()?;
+    let mut config = Config::from_env()?;
+    
+    // Auto-detect Ollama model if set to "auto"
+    if let Err(e) = config.auto_detect_model().await {
+        log::warn!("Failed to auto-detect model: {}. Using configured model: {}", e, config.ollama_model);
+    }
+    
+    // Check if user wants to override the model
+    if let Some(model_override) = matches.get_one::<String>("model") {
+        log::info!("🔄 Overriding auto-detected model with: {}", model_override);
+        config.ollama_model = model_override.clone();
+    }
+    
+    // Display detected model information
+    println!("🤖 Trading Bot - AI Model Detected");
+    println!("{}", "=".repeat(50));
+    println!("Model: {}", config.ollama_model);
+    println!("Performance: {}", config.get_model_info());
+    println!("Base URL: {}", config.ollama_base_url);
+    println!("{}", "=".repeat(50));
+    println!();
+    
+    // Ensure log directory is properly set up
+    if let Err(e) = ensure_log_directory(&config.log_directory) {
+        log::warn!("Failed to set up log directory: {}. Continuing with limited logging.", e);
+    }
     
     // Initialize Ollama client with configurable timeout
     let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
@@ -119,7 +219,7 @@ async fn main() -> Result<()> {
         
         println!("🌊 STREAMING MODE");
         println!("Prompt: {}", sanitized_prompt);
-        println!("Model: {}", config.ollama_model);
+        println!("Model: {} ({})", config.ollama_model, config.get_model_info());
         println!("{}",  "=".repeat(50));
         
         match ollama_client.generate_stream_with_timing(&config.ollama_model, &sanitized_prompt).await {
@@ -152,6 +252,138 @@ async fn main() -> Result<()> {
             }
         }
         
+    } else if let Some(prompt) = matches.get_one::<String>("benchmark") {
+        // Benchmark mode - test multiple models with the same prompt
+        println!("🏁 MODEL BENCHMARK MODE");
+        println!("Prompt: {}", prompt);
+        println!("{}", "=".repeat(50));
+        
+        // Sanitize input for security
+        let sanitized_prompt = match config.sanitize_input(prompt) {
+            Ok(sanitized) => sanitized,
+            Err(e) => {
+                eprintln!("Input validation error: {}", e);
+                return Ok(());
+            }
+        };
+        
+        // Get available models for benchmarking
+        let models_to_test = vec![
+            "phi",
+            "qwen2.5:0.5b", 
+            "gemma2:2b",
+            "tinyllama",
+            "llama2:7b",
+            "llama2:13b"
+        ];
+        
+        println!("🔍 Testing {} models with prompt: '{}'", models_to_test.len(), sanitized_prompt);
+        println!("📊 Results will be saved to protobuf format for analysis");
+        println!();
+        
+        let mut benchmark_results = Vec::new();
+        let mut protobuf_receipts = Vec::new();
+        
+        for (i, model_name) in models_to_test.iter().enumerate() {
+            println!("🧪 Testing model {}/{}: {}", i + 1, models_to_test.len(), model_name);
+            
+            // Create protobuf receipt for this test
+            let mut protobuf_receipt = ProtobufReceipt::new(
+                "BenchmarkTest".to_string(),
+                model_name.to_string(),
+                sanitized_prompt.len(),
+                &sanitized_prompt,
+            );
+            
+            // Test the model
+            let start_time = std::time::Instant::now();
+            match ollama_client.generate_stream_with_timing(model_name, &sanitized_prompt).await {
+                Ok((chunks, _receipt)) => {
+                    let duration = start_time.elapsed();
+                    let response_text = chunks.join("");
+                    
+                    // Finish the protobuf receipt
+                    protobuf_receipt.finish(
+                        response_text.len(),
+                        true,
+                        None,
+                        &response_text,
+                    );
+                    
+                    // Display results
+                    println!("  ✅ Success: {} chars in {:.2}s ({:.1} chars/sec)", 
+                             response_text.len(), 
+                             duration.as_secs_f32(),
+                             response_text.len() as f32 / duration.as_secs_f32());
+                    
+                    // Add to results
+                    benchmark_results.push((model_name.to_string(), duration, response_text.len()));
+                    protobuf_receipts.push(protobuf_receipt);
+                }
+                Err(e) => {
+                    println!("  ❌ Failed: {}", e);
+                    
+                    // Finish the protobuf receipt with error
+                    protobuf_receipt.finish(
+                        0,
+                        false,
+                        Some(e.to_string()),
+                        "",
+                    );
+                    
+                    protobuf_receipts.push(protobuf_receipt);
+                }
+            }
+            
+            // Small delay between tests
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        }
+        
+        // Display benchmark summary
+        println!();
+        println!("🏆 BENCHMARK RESULTS");
+        println!("{}", "=".repeat(50));
+        
+        // Sort by speed (fastest first)
+        benchmark_results.sort_by(|a, b| a.1.cmp(&b.1));
+        
+        for (i, (model, duration, chars)) in benchmark_results.iter().enumerate() {
+            let speed = *chars as f32 / duration.as_secs_f32();
+            let rank = match i {
+                0 => "🥇 1st".to_string(),
+                1 => "🥈 2nd".to_string(), 
+                2 => "🥉 3rd".to_string(),
+                _ => format!("   {}th", i + 1),
+            };
+            
+            println!("{} {}: {} chars in {:.2}s ({:.1} chars/sec)", 
+                     rank, model, chars, duration.as_secs_f32(), speed);
+        }
+        
+        // Save results to protobuf files
+        let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+        let individual_file = format!("{}/benchmark_{}_individual.pb", config.log_directory, timestamp);
+        let batch_file = format!("{}/benchmark_{}_batch.pb", config.log_directory, timestamp);
+        
+        // Save individual receipts
+        for receipt in &protobuf_receipts {
+            if let Err(e) = receipt.save_to_protobuf_file(&individual_file) {
+                log::warn!("Failed to save individual receipt: {}", e);
+            }
+        }
+        
+        // Save batch log
+        if let Err(e) = protobuf_receipts.first().unwrap().save_batch_log(&protobuf_receipts, &batch_file) {
+            log::warn!("Failed to save batch log: {}", e);
+        }
+        
+        println!();
+        println!("💾 Results saved to:");
+        println!("   Individual: {}", individual_file);
+        println!("   Batch: {}", batch_file);
+        println!("");
+        println!("📊 Use protobuf tools to analyze the detailed performance data!");
+        
     } else if let Some(prompt) = matches.get_one::<String>("test") {
         // Test mode with detailed timing
         println!("🧪 PERFORMANCE TEST MODE");
@@ -166,7 +398,7 @@ async fn main() -> Result<()> {
         };
         
         println!("Testing prompt: {}", sanitized_prompt);
-        println!("Model: {}", config.ollama_model);
+        println!("Model: {} ({})", config.ollama_model, config.get_model_info());
         println!("{}",  "=".repeat(50));
         
         match ollama_client.generate_stream_with_timing(&config.ollama_model, &sanitized_prompt).await {
@@ -227,12 +459,13 @@ async fn main() -> Result<()> {
         }
     } else if matches.get_flag("interactive") {
         // Interactive mode
-        println!("Trading Bot Interactive Mode (Streaming Enabled)");
+        println!("🤖 Trading Bot Interactive Mode (Streaming Enabled)");
+        println!("Detected Model: {} ({})", config.ollama_model, config.get_model_info());
         println!("Commands:");
         println!("  Type a message for streaming response (default)");
         println!("  Type '/regular <message>' for non-streaming response");
         println!("  Type 'quit' or 'exit' to stop");
-        println!("Using model: {}", config.ollama_model);
+        println!("{}", "=".repeat(50));
         println!();
 
         loop {
@@ -324,9 +557,12 @@ async fn main() -> Result<()> {
         println!("  -p, --prompt \"text\"   Single prompt with streaming response (default)");
         println!("  -s, --stream \"text\"   Real-time streaming response mode (same as -p)");
         println!("  -t, --test \"text\"     Performance test with streaming and detailed timing");
+        println!("  -b, --benchmark \"text\" Benchmark multiple models and save to protobuf");
         println!("  -l, --logs            View receipt logs summary");
+        println!("  -m, --model \"name\"    Override auto-detection with specific model");
         println!();
         println!("💡 Streaming is now the default for all modes for enhanced responsiveness!");
+        println!("🤖 Model auto-detection is enabled by default for optimal performance!");
         println!();
         println!("⚡ Performance Tips:");
         println!("   • For fastest responses (3-5s), try models: phi, qwen2.5:0.5b, gemma2:2b");

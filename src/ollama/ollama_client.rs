@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use tokio_stream::StreamExt;
+use futures_util::StreamExt;
 use crate::ollama::ollama_receipt::OllamaReceipt;
 
 #[derive(Debug, Serialize)]
@@ -194,7 +194,7 @@ impl OllamaClient {
             match chunk_result {
                 Ok(chunk) => {
                     // Convert bytes to string and add to buffer
-                    if let Ok(chunk_str) = std::str::from_utf8(&chunk) {
+                    if let Ok(chunk_str) = std::str::from_utf8(&chunk.as_ref()) {
                         buffer.push_str(chunk_str);
                         
                         // Process complete lines (JSON objects)

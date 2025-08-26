@@ -26,8 +26,9 @@ impl Config {
         let ollama_base_url = env::var("OLLAMA_BASE_URL")
             .map_err(|_| anyhow!("OLLAMA_BASE_URL environment variable is required"))?;
 
+        // Model selection - try to auto-detect, fallback to config, then default
         let ollama_model = env::var("OLLAMA_MODEL")
-            .map_err(|_| anyhow!("OLLAMA_MODEL environment variable is required"))?;
+            .unwrap_or_else(|_| "auto".to_string());
 
         // Optional environment variables with secure defaults
         let bot_name = env::var("BOT_NAME")
@@ -70,6 +71,98 @@ impl Config {
         })
     }
 
+    /// Automatically detect and select the best available Ollama model
+    pub async fn auto_detect_model(&mut self) -> Result<()> {
+        // If model is not set to auto, keep the current value
+        if self.ollama_model != "auto" {
+            return Ok(());
+        }
+
+        log::info!("🔍 Auto-detecting best available Ollama model...");
+        
+        // Create a temporary client to check available models
+        let client = reqwest::Client::new();
+        let url = format!("{}/api/tags", self.ollama_base_url);
+        
+        match client.get(&url).send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    match response.json::<serde_json::Value>().await {
+                        Ok(json) => {
+                            if let Some(models) = json.get("models").and_then(|m| m.as_array()) {
+                                let available_models: Vec<String> = models
+                                    .iter()
+                                    .filter_map(|m| m.get("name").and_then(|n| n.as_str()))
+                                    .map(|s| s.to_string())
+                                    .collect();
+
+                                if !available_models.is_empty() {
+                                    let best_model = self.select_best_model(&available_models);
+                                    log::info!("✅ Auto-selected model: {} (from {} available models)", 
+                                              best_model, available_models.len());
+                                    self.ollama_model = best_model;
+                                    return Ok(());
+                                }
+                            }
+                        }
+                        Err(e) => log::warn!("Failed to parse models response: {}", e),
+                    }
+                }
+            }
+            Err(e) => log::warn!("Failed to fetch models from Ollama: {}", e),
+        }
+
+        // Fallback to default model if auto-detection fails
+        log::warn!("⚠️  Auto-detection failed, using fallback model: tinyllama");
+        self.ollama_model = "tinyllama".to_string();
+        Ok(())
+    }
+
+    /// Select the best model from available models based on performance characteristics
+    fn select_best_model(&self, available_models: &[String]) -> String {
+        // Priority order for model selection (fastest to slowest)
+        let model_priorities = [
+            // Ultra-fast models (3-5 seconds)
+            ("phi", 100),
+            ("qwen2.5:0.5b", 95),
+            ("gemma2:2b", 90),
+            ("tinyllama", 85),
+            ("llama2:7b", 80),
+            ("llama2:13b", 75),
+            ("llama2:70b", 70),
+            // Add more models as needed
+        ];
+
+        // Find the highest priority available model
+        for (model_name, _priority) in model_priorities.iter() {
+            if available_models.iter().any(|m| m.contains(model_name)) {
+                // Return the full model name as it appears in the list
+                return available_models
+                    .iter()
+                    .find(|m| m.contains(model_name))
+                    .unwrap()
+                    .clone();
+            }
+        }
+
+        // If no priority model found, return the first available model
+        available_models.first().unwrap_or(&"tinyllama".to_string()).clone()
+    }
+
+    /// Get model information and performance characteristics
+    pub fn get_model_info(&self) -> String {
+        match self.ollama_model.as_str() {
+            model if model.contains("phi") => "Ultra-fast (3-5s) - Basic analysis".to_string(),
+            model if model.contains("qwen2.5:0.5b") => "Very fast (5-8s) - Good analysis".to_string(),
+            model if model.contains("gemma2:2b") => "Fast (6-10s) - Balanced performance".to_string(),
+            model if model.contains("tinyllama") => "Fast (8-12s) - Good analysis".to_string(),
+            model if model.contains("llama2:7b") => "Moderate (10-20s) - High quality".to_string(),
+            model if model.contains("llama2:13b") => "Slower (15-30s) - Excellent quality".to_string(),
+            model if model.contains("llama2:70b") => "Slow (30-60s) - Best quality".to_string(),
+            _ => "Unknown performance characteristics".to_string(),
+        }
+    }
+
     fn validate_config(
         ollama_base_url: &str,
         ollama_model: &str,
@@ -93,11 +186,11 @@ impl Config {
         }
 
         // Validate model name (prevent injection attacks)
-        if ollama_model.is_empty() || ollama_model.len() > 100 {
-            return Err(anyhow!("OLLAMA_MODEL must be 1-100 characters"));
+        if ollama_model != "auto" && (ollama_model.is_empty() || ollama_model.len() > 100) {
+            return Err(anyhow!("OLLAMA_MODEL must be 1-100 characters or 'auto'"));
         }
 
-        if !ollama_model.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.' || c == ':') {
+        if ollama_model != "auto" && !ollama_model.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.' || c == ':') {
             return Err(anyhow!("OLLAMA_MODEL contains invalid characters"));
         }
 
@@ -130,7 +223,7 @@ impl Config {
     pub fn display(&self) {
         println!("Configuration:");
         println!("  Ollama Base URL: {}", self.ollama_base_url);
-        println!("  Ollama Model: {}", self.ollama_model);
+        println!("  Ollama Model: {} ({})", self.ollama_model, self.get_model_info());
         println!("  Bot Name: {}", self.bot_name);
         println!("  Log Level: {}", self.log_level);
         println!("  Max Timeout: {} seconds", self.max_timeout_seconds);

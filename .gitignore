@@ -33,3 +33,13 @@ Cargo.lock
 # Temporary files
 *.tmp
 *.temp
+*.cache
+
+# Build scripts (keep only the main setup directory)
+setup_linux.sh
+build-linux.sh
+
+# Backup files
+*_backup.*
+*.bak
+*.old

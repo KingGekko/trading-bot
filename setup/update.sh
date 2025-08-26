@@ -87,6 +87,48 @@ if [ ! -d "$PROJECT_PATH" ]; then
     echo ""
 fi
 
+# Ensure required directories and files exist
+echo "Ensuring required directories and files exist..."
+if [ "$PROJECT_PATH" = "." ]; then
+    # We're in trading-bot root
+    mkdir -p ollama_logs
+    chmod 755 ollama_logs
+    
+    # Create default config.env if it doesn't exist
+    if [ ! -f "config.env" ]; then
+        echo "Creating default config.env..."
+        cat > config.env << 'EOF'
+# Trading Bot Configuration
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=tinyllama
+LOG_LEVEL=info
+LOG_DIRECTORY=ollama_logs
+EOF
+        chmod 644 config.env
+    fi
+else
+    # We're in setup directory
+    cd "$PROJECT_PATH"
+    mkdir -p ollama_logs
+    chmod 755 ollama_logs
+    
+    # Create default config.env if it doesn't exist
+    if [ ! -f "config.env" ]; then
+        echo "Creating default config.env..."
+        cat > config.env << 'EOF'
+# Trading Bot Configuration
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=tinyllama
+LOG_LEVEL=info
+LOG_DIRECTORY=ollama_logs
+EOF
+        chmod 644 config.env
+    fi
+    cd - > /dev/null
+fi
+
+echo -e "${GREEN}✅ Required directories and files created!${NC}"
+
 # Check if Rust is available
 if ! command -v cargo &> /dev/null; then
     echo -e "${YELLOW}⚠️  Rust is not available!${NC}"
