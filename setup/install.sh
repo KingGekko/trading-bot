@@ -151,10 +151,22 @@ sudo apt install -y \
     gdb \
     valgrind \
     strace \
-    ltrace \
-    perf \
-    linux-tools-common \
-    linux-tools-generic
+    ltrace
+
+# Try to install perf (available in Ubuntu 20.04+ but may need specific repository)
+echo ""
+echo "Installing performance analysis tools..."
+if apt-cache show perf &> /dev/null; then
+    echo "Installing perf..."
+    sudo apt install -y perf
+else
+    echo "perf not available in main repository, trying linux-tools..."
+    if apt-cache show linux-tools-common &> /dev/null; then
+        sudo apt install -y linux-tools-common linux-tools-generic
+    else
+        echo "Linux tools not available, skipping perf installation..."
+    fi
+fi
 
 echo ""
 echo "Installing Python and pip (for some build tools)..."
