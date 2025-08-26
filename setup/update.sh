@@ -89,12 +89,44 @@ fi
 
 # Check if Rust is available
 if ! command -v cargo &> /dev/null; then
-    echo -e "${RED}❌ Rust is not available!${NC}"
+    echo -e "${YELLOW}⚠️  Rust is not available!${NC}"
     echo ""
-    echo "Please run the full installation first:"
-    echo "  curl -fsSL https://raw.githubusercontent.com/KingGekko/trading-bot/main/setup/install.sh -o install.sh && chmod +x install.sh && ./install.sh"
-    exit 1
+    echo "Installing Rust programming language..."
+    
+    # Download and run rustup installer
+    if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; then
+        echo "Rust installed successfully!"
+        
+        # Source Rust environment
+        source ~/.cargo/env
+        
+        # Add Rust to PATH permanently
+        if ! grep -q 'source ~/.cargo/env' ~/.bashrc; then
+            echo 'source ~/.cargo/env' >> ~/.bashrc
+        fi
+        
+        if ! grep -q 'source ~/.cargo/env' ~/.profile; then
+            echo 'source ~/.cargo/env' >> ~/.profile
+        fi
+        
+        # Verify installation
+        if command -v rustc &> /dev/null; then
+            echo "Rust verified: $(rustc --version)"
+        else
+            echo "Error: Rust installation verification failed"
+            exit 1
+        fi
+    else
+        echo "Error: Failed to install Rust"
+        echo ""
+        echo "Please run the full installation first:"
+        echo "  sudo ./install.sh"
+        exit 1
+    fi
 fi
+
+# Ensure Rust is available in current session
+source ~/.cargo/env
 
 # Check if Ollama is available
 if ! command -v ollama &> /dev/null; then
