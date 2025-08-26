@@ -31,22 +31,6 @@ echo ""
 echo -e "${YELLOW}⏳ Estimated time: 10-20 minutes (depending on internet speed)${NC}"
 echo ""
 
-# Check if Git is available
-if ! command -v git &> /dev/null; then
-    echo -e "${RED}❌ Git is required but not installed!${NC}"
-    echo ""
-    echo "Please install Git first:"
-    echo "  Ubuntu/Debian: sudo apt update && sudo apt install -y git"
-    echo "  CentOS/RHEL:   sudo yum install -y git"
-    echo "  Fedora:        sudo dnf install -y git"
-    echo "  Alpine:        sudo apk add git"
-    echo ""
-    echo "After installing Git, run this script again."
-    exit 1
-fi
-
-echo -e "${GREEN}✅ Git is available: $(git --version)${NC}"
-
 # Confirmation
 echo ""
 echo -e "${BLUE}🎯 Continue with complete setup? (y/n)${NC}"
@@ -117,8 +101,7 @@ case $DISTRO in
             build-essential \
             pkg-config \
             libssl-dev \
-            ca-certificates \
-            git
+            ca-certificates
         ;;
     "redhat")
         if command -v dnf &> /dev/null; then
@@ -128,8 +111,7 @@ case $DISTRO in
                 gcc-c++ \
                 openssl-devel \
                 pkg-config \
-                ca-certificates \
-                git
+                ca-certificates
         else
             sudo yum install -y \
                 curl \
@@ -137,8 +119,7 @@ case $DISTRO in
                 gcc-c++ \
                 openssl-devel \
                 pkg-config \
-                ca-certificates \
-                git
+                ca-certificates
         fi
         ;;
     "alpine")
@@ -147,8 +128,7 @@ case $DISTRO in
             build-base \
             openssl-dev \
             pkgconfig \
-            ca-certificates \
-            git
+            ca-certificates
         ;;
 esac
 

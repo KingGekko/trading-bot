@@ -2,94 +2,14 @@
 
 This folder contains the complete installation script for the Rust trading bot.
 
-## 🚨 Pre-Setup: No Git Required!
+## 🚀 Quick Start (No Git Required!)
 
-**If you're on a fresh machine without Git, use these methods:**
+**Install directly via curl on any Linux distribution:**
 
-### **Option 1: Direct Script Download (Universal - Recommended)**
 ```bash
-# Download and run in one command (no Git needed, works on any Linux)
+# Download and run in one command
 curl -fsSL https://raw.githubusercontent.com/KingGekko/trading-bot/main/setup/install.sh -o install.sh && chmod +x install.sh && ./install.sh
 ```
-
-### **Option 2: Download Source Archive (Universal)**
-```bash
-# Download source code directly
-curl -L -o trading-bot.zip https://github.com/KingGekko/trading-bot/archive/refs/heads/main.zip
-
-# Install unzip and extract (choose your package manager)
-# For yum/dnf (CentOS/RHEL/Fedora):
-sudo yum install -y unzip
-# OR for dnf (Fedora):
-sudo dnf install -y unzip
-# OR for apk (Alpine):
-sudo apk add unzip
-# OR for zypper (openSUSE):
-sudo zypper install unzip
-
-# Extract and run
-unzip trading-bot.zip
-mv trading-bot-main trading-bot
-cd trading-bot/setup
-chmod +x install.sh
-./install.sh
-```
-
-### **Option 3: Install Git First (Distribution-Specific)**
-```bash
-# Choose your package manager:
-
-# For yum (CentOS/RHEL):
-sudo yum update -y && sudo yum install -y git
-
-# For dnf (Fedora):
-sudo dnf update -y && sudo dnf install -y git
-
-# For apk (Alpine):
-sudo apk update && sudo apk add git
-
-# For zypper (openSUSE):
-sudo zypper refresh && sudo zypper install git
-
-# For apt (Ubuntu/Debian):
-sudo apt update && sudo apt install -y git
-
-# Then clone and run
-git clone https://github.com/KingGekko/trading-bot.git
-cd trading-bot/setup
-chmod +x install.sh
-./install.sh
-```
-
-### **Option 4: Manual Git Installation (If package managers fail)**
-```bash
-# Download and install Git manually
-cd /tmp
-curl -L -o git.tar.gz https://github.com/git/git/archive/refs/tags/v2.43.0.tar.gz
-tar -xzf git.tar.gz
-cd git-2.43.0
-make prefix=/usr/local all
-sudo make prefix=/usr/local install
-
-# Then clone and run
-git clone https://github.com/KingGekko/trading-bot.git
-cd trading-bot/setup
-chmod +x install.sh
-./install.sh
-```
-
-## 🚀 Quick Start
-
-**Prerequisites: Git must be installed on your system**
-
-For a complete automated installation, run:
-
-```bash
-chmod +x install.sh
-./install.sh
-```
-
-This single script will install everything needed and test the installation.
 
 ## 📋 What Gets Installed
 
@@ -112,6 +32,7 @@ This single script will install everything needed and test the installation.
 - ✅ Ubuntu/Debian (apt)
 - ✅ CentOS/RHEL/Fedora (yum/dnf)
 - ✅ Alpine Linux (apk)
+- ✅ openSUSE (zypper)
 - ⚠️ Other distributions (manual dependency installation required)
 
 ## 🎯 After Installation
@@ -163,34 +84,6 @@ ollama rm llama2
 ## 🚨 Troubleshooting
 
 ### Common Issues:
-
-**Git not found:**
-```bash
-# Choose your package manager:
-
-# Ubuntu/Debian (apt)
-sudo apt update && sudo apt install -y git
-
-# CentOS/RHEL (yum)
-sudo yum install -y git
-
-# Fedora (dnf)
-sudo dnf install -y git
-
-# Alpine (apk)
-sudo apk add git
-
-# openSUSE (zypper)
-sudo zypper install git
-
-# Manual installation (if package managers fail)
-cd /tmp
-curl -L -o git.tar.gz https://github.com/git/git/archive/refs/tags/v2.43.0.tar.gz
-tar -xzf git.tar.gz
-cd git-2.43.0
-make prefix=/usr/local all
-sudo make prefix=/usr/local install
-```
 
 **Rust not found after installation:**
 ```bash
