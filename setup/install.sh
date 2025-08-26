@@ -51,192 +51,129 @@ echo -e "${PURPLE}=================================="
 echo -e "📦 STEP 1/6: Installing dependencies"
 echo -e "==================================${NC}"
 
-# Detect Linux distribution
-if [ -f /etc/debian_version ]; then
-    DISTRO="debian"
-    DISTRO_NAME="Ubuntu/Debian"
-elif [ -f /etc/redhat-release ]; then
-    DISTRO="redhat"
-    DISTRO_NAME="CentOS/RHEL/Fedora"
-elif [ -f /etc/alpine-release ]; then
-    DISTRO="alpine"
-    DISTRO_NAME="Alpine Linux"
+# Detect OS and install essential dependencies
+echo "📋 Detecting operating system..."
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DISTRO=$(echo "$ID" | tr '[:upper:]' '[:lower:]')
+    echo "📋 Detected OS: $PRETTY_NAME"
 else
-    DISTRO="unknown"
-    DISTRO_NAME="Unknown"
+    echo "📋 Could not detect OS, assuming generic Linux"
+    DISTRO="generic"
 fi
 
-echo -e "${BLUE}📋 Detected OS: $DISTRO_NAME${NC}"
-
-# Install lightweight package manager if needed
-echo "📦 Installing lightweight package manager..."
-case $DISTRO in
-    "redhat")
-        if ! command -v yum &> /dev/null && ! command -v dnf &> /dev/null; then
-            echo "📥 Installing microdnf (lightweight package manager)..."
-            curl -L -o microdnf.rpm https://dl.fedoraproject.org/pub/fedora/linux/releases/38/Everything/x86_64/os/Packages/m/microdnf-3.8.0-1.fc38.x86_64.rpm
-            sudo rpm -i microdnf.rpm
-            rm microdnf.rpm
-            echo "✅ microdnf installed successfully"
-        else
-            echo "✅ Package manager already available: $(command -v yum || command -v dnf)"
-        fi
-        ;;
-    "debian")
-        if ! command -v apt &> /dev/null; then
-            echo "📥 Installing apt (package manager)..."
-            # For minimal systems, install basic apt
-            curl -L -o apt.deb http://archive.ubuntu.com/ubuntu/pool/main/a/apt/apt_2.4.9_amd64.deb
-            sudo dpkg -i apt.deb
-            rm apt.deb
-            echo "✅ apt installed successfully"
-        else
-            echo "✅ Package manager already available: apt"
-        fi
-        ;;
-    "alpine")
-        if ! command -v apk &> /dev/null; then
-            echo "📥 Installing apk (package manager)..."
-            # Alpine usually comes with apk, but if missing, download it
-            curl -L -o apk.static https://github.com/alpinelinux/apk-tools/releases/download/v2.12.11-r1/apk-tools-2.12.11-x86_64-linux.tar.gz
-            tar -xzf apk.static
-            sudo mv apk /usr/local/bin/
-            rm apk.static
-            echo "✅ apk installed successfully"
-        else
-            echo "✅ Package manager already available: apk"
-        fi
-        ;;
-    *)
-        echo -e "${YELLOW}⚠️  Unknown distribution. Will try to install basic tools manually.${NC}"
-        ;;
-esac
-
-echo -e "${GREEN}✅ Package manager installation completed!${NC}"
-
-# Now install OpenSSL development packages using the available package manager
-echo "📦 Installing OpenSSL development packages (required for build)..."
+echo "📦 Checking for essential build tools..."
+echo "Note: This script will use existing system tools without package managers"
 echo ""
-echo "🎯 Choose installation method:"
-echo "1. Use package manager (yum/dnf) - may be slow"
-echo "2. Download OpenSSL directly - faster, more reliable"
-echo ""
-echo -e "${BLUE}Which method? (1 or 2)${NC}"
-read -r method_choice
 
-case $method_choice in
-    "1")
-        echo "📦 Using package manager installation..."
-        case $DISTRO in
-            "debian")
-                echo "Running: sudo apt install -y libssl-dev pkg-config"
-                sudo apt install -y libssl-dev pkg-config
-                ;;
-            "redhat")
-                if command -v dnf &> /dev/null; then
-                    echo "Running: sudo dnf install -y openssl-devel pkg-config"
-                    echo "This may take a few minutes. You can monitor progress in another terminal with:"
-                    echo "   ps aux | grep dnf"
-                    echo "   sudo dnf list installed | grep openssl"
-                    sudo dnf install -y openssl-devel pkg-config
-                elif command -v microdnf &> /dev/null; then
-                    echo "Running: sudo microdnf install -y openssl-devel pkg-config"
-                    echo "This may take a few minutes. You can monitor progress in another terminal with:"
-                    echo "   ps aux | grep microdnf"
-                    sudo microdnf install -y openssl-devel pkg-config
-                else
-                    echo "Running: sudo yum install -y openssl-devel pkg-config"
-                    echo "This may take a few minutes. You can monitor progress in another terminal with:"
-                    echo "   ps aux | grep yum"
-                    echo "   sudo yum list installed | grep openssl"
-                    sudo yum install -y openssl-devel pkg-config
-                fi
-                ;;
-            "alpine")
-                echo "Running: sudo apk add openssl-dev pkgconfig"
-                sudo apk add openssl-dev pkgconfig
-                ;;
-            *)
-                echo -e "${RED}⚠️  Unknown distribution. Please install OpenSSL manually:${NC}"
-                echo ""
-                echo "CentOS/RHEL: sudo yum install -y openssl-devel pkg-config"
-                echo "Ubuntu/Debian: sudo apt install -y libssl-dev pkg-config"
-                echo "Alpine: sudo apk add openssl-dev pkgconfig"
-                echo ""
-                echo "After installing OpenSSL, run this script again."
-                exit 1
-                ;;
-        esac
-        ;;
-    "2")
-        echo "📥 Downloading OpenSSL directly..."
-        echo "⏳ This method is faster and more reliable"
-        
-        # Create temporary directory
-        mkdir -p /tmp/openssl_install
-        cd /tmp/openssl_install
-        
-        # Download OpenSSL source
-        echo "📥 Downloading OpenSSL 3.0.12 source..."
-        curl -L -o openssl.tar.gz https://www.openssl.org/source/openssl-3.0.12.tar.gz
-        
-        # Extract
-        echo "📁 Extracting OpenSSL source..."
-        tar -xzf openssl.tar.gz
-        cd openssl-3.0.12
-        
-        # Install build dependencies (minimal)
-        echo "📦 Installing minimal build dependencies..."
-        echo "Note: Using system's existing build tools (gcc, make, perl)"
-        echo "If these are missing, you may need to install them manually:"
-        echo "CentOS/RHEL: sudo yum install -y gcc make perl"
-        echo "Ubuntu/Debian: sudo apt install -y gcc make perl"
-        echo ""
-        
-        # Check if required tools exist
-        if ! command -v gcc &> /dev/null; then
-            echo "❌ Error: gcc (C compiler) not found. Please install it manually:"
-            echo "CentOS/RHEL: sudo yum install -y gcc"
-            echo "Ubuntu/Debian: sudo apt install -y gcc"
-            exit 1
-        fi
-        
-        if ! command -v make &> /dev/null; then
-            echo "❌ Error: make not found. Please install it manually:"
-            echo "CentOS/RHEL: sudo yum install -y make"
-            echo "Ubuntu/Debian: sudo apt install -y make"
-            exit 1
-        fi
-        
-        if ! command -v perl &> /dev/null; then
-            echo "❌ Error: perl not found. Please install it manually:"
-            echo "CentOS/RHEL: sudo yum install -y perl"
-            echo "Ubuntu/Debian: sudo apt install -y perl"
-            exit 1
-        fi
-        
-        echo "✅ All required build tools found!"
-        
-        # Configure and build
-        echo "🔧 Configuring OpenSSL..."
-        ./config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl
-        
-        echo "🔨 Building OpenSSL (this may take 5-10 minutes)..."
-        make -j$(nproc)
-        
-        echo "📦 Installing OpenSSL..."
-        sudo make install
-        
-        # Set environment variables
-        export OPENSSL_DIR="/usr/local/openssl"
-        export OPENSSL_INCLUDE_DIR="/usr/local/openssl/include"
-        export OPENSSL_LIB_DIR="/usr/local/openssl/lib64"
-        export PKG_CONFIG_PATH="/usr/local/openssl/lib64/pkgconfig"
-        
-        # Create pkg-config file
-        echo "🔧 Creating pkg-config configuration..."
-        sudo mkdir -p /usr/local/openssl/lib64/pkgconfig
-        sudo tee /usr/local/openssl/lib64/pkgconfig/openssl.pc > /dev/null << 'EOF'
+# Check if required tools exist
+MISSING_TOOLS=()
+
+if ! command -v gcc &> /dev/null; then
+    MISSING_TOOLS+=("gcc")
+fi
+
+if ! command -v make &> /dev/null; then
+    MISSING_TOOLS+=("make")
+fi
+
+if ! command -v perl &> /dev/null; then
+    MISSING_TOOLS+=("perl")
+fi
+
+if ! command -v curl &> /dev/null; then
+    MISSING_TOOLS+=("curl")
+fi
+
+if ! command -v tar &> /dev/null; then
+    MISSING_TOOLS+=("tar")
+fi
+
+if ! command -v unzip &> /dev/null; then
+    MISSING_TOOLS+=("unzip")
+fi
+
+if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
+    echo "❌ Missing essential tools: ${MISSING_TOOLS[*]}"
+    echo ""
+    echo "Please install these tools manually:"
+    echo "CentOS/RHEL: sudo yum install -y ${MISSING_TOOLS[*]}"
+    echo "Ubuntu/Debian: sudo apt install -y ${MISSING_TOOLS[*]}"
+    echo "Alpine: sudo apk add ${MISSING_TOOLS[*]}"
+    echo ""
+    echo "After installing the missing tools, run this script again."
+    exit 1
+fi
+
+echo "✅ All essential build tools found!"
+echo "✅ Package manager check completed!"
+
+# Install OpenSSL directly (no package manager)
+echo "📦 Installing OpenSSL (required for build)..."
+echo "📥 Downloading OpenSSL directly - this method is faster and more reliable"
+echo ""
+
+# Create temporary directory
+mkdir -p /tmp/openssl_install
+cd /tmp/openssl_install
+
+# Download OpenSSL source
+echo "📥 Downloading OpenSSL 3.0.12 source..."
+curl -L -o openssl.tar.gz https://www.openssl.org/source/openssl-3.0.12.tar.gz
+
+# Extract
+echo "📁 Extracting OpenSSL source..."
+tar -xzf openssl.tar.gz
+cd openssl-3.0.12
+
+# Check if required tools exist
+echo "📦 Checking build tools..."
+echo "Note: Using system's existing build tools (gcc, make, perl)"
+echo ""
+
+if ! command -v gcc &> /dev/null; then
+    echo "❌ Error: gcc (C compiler) not found. Please install it manually:"
+    echo "CentOS/RHEL: sudo yum install -y gcc"
+    echo "Ubuntu/Debian: sudo apt install -y gcc"
+    exit 1
+fi
+
+if ! command -v make &> /dev/null; then
+    echo "❌ Error: make not found. Please install it manually:"
+    echo "CentOS/RHEL: sudo yum install -y make"
+    echo "Ubuntu/Debian: sudo apt install -y make"
+    exit 1
+fi
+
+if ! command -v perl &> /dev/null; then
+    echo "❌ Error: perl not found. Please install it manually:"
+    echo "CentOS/RHEL: sudo yum install -y perl"
+    echo "Ubuntu/Debian: sudo apt install -y perl"
+    exit 1
+fi
+
+echo "✅ All required build tools found!"
+
+# Configure and build
+echo "🔧 Configuring OpenSSL..."
+./config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl
+
+echo "🔨 Building OpenSSL (this may take 5-10 minutes)..."
+make -j$(nproc)
+
+echo "📦 Installing OpenSSL..."
+sudo make install
+
+# Set environment variables
+export OPENSSL_DIR="/usr/local/openssl"
+export OPENSSL_INCLUDE_DIR="/usr/local/openssl/include"
+export OPENSSL_LIB_DIR="/usr/local/openssl/lib64"
+export PKG_CONFIG_PATH="/usr/local/openssl/lib64/pkgconfig"
+
+# Create pkg-config file
+echo "🔧 Creating pkg-config configuration..."
+sudo mkdir -p /usr/local/openssl/lib64/pkgconfig
+sudo tee /usr/local/openssl/lib64/pkgconfig/openssl.pc > /dev/null << 'EOF'
 prefix=/usr/local/openssl
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib64
@@ -249,92 +186,25 @@ Requires:
 Libs: -L${libdir} -lssl -lcrypto
 Cflags: -I${includedir}
 EOF
-        
-        # Install pkg-config if not available
-        if ! command -v pkg-config &> /dev/null; then
-            echo "📦 Installing pkg-config..."
-            if command -v yum &> /dev/null; then
-                sudo yum install -y pkg-config
-            elif command -v dnf &> /dev/null; then
-                sudo dnf install -y pkg-config
-            elif command -v apt &> /dev/null; then
-                sudo apt install -y pkg-config
-            fi
-        fi
-        
-        echo "✅ OpenSSL installed successfully to /usr/local/openssl"
-        echo "🔧 Environment variables set for this session"
-        
-        # Clean up
-        cd ~
-        rm -rf /tmp/openssl_install
-        
-        # Verify installation
-        echo "🔍 Verifying OpenSSL installation..."
-        if [ -f "/usr/local/openssl/bin/openssl" ]; then
-            echo "✅ OpenSSL binary found: $(/usr/local/openssl/bin/openssl version)"
-        fi
-        
-        if [ -f "/usr/local/openssl/lib64/pkgconfig/openssl.pc" ]; then
-            echo "✅ pkg-config file created successfully"
-        fi
-        ;;
-    *)
-        echo -e "${RED}❌ Invalid choice. Please run the script again and choose 1 or 2.${NC}"
-        exit 1
-        ;;
-esac
 
-# Verify OpenSSL installation and set environment variables
+echo "✅ OpenSSL installed successfully to /usr/local/openssl"
+echo "🔧 Environment variables set for this session"
+
+# Clean up
+cd ~
+rm -rf /tmp/openssl_install
+
+# Verify installation
 echo "🔍 Verifying OpenSSL installation..."
-if command -v pkg-config &> /dev/null; then
-    echo "✅ pkg-config found: $(pkg-config --version)"
-    
-    # Check if OpenSSL is found by pkg-config
-    if pkg-config --exists openssl; then
-        echo "✅ OpenSSL found via pkg-config"
-        echo "📋 OpenSSL version: $(pkg-config --modversion openssl)"
-        echo "📋 OpenSSL flags: $(pkg-config --cflags openssl)"
-        echo "📋 OpenSSL libs: $(pkg-config --libs openssl)"
-        
-        # Set environment variables for the build
-        export PKG_CONFIG_PATH=$(pkg-config --variable pc_path pkg-config)
-        export OPENSSL_DIR=$(pkg-config --variable prefix openssl)
-        echo "🔧 Set PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
-        echo "🔧 Set OPENSSL_DIR: $OPENSSL_DIR"
-    else
-        echo -e "${RED}❌ OpenSSL not found via pkg-config${NC}"
-        echo "🔍 Checking for OpenSSL files manually..."
-        
-        # Look for OpenSSL files
-        if [ -f "/usr/include/openssl/ssl.h" ]; then
-            echo "✅ Found OpenSSL headers in /usr/include"
-            export OPENSSL_DIR="/usr"
-            export OPENSSL_INCLUDE_DIR="/usr/include"
-            export OPENSSL_LIB_DIR="/usr/lib64"
-        elif [ -f "/usr/local/include/openssl/ssl.h" ]; then
-            echo "✅ Found OpenSSL headers in /usr/local/include"
-            export OPENSSL_DIR="/usr/local"
-            export OPENSSL_INCLUDE_DIR="/usr/local/include"
-            export OPENSSL_LIB_DIR="/usr/local/lib"
-        else
-            echo -e "${RED}❌ OpenSSL headers not found in standard locations${NC}"
-            echo "🔍 Searching for OpenSSL installation..."
-            find /usr -name "ssl.h" 2>/dev/null | head -5
-            echo ""
-            echo "Please install OpenSSL development packages manually:"
-            echo "CentOS/RHEL: sudo yum install -y openssl-devel pkg-config"
-            exit 1
-        fi
-    fi
-else
-    echo -e "${RED}❌ pkg-config not found${NC}"
-    echo "Please install pkg-config manually:"
-    echo "CentOS/RHEL: sudo yum install -y pkg-config"
-    exit 1
+if [ -f "/usr/local/openssl/bin/openssl" ]; then
+    echo "✅ OpenSSL binary found: $(/usr/local/openssl/bin/openssl version)"
 fi
 
-echo -e "${GREEN}✅ OpenSSL development packages installed and configured successfully!${NC}"
+if [ -f "/usr/local/openssl/lib64/pkgconfig/openssl.pc" ]; then
+    echo "✅ pkg-config file created successfully"
+fi
+
+echo "✅ OpenSSL development packages installed and configured successfully!"
 
 # ============================================================================
 # STEP 2: INSTALL RUST
