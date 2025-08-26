@@ -112,7 +112,9 @@ case $DISTRO in
         ;;
 esac
 
-# Install only OpenSSL development packages (essential for build)
+echo -e "${GREEN}✅ Package manager installation completed!${NC}"
+
+# Now install OpenSSL development packages using the available package manager
 echo "📦 Installing OpenSSL development packages (required for build)..."
 case $DISTRO in
     "debian")
