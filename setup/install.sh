@@ -62,6 +62,50 @@ else
     DISTRO="generic"
 fi
 
+# Function to install Git from source (defined early to avoid command not found)
+install_git_from_source() {
+    echo "Installing Git from source..."
+    
+    if command -v curl &> /dev/null; then
+        echo "Downloading Git source directly..."
+        
+        # Create temporary directory for Git build
+        mkdir -p /tmp/git_build
+        cd /tmp/git_build
+        
+        # Download Git source
+        if curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz; then
+            echo "Git source downloaded successfully"
+            
+            # Extract and build
+            echo "Extracting Git source..."
+            tar -xzf git.tar.gz
+            cd git-2.44.0
+            
+            echo "Building Git from source..."
+            make prefix=/usr/local all
+            
+            echo "Installing Git..."
+            sudo make prefix=/usr/local install
+            
+            # Clean up
+            cd ~
+            rm -rf /tmp/git_build
+            
+            echo "Git built and installed from source successfully!"
+        else
+            echo "Error: Failed to download Git source"
+            echo "Please install Git manually:"
+            echo "sudo yum install -y git"
+            exit 1
+        fi
+    else
+        echo "Error: curl not available. Please install Git manually:"
+        echo "sudo yum install -y git"
+        exit 1
+    fi
+}
+
 echo "Installing Git (required for downloading source code)..."
 echo "Note: This script will install Git first, then clone the repository"
 
@@ -112,50 +156,6 @@ case $DISTRO in
         install_git_from_source
         ;;
 esac
-
-# Function to install Git from source (fallback method)
-install_git_from_source() {
-    echo "Installing Git from source..."
-    
-    if command -v curl &> /dev/null; then
-        echo "Downloading Git source directly..."
-        
-        # Create temporary directory for Git build
-        mkdir -p /tmp/git_build
-        cd /tmp/git_build
-        
-        # Download Git source
-        if curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz; then
-            echo "Git source downloaded successfully"
-            
-            # Extract and build
-            echo "Extracting Git source..."
-            tar -xzf git.tar.gz
-            cd git-2.44.0
-            
-            echo "Building Git from source..."
-            make prefix=/usr/local all
-            
-            echo "Installing Git..."
-            sudo make prefix=/usr/local install
-            
-            # Clean up
-            cd ~
-            rm -rf /tmp/git_build
-            
-            echo "Git built and installed from source successfully!"
-        else
-            echo "Error: Failed to download Git source"
-            echo "Please install Git manually:"
-            echo "sudo yum install -y git"
-            exit 1
-        fi
-    else
-        echo "Error: curl not available. Please install Git manually:"
-        echo "sudo yum install -y git"
-        exit 1
-    fi
-}
 
 # Verify Git installation
 if command -v git &> /dev/null; then
