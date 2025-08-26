@@ -1,0 +1,35 @@
+# Build artifacts
+/target/
+*.exe
+*.pdb
+*.d
+
+# Logs
+ollama_logs/
+logs/
+*.log
+
+# Environment files (optional - remove if you want to include config.env)
+# .env
+# config.env
+
+# Archives
+*.tar.gz
+*.zip
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Rust specific
+Cargo.lock
+
+# Temporary files
+*.tmp
+*.temp
