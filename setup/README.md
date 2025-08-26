@@ -21,15 +21,15 @@ This single script will install everything needed and test the installation.
 - **Rust**: Latest stable Rust compiler and Cargo
 - **Trading Bot**: Optimized binary with all features
 - **Ollama AI**: AI engine with tinyllama model
-- **Optional Models**: phi, gemma2:2b for better analysis
+- **Optional Models**: llama2, phi, gemma2:2b for better analysis
 
 ## 📊 Performance Expectations
 
-- **Response Time**: 15-25 seconds (llama2 default)
-- **Analysis Quality**: ⭐⭐⭐⭐⭐ Excellent structured analysis  
+- **Response Time**: 8-12 seconds (tinyllama default)
+- **Analysis Quality**: ⭐⭐⭐ Good structured analysis  
 - **Binary Size**: ~5-10 MB
 - **Memory Usage**: ~50-100 MB during operation
-- **Default Model**: llama2 (~6GB download)
+- **Default Model**: tinyllama (~1.1GB download)
 
 ## 🔧 Supported Linux Distributions
 
@@ -37,30 +37,6 @@ This single script will install everything needed and test the installation.
 - ✅ CentOS/RHEL/Fedora (yum/dnf)
 - ✅ Alpine Linux (apk)
 - ⚠️ Other distributions (manual dependency installation required)
-
-## 🛠️ Manual Installation
-
-If the automated script fails, you can install manually:
-
-```bash
-# Install dependencies (Ubuntu/Debian)
-sudo apt update
-sudo apt install -y build-essential pkg-config libssl-dev git curl
-
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
-
-# Clone and build
-git clone https://github.com/KingGekko/trading-bot.git
-cd trading-bot
-cargo build --release
-
-# Install Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
-ollama serve &
-ollama pull llama2
-```
 
 ## 🎯 After Installation
 
@@ -81,6 +57,31 @@ cd trading-bot
 
 # View logs
 ./target/release/trading_bot -l
+```
+
+## 🤖 Ollama Model Management
+
+### Available Models:
+- **tinyllama** (1.1GB) - Default, fast responses, basic analysis
+- **phi** (2.7GB) - Good analysis quality, balanced performance
+- **llama2** (6GB) - Best analysis quality, slower responses
+- **gemma2:2b** (1.5GB) - Excellent analysis, good performance
+
+### Model Commands:
+```bash
+# List installed models
+ollama list
+
+# Pull a new model
+ollama pull llama2
+ollama pull phi
+ollama pull gemma2:2b
+
+# Remove a model
+ollama rm llama2
+
+# Switch model in config
+# Edit config.env and change OLLAMA_MODEL=llama2
 ```
 
 ## 🚨 Troubleshooting
@@ -135,7 +136,7 @@ pkill ollama
 ollama serve &
 
 # Try downloading again
-ollama pull llama2
+ollama pull tinyllama
 ```
 
 ## 📞 Support
@@ -147,13 +148,13 @@ ollama pull llama2
 ## 🎉 Features
 
 - ✅ Real-time streaming responses
-- ✅ High-quality analysis (llama2 default)
+- ✅ Fast performance (8-12s responses with tinyllama)
 - ✅ Comprehensive logging and receipts
 - ✅ Security validation and input sanitization
 - ✅ Multiple interaction modes (interactive, single prompt, test)
 - ✅ Cross-platform support
 - ✅ Performance optimizations (connection pooling, TCP keep-alive)
-- ✅ Multiple AI model support (llama2, phi, tinyllama, gemma2:2b)
+- ✅ Multiple AI model support (tinyllama, phi, llama2, gemma2:2b)
 
 ---
 

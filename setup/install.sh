@@ -117,7 +117,8 @@ case $DISTRO in
             build-essential \
             pkg-config \
             libssl-dev \
-            ca-certificates
+            ca-certificates \
+            git
         ;;
     "redhat")
         if command -v dnf &> /dev/null; then
@@ -127,7 +128,8 @@ case $DISTRO in
                 gcc-c++ \
                 openssl-devel \
                 pkg-config \
-                ca-certificates
+                ca-certificates \
+                git
         else
             sudo yum install -y \
                 curl \
@@ -135,7 +137,8 @@ case $DISTRO in
                 gcc-c++ \
                 openssl-devel \
                 pkg-config \
-                ca-certificates
+                ca-certificates \
+                git
         fi
         ;;
     "alpine")
@@ -144,7 +147,8 @@ case $DISTRO in
             build-base \
             openssl-dev \
             pkgconfig \
-            ca-certificates
+            ca-certificates \
+            git
         ;;
 esac
 
@@ -313,15 +317,15 @@ echo -e "${PURPLE}=================================="
 echo -e "📦 STEP 5/6: Downloading AI models"
 echo -e "==================================${NC}"
 
-# Pull the default model (llama2 - around 6GB, good quality)
-echo "📥 Downloading llama2 model (default for trading bot)..."
-echo -e "${YELLOW}⏳ This will download ~6GB and may take 10-30 minutes depending on internet speed...${NC}"
-ollama pull llama2
+# Pull the default model (tinyllama - fast and lightweight)
+echo "📥 Downloading tinyllama model (default for trading bot)..."
+echo -e "${YELLOW}⏳ This will download ~1.1GB and may take 5-15 minutes depending on internet speed...${NC}"
+ollama pull tinyllama
 
 # Ask about additional models
 echo ""
 echo -e "${BLUE}🎯 Would you like to install additional models for different use cases? (y/n)${NC}"
-echo "   • tinyllama (1.1GB) - Ultra-fast responses, basic analysis"
+echo "   • llama2 (6GB) - Best analysis quality, slower responses"
 echo "   • phi (2.7GB) - Microsoft's efficient model, good analysis quality"
 echo "   • gemma2:2b (1.5GB) - Google's optimized model, excellent analysis"
 read -r model_response
@@ -330,8 +334,8 @@ if [[ "$model_response" =~ ^[Yy]$ ]]; then
     echo "📦 Installing additional models..."
     echo -e "${YELLOW}⏳ This may take several minutes...${NC}"
     
-    echo "📥 Installing tinyllama (ultra-fast)..."
-    ollama pull tinyllama
+    echo "📥 Installing llama2 (best analysis quality)..."
+    ollama pull llama2
     
     echo "📥 Installing phi (Microsoft's efficient model)..."
     ollama pull phi
@@ -373,7 +377,7 @@ ollama list
 echo ""
 echo "🧪 Running quick response test..."
 echo -e "${YELLOW}⏳ Testing with prompt: 'What is blockchain?'${NC}"
-echo "📊 Expected: 15-25 second response with excellent analysis (llama2)"
+echo "📊 Expected: 8-12 second response with good analysis (tinyllama)"
 echo ""
 
 # Run the test
@@ -391,11 +395,11 @@ echo -e "${GREEN}✅ Trading bot is fully installed and tested!${NC}"
 echo "📍 Location: $(pwd)/target/release/trading_bot"
 echo ""
 echo -e "${CYAN}📊 Performance Summary:${NC}"
-echo "   • Response time: 15-25 seconds (llama2 default)"
-echo "   • Analysis quality: ⭐⭐⭐⭐⭐ Excellent structured analysis"
-echo "   • Response length: ~300-500 words"
+echo "   • Response time: 8-12 seconds (tinyllama default)"
+echo "   • Analysis quality: ⭐⭐⭐ Good structured analysis"
+echo "   • Response length: ~150-200 words"
 echo "   • Streaming: Real-time output during generation"
-echo "   • Model size: ~6GB (llama2)"
+echo "   • Model size: ~1.1GB (tinyllama)"
 echo ""
 echo -e "${CYAN}📋 Quick Reference:${NC}"
 echo "   • Test mode:        ./target/release/trading_bot -t 'Your prompt'"
@@ -407,11 +411,11 @@ echo -e "${CYAN}🔧 Configuration:${NC}"
 echo "   • Config file: $(pwd)/config.env"
 echo "   • Log directory: $(pwd)/ollama_logs/"
 echo "   • Binary size: $(du -h target/release/trading_bot | cut -f1)"
-echo "   • Default model: llama2 (~6GB)"
+echo "   • Default model: tinyllama (~1.1GB)"
 echo ""
 echo -e "${CYAN}💡 Tips:${NC}"
-echo "   • For faster responses: Set OLLAMA_MODEL=tinyllama in config.env"
-echo "   • For best analysis: Set OLLAMA_MODEL=llama2 in config.env (default)"
+echo "   • For faster responses: Set OLLAMA_MODEL=tinyllama in config.env (default)"
+echo "   • For better analysis: Set OLLAMA_MODEL=llama2 in config.env"
 echo "   • For balanced performance: Set OLLAMA_MODEL=phi in config.env"
 echo "   • For system-wide access: sudo cp target/release/trading_bot /usr/local/bin/"
 echo ""
