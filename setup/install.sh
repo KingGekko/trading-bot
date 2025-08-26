@@ -118,18 +118,79 @@ echo -e "${GREEN}✅ Package manager installation completed!${NC}"
 echo "📦 Installing OpenSSL development packages (required for build)..."
 case $DISTRO in
     "debian")
+        echo "🔧 Running: sudo apt install -y libssl-dev pkg-config"
         sudo apt install -y libssl-dev pkg-config
         ;;
     "redhat")
         if command -v dnf &> /dev/null; then
-            sudo dnf install -y openssl-devel pkg-config
+            echo "🔧 Running: sudo dnf install -y openssl-devel pkg-config"
+            echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
+            echo "   ps aux | grep dnf"
+            echo "   sudo dnf list installed | grep openssl"
+            echo ""
+            echo "🔄 Installing packages... (this may take 2-5 minutes)"
+            
+            # Run yum with verbose output and timeout
+            if timeout 300 sudo yum install -y openssl-devel pkg-config; then
+                echo "✅ OpenSSL packages installed successfully!"
+            else
+                echo -e "${RED}❌ Package installation failed or timed out${NC}"
+                echo ""
+                echo "🔍 Troubleshooting steps:"
+                echo "1. Check if yum is stuck: ps aux | grep yum"
+                echo "2. Kill stuck process: sudo kill -9 [PID]"
+                echo "3. Clear yum cache: sudo yum clean all"
+                echo "4. Try again or install manually:"
+                echo "   sudo yum install -y openssl-devel pkg-config"
+                exit 1
+            fi
         elif command -v microdnf &> /dev/null; then
-            sudo microdnf install -y openssl-devel pkg-config
+            echo "🔧 Running: sudo microdnf install -y openssl-devel pkg-config"
+            echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
+            echo "   ps aux | grep microdnf"
+            echo ""
+            echo "🔄 Installing packages... (this may take 2-5 minutes)"
+            
+            # Run yum with verbose output and timeout
+            if timeout 300 sudo microdnf install -y openssl-devel pkg-config; then
+                echo "✅ OpenSSL packages installed successfully!"
+            else
+                echo -e "${RED}❌ Package installation failed or timed out${NC}"
+                echo ""
+                echo "🔍 Troubleshooting steps:"
+                echo "1. Check if microdnf is stuck: ps aux | grep microdnf"
+                echo "2. Kill stuck process: sudo kill -9 [PID]"
+                echo "3. Clear microdnf cache: sudo microdnf clean all"
+                echo "4. Try again or install manually:"
+                echo "   sudo microdnf install -y openssl-devel pkg-config"
+                exit 1
+            fi
         else
-            sudo yum install -y openssl-devel pkg-config
+            echo "🔧 Running: sudo yum install -y openssl-devel pkg-config"
+            echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
+            echo "   ps aux | grep yum"
+            echo "   sudo yum list installed | grep openssl"
+            echo ""
+            echo "🔄 Installing packages... (this may take 2-5 minutes)"
+            
+            # Run yum with verbose output and timeout
+            if timeout 300 sudo yum install -y openssl-devel pkg-config; then
+                echo "✅ OpenSSL packages installed successfully!"
+            else
+                echo -e "${RED}❌ Package installation failed or timed out${NC}"
+                echo ""
+                echo "🔍 Troubleshooting steps:"
+                echo "1. Check if yum is stuck: ps aux | grep yum"
+                echo "2. Kill stuck process: sudo kill -9 [PID]"
+                echo "3. Clear yum cache: sudo yum clean all"
+                echo "4. Try again or install manually:"
+                echo "   sudo yum install -y openssl-devel pkg-config"
+                exit 1
+            fi
         fi
         ;;
     "alpine")
+        echo "🔧 Running: sudo apk add openssl-dev pkgconfig"
         sudo apk add openssl-dev pkgconfig
         ;;
     *)
