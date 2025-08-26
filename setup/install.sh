@@ -187,13 +187,35 @@ case $method_choice in
         
         # Install build dependencies (minimal)
         echo "📦 Installing minimal build dependencies..."
-        if command -v yum &> /dev/null; then
-            sudo yum install -y gcc make perl
-        elif command -v dnf &> /dev/null; then
-            sudo dnf install -y gcc make perl
-        elif command -v apt &> /dev/null; then
-            sudo apt install -y gcc make perl
+        echo "Note: Using system's existing build tools (gcc, make, perl)"
+        echo "If these are missing, you may need to install them manually:"
+        echo "CentOS/RHEL: sudo yum install -y gcc make perl"
+        echo "Ubuntu/Debian: sudo apt install -y gcc make perl"
+        echo ""
+        
+        # Check if required tools exist
+        if ! command -v gcc &> /dev/null; then
+            echo "❌ Error: gcc (C compiler) not found. Please install it manually:"
+            echo "CentOS/RHEL: sudo yum install -y gcc"
+            echo "Ubuntu/Debian: sudo apt install -y gcc"
+            exit 1
         fi
+        
+        if ! command -v make &> /dev/null; then
+            echo "❌ Error: make not found. Please install it manually:"
+            echo "CentOS/RHEL: sudo yum install -y make"
+            echo "Ubuntu/Debian: sudo apt install -y make"
+            exit 1
+        fi
+        
+        if ! command -v perl &> /dev/null; then
+            echo "❌ Error: perl not found. Please install it manually:"
+            echo "CentOS/RHEL: sudo yum install -y perl"
+            echo "Ubuntu/Debian: sudo apt install -y perl"
+            exit 1
+        fi
+        
+        echo "✅ All required build tools found!"
         
         # Configure and build
         echo "🔧 Configuring OpenSSL..."
