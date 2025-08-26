@@ -156,36 +156,13 @@ echo "All required build tools found!"
 
 # Install required Perl modules for OpenSSL build
 echo "Installing required Perl modules..."
-if ! command -v cpan &> /dev/null; then
-    echo "Installing cpan (Perl module installer)..."
-    if command -v yum &> /dev/null; then
-        sudo yum install -y perl-CPAN
-    elif command -v dnf &> /dev/null; then
-        sudo dnf install -y perl-CPAN
-    elif command -v apt &> /dev/null; then
-        sudo apt install -y libcpan-perl
-    else
-        echo "Warning: Could not install cpan automatically. Trying to install FindBin manually..."
-        # Try to install FindBin directly
-        curl -L -o FindBin.pm https://raw.githubusercontent.com/Perl-Toolchain-Gang/FindBin/master/lib/FindBin.pm
-        sudo mkdir -p /usr/local/lib64/perl5/5.32
-        sudo cp FindBin.pm /usr/local/lib64/perl5/5.32/
-        rm FindBin.pm
-    fi
-fi
+echo "Downloading FindBin.pm directly (no package manager needed)..."
 
-# Install FindBin module
-echo "Installing FindBin Perl module..."
-if command -v cpan &> /dev/null; then
-    echo "Installing via cpan..."
-    echo "y" | sudo cpan FindBin
-else
-    echo "Installing FindBin manually..."
-    curl -L -o FindBin.pm https://raw.githubusercontent.com/Perl-Toolchain-Gang/FindBin/master/lib/FindBin.pm
-    sudo mkdir -p /usr/local/lib64/perl5/5.32
-    sudo cp FindBin.pm /usr/local/lib64/perl5/5.32/
-    rm FindBin.pm
-fi
+# Download and install FindBin.pm directly
+curl -L -o FindBin.pm https://raw.githubusercontent.com/Perl-Toolchain-Gang/FindBin/master/lib/FindBin.pm
+sudo mkdir -p /usr/local/lib64/perl5/5.32
+sudo cp FindBin.pm /usr/local/lib64/perl5/5.32/
+rm FindBin.pm
 
 echo "Perl modules installed successfully!"
 
