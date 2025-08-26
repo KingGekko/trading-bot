@@ -129,31 +129,31 @@ case $method_choice in
         echo "📦 Using package manager installation..."
         case $DISTRO in
             "debian")
-                echo "🔧 Running: sudo apt install -y libssl-dev pkg-config"
+                echo "Running: sudo apt install -y libssl-dev pkg-config"
                 sudo apt install -y libssl-dev pkg-config
                 ;;
             "redhat")
                 if command -v dnf &> /dev/null; then
-                    echo "🔧 Running: sudo dnf install -y openssl-devel pkg-config"
-                    echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
+                    echo "Running: sudo dnf install -y openssl-devel pkg-config"
+                    echo "This may take a few minutes. You can monitor progress in another terminal with:"
                     echo "   ps aux | grep dnf"
                     echo "   sudo dnf list installed | grep openssl"
                     sudo dnf install -y openssl-devel pkg-config
                 elif command -v microdnf &> /dev/null; then
-                    echo "🔧 Running: sudo microdnf install -y openssl-devel pkg-config"
-                    echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
+                    echo "Running: sudo microdnf install -y openssl-devel pkg-config"
+                    echo "This may take a few minutes. You can monitor progress in another terminal with:"
                     echo "   ps aux | grep microdnf"
                     sudo microdnf install -y openssl-devel pkg-config
                 else
-                    echo "🔧 Running: sudo yum install -y openssl-devel pkg-config"
-                    echo "⏳ This may take a few minutes. You can monitor progress in another terminal with:"
+                    echo "Running: sudo yum install -y openssl-devel pkg-config"
+                    echo "This may take a few minutes. You can monitor progress in another terminal with:"
                     echo "   ps aux | grep yum"
                     echo "   sudo yum list installed | grep openssl"
                     sudo yum install -y openssl-devel pkg-config
                 fi
                 ;;
-            "alpine"
-                echo "🔧 Running: sudo apk add openssl-dev pkgconfig"
+            "alpine")
+                echo "Running: sudo apk add openssl-dev pkgconfig"
                 sudo apk add openssl-dev pkgconfig
                 ;;
             *)
