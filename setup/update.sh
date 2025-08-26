@@ -14,9 +14,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-REPO_URL="https://github.com/KingGekko/trading-bot.git"
 PROJECT_DIR="trading-bot"
-UPDATE_BRANCH="main"
 
 echo -e "${CYAN}🔄 Trading Bot - Update Script${NC}"
 echo -e "${CYAN}=============================${NC}"
@@ -104,69 +102,62 @@ echo -e "==================================${NC}"
 
 cd "$PROJECT_PATH"
 
-# Check if this is a git repository
-if [ -d ".git" ]; then
-    echo "📥 Pulling latest changes from GitHub..."
-    git fetch origin
-    git reset --hard origin/$UPDATE_BRANCH
-    echo -e "${GREEN}✅ Source code updated successfully!${NC}"
-else
-    echo -e "${YELLOW}⚠️  Not a git repository, downloading latest source...${NC}"
-    
-    # Backup existing config and logs
-    echo "💾 Backing up existing configuration and logs..."
-    if [ -f "config.env" ]; then
-        cp config.env config.env.backup
-        echo "✅ Config backed up to config.env.backup"
-    fi
-    
-    if [ -d "ollama_logs" ]; then
-        cp -r ollama_logs ollama_logs.backup
-        echo "✅ Logs backed up to ollama_logs.backup"
-    fi
-    
-    # Remove existing source and download fresh
-    cd ..
-    rm -rf "$PROJECT_DIR"
-    
-    echo "📥 Downloading latest source code..."
-    curl -L -o trading-bot.zip https://github.com/KingGekko/trading-bot/archive/refs/heads/main.zip
-    
-    # Install unzip if not available
-    if ! command -v unzip &> /dev/null; then
-        echo "📦 Installing unzip..."
-        if command -v yum &> /dev/null; then
-            sudo yum install -y unzip
-        elif command -v dnf &> /dev/null; then
-            sudo dnf install -y unzip
-        elif command -v apt &> /dev/null; then
-            sudo apt install -y unzip
-        elif command -v apk &> /dev/null; then
-            sudo apk add unzip
-        else
-            echo -e "${RED}❌ Cannot install unzip automatically${NC}"
-            echo "Please install unzip manually and try again"
-            exit 1
-        fi
-    fi
-    
-    unzip trading-bot.zip
-    mv trading-bot-main "$PROJECT_DIR"
-    cd "$PROJECT_DIR"
-    
-    # Restore config and logs
-    if [ -f "../config.env.backup" ]; then
-        cp ../config.env.backup config.env
-        echo "✅ Config restored from backup"
-    fi
-    
-    if [ -d "../ollama_logs.backup" ]; then
-        cp -r ../ollama_logs.backup ollama_logs
-        echo "✅ Logs restored from backup"
-    fi
-    
-    echo -e "${GREEN}✅ Source code updated successfully!${NC}"
+# Always download latest source (no Git required)
+echo "📥 Downloading latest source code from GitHub..."
+
+# Backup existing config and logs
+echo "💾 Backing up existing configuration and logs..."
+if [ -f "config.env" ]; then
+    cp config.env config.env.backup
+    echo "✅ Config backed up to config.env.backup"
 fi
+
+if [ -d "ollama_logs" ]; then
+    cp -r ollama_logs ollama_logs.backup
+    echo "✅ Logs backed up to ollama_logs.backup"
+fi
+
+# Remove existing source and download fresh
+cd ..
+rm -rf "$PROJECT_DIR"
+
+echo "📥 Downloading latest source code..."
+curl -L -o trading-bot.zip https://github.com/KingGekko/trading-bot/archive/refs/heads/main.zip
+
+# Install unzip if not available
+if ! command -v unzip &> /dev/null; then
+    echo "📦 Installing unzip..."
+    if command -v yum &> /dev/null; then
+        sudo yum install -y unzip
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y unzip
+    elif command -v apt &> /dev/null; then
+        sudo apt install -y unzip
+    elif command -v apk &> /dev/null; then
+        sudo apk add unzip
+    else
+        echo -e "${RED}❌ Cannot install unzip automatically${NC}"
+        echo "Please install unzip manually and try again"
+        exit 1
+    fi
+fi
+
+unzip trading-bot.zip
+mv trading-bot-main "$PROJECT_DIR"
+cd "$PROJECT_DIR"
+
+# Restore config and logs
+if [ -f "../config.env.backup" ]; then
+    cp ../config.env.backup config.env
+    echo "✅ Config restored from backup"
+fi
+
+if [ -d "../ollama_logs.backup" ]; then
+    cp -r ../ollama_logs.backup ollama_logs
+    echo "✅ Logs restored from backup"
+fi
+
+echo -e "${GREEN}✅ Source code updated successfully!${NC}"
 
 # ============================================================================
 # STEP 2: REBUILD BINARY

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Trading Bot - Complete Installation Script
-# This script installs everything needed for the trading bot (requires Git)
+# This script installs everything needed for the trading bot
 
 set -e  # Exit on any error
 
@@ -14,7 +14,6 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-REPO_URL="https://github.com/KingGekko/trading-bot.git"
 PROJECT_DIR="trading-bot"
 
 echo -e "${CYAN}🚀 Trading Bot - Complete Installation${NC}"
@@ -22,8 +21,8 @@ echo -e "${CYAN}=====================================${NC}"
 echo ""
 echo "This script will install everything needed for the trading bot:"
 echo "  1. System dependencies (build tools, OpenSSL, etc.)"
-echo "  2. Rust programming language" 
-echo "  3. Clone and build the trading bot from GitHub"
+echo "  2. Rust programming language"
+echo "  3. Download and build the trading bot from GitHub"
 echo "  4. Install and configure Ollama AI"
 echo "  5. Download AI models (tinyllama + optional extras)"
 echo "  6. Test the complete installation"
@@ -132,29 +131,13 @@ fi
 source ~/.cargo/env
 
 # ============================================================================
-# STEP 3: CLONE AND BUILD TRADING BOT
+# STEP 3: DOWNLOAD AND BUILD TRADING BOT
 # ============================================================================
 
 echo ""
 echo -e "${PURPLE}=================================="
-echo -e "🐙 STEP 3/6: Cloning and building"
+echo -e "🐙 STEP 3/6: Downloading and building"
 echo -e "==================================${NC}"
-
-# Check if Rust is available
-if ! command -v cargo &> /dev/null; then
-    echo -e "${RED}❌ Rust is not available in PATH${NC}"
-    echo "🔧 Trying to source Rust environment..."
-    source ~/.cargo/env
-    if ! command -v cargo &> /dev/null; then
-        echo -e "${RED}❌ Still can't find Rust. Please restart terminal and try again.${NC}"
-        exit 1
-    fi
-fi
-
-echo "📋 Using Rust version:"
-rustc --version
-cargo --version
-echo ""
 
 # Remove existing directory if it exists
 if [ -d "$PROJECT_DIR" ]; then
@@ -162,14 +145,22 @@ if [ -d "$PROJECT_DIR" ]; then
     rm -rf "$PROJECT_DIR"
 fi
 
-# Clone the repository
-echo "📥 Cloning repository from GitHub..."
-git clone "$REPO_URL"
+# Download the latest release from GitHub
+echo "📥 Downloading trading bot from GitHub..."
+curl -L https://github.com/KingGekko/trading-bot/archive/refs/heads/main.zip -o trading-bot.zip
+
+# Extract the zip file
+echo "📁 Extracting trading bot..."
+unzip trading-bot.zip -d trading-bot-temp
+
+# Move the extracted directory to the final name
+mv trading-bot-temp/trading-bot-main "$PROJECT_DIR"
+rm -rf trading-bot.zip trading-bot-temp
 
 # Navigate to project directory
 cd "$PROJECT_DIR"
 
-echo -e "${GREEN}📁 Repository cloned successfully!${NC}"
+echo -e "${GREEN}📁 Repository downloaded successfully!${NC}"
 
 # Build the project
 echo ""
