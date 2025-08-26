@@ -35,58 +35,122 @@ install_git_from_binary() {
             exit 1
         fi
         
-        # Download pre-compiled Git binary (no OpenSSL build required)
+        echo "Detected architecture: $ARCH ($GIT_ARCH)"
+        
+        # Try to install via package manager first (most reliable)
+        echo "Attempting package manager installation first..."
+        if command -v yum &> /dev/null; then
+            echo "Trying yum installation..."
+            if sudo yum install -y git; then
+                if command -v git &> /dev/null; then
+                    echo "Git installed successfully via yum"
+                    cd ~
+                    rm -rf /tmp/git_install
+                    return 0
+                fi
+            fi
+        elif command -v dnf &> /dev/null; then
+            echo "Trying dnf installation..."
+            if sudo dnf install -y git; then
+                if command -v git &> /dev/null; then
+                    echo "Git installed successfully via dnf"
+                    cd ~
+                    rm -rf /tmp/git_install
+                    return 0
+                fi
+            fi
+        fi
+        
+        echo "Package manager installation failed, trying binary download..."
+        
+        # Try downloading Git binary with better error handling
         echo "Downloading Git binary for $ARCH..."
         
-        # Try multiple sources for Git binary
-        if curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0-linux-$GIT_ARCH.tar.gz; then
-            echo "Git binary downloaded successfully from GitHub"
-        elif curl -L -o git.tar.gz https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.44.0-linux-$GIT_ARCH.tar.gz; then
-            echo "Git binary downloaded successfully from kernel.org"
-        else
-            echo "Failed to download Git binary, trying alternative approach..."
-            
-            # Alternative: Download static binary from GitHub releases
-            if curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0-linux-$GIT_ARCH.tar.gz; then
-                echo "Git static binary downloaded successfully"
-            else
-                echo "Error: All Git download methods failed"
-                echo "Falling back to package manager installation..."
-                
-                # Try to install via package manager as last resort
-                if command -v yum &> /dev/null; then
-                    echo "Installing Git via yum..."
-                    sudo yum install -y git
-                    if command -v git &> /dev/null; then
-                        echo "Git installed successfully via yum"
-                        cd ~
-                        rm -rf /tmp/git_install
-                        return 0
-                    fi
-                elif command -v dnf &> /dev/null; then
-                    echo "Installing Git via dnf..."
-                    sudo dnf install -y git
-                    if command -v git &> /dev/null; then
-                        echo "Git installed successfully via dnf"
-                        cd ~
-                        rm -rf /tmp/git_install
-                        return 0
-                    fi
+        # Method 1: Try static binary from GitHub (most reliable)
+        if curl -L -H "Accept: application/octet-stream" -o git.tar.gz "https://github.com/git/git/releases/download/v2.44.0/git-2.44.0-linux-$GIT_ARCH.tar.gz"; then
+            # Verify file size and type
+            FILE_SIZE=$(stat -c%s git.tar.gz 2>/dev/null || stat -f%z git.tar.gz 2>/dev/null || echo "0")
+            if [ "$FILE_SIZE" -gt 1000000 ]; then  # Should be > 1MB
+                if file git.tar.gz 2>/dev/null | grep -q "gzip compressed data" || file git.tar.gz 2>/dev/null | grep -q "tar archive"; then
+                    echo "Git binary downloaded successfully from GitHub (size: ${FILE_SIZE} bytes)"
+                else
+                    echo "Downloaded file is not a valid archive, trying alternative..."
+                    rm -f git.tar.gz
+                    # Fall through to next method
                 fi
-                
-                echo "Error: All Git installation methods failed"
-                exit 1
+            else
+                echo "Downloaded file too small (${FILE_SIZE} bytes), trying alternative..."
+                rm -f git.tar.gz
+                # Fall through to next method
             fi
+        else
+            echo "GitHub download failed, trying alternative..."
+        fi
+        
+        # Method 2: Try kernel.org mirror
+        if [ ! -f git.tar.gz ]; then
+            echo "Trying kernel.org mirror..."
+            if curl -L -o git.tar.gz "https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.44.0-linux-$GIT_ARCH.tar.gz"; then
+                FILE_SIZE=$(stat -c%s git.tar.gz 2>/dev/null || stat -f%z git.tar.gz 2>/dev/null || echo "0")
+                if [ "$FILE_SIZE" -gt 1000000 ]; then
+                    if file git.tar.gz 2>/dev/null | grep -q "gzip compressed data" || file git.tar.gz 2>/dev/null | grep -q "tar archive"; then
+                        echo "Git binary downloaded successfully from kernel.org (size: ${FILE_SIZE} bytes)"
+                    else
+                        echo "Kernel.org file invalid, trying alternative..."
+                        rm -f git.tar.gz
+                    fi
+                else
+                    echo "Kernel.org file too small, trying alternative..."
+                    rm -f git.tar.gz
+                fi
+            fi
+        fi
+        
+        # Method 3: Try alternative GitHub URL format
+        if [ ! -f git.tar.gz ]; then
+            echo "Trying alternative GitHub format..."
+            if curl -L -H "Accept: application/octet-stream" -o git.tar.gz "https://github.com/git/git/releases/download/v2.44.0/git-2.44.0-linux-$GIT_ARCH.tar.gz"; then
+                FILE_SIZE=$(stat -c%s git.tar.gz 2>/dev/null || stat -f%z git.tar.gz 2>/dev/null || echo "0")
+                if [ "$FILE_SIZE" -gt 1000000 ]; then
+                    if file git.tar.gz 2>/dev/null | grep -q "gzip compressed data" || file git.tar.gz 2>/dev/null | grep -q "tar archive"; then
+                        echo "Git binary downloaded successfully from alternative GitHub (size: ${FILE_SIZE} bytes)"
+                    else
+                        echo "Alternative GitHub file invalid"
+                        rm -f git.tar.gz
+                    fi
+                else
+                    echo "Alternative GitHub file too small"
+                    rm -f git.tar.gz
+                fi
+            fi
+        fi
+        
+        # If all downloads failed, show error and exit
+        if [ ! -f git.tar.gz ] || [ ! -s git.tar.gz ]; then
+            echo "Error: All Git download methods failed"
+            echo "Please install Git manually:"
+            echo "  sudo yum install -y git"
+            echo "  or"
+            echo "  sudo dnf install -y git"
+            exit 1
         fi
         
         # Extract the binary
         echo "Extracting Git binary..."
-        tar -xzf git.tar.gz
+        if ! tar -xzf git.tar.gz; then
+            echo "Error: Failed to extract Git binary"
+            echo "File contents (first 10 lines):"
+            head -10 git.tar.gz
+            echo "File type:"
+            file git.tar.gz
+            exit 1
+        fi
         
         # Find the extracted directory
         GIT_DIR=$(find . -maxdepth 1 -type d -name "git-*" | head -1)
         if [ -z "$GIT_DIR" ]; then
             echo "Error: Could not find extracted Git directory"
+            echo "Contents of current directory:"
             ls -la
             exit 1
         fi
