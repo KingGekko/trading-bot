@@ -1,61 +1,23 @@
-# Trading Bot Setup Scripts
+# Trading Bot Setup
 
-This folder contains automated setup scripts for deploying the Rust trading bot on Linux systems.
+This folder contains the complete installation script for the Rust trading bot.
 
-## 🚀 Quick Start (Recommended)
+## 🚀 Quick Start
+
+**Prerequisites: Git must be installed on your system**
 
 For a complete automated installation, run:
 
 ```bash
-chmod +x *.sh
-./full_setup.sh
+chmod +x install.sh
+./install.sh
 ```
 
-This will install everything needed and test the installation.
+This single script will install everything needed and test the installation.
 
-## 📋 Individual Scripts
+## 📋 What Gets Installed
 
-If you prefer step-by-step installation:
-
-### 1. Install Dependencies
-```bash
-chmod +x install_dependencies.sh
-./install_dependencies.sh
-```
-Installs: git, build tools, OpenSSL, pkg-config
-
-### 2. Install Rust
-```bash
-chmod +x install_rust.sh
-./install_rust.sh
-source ~/.cargo/env
-```
-Installs: Rust programming language and Cargo
-
-### 3. Clone and Build
-```bash
-chmod +x clone_and_build.sh
-./clone_and_build.sh
-```
-Clones the repository and builds the optimized binary
-
-### 4. Install Ollama
-```bash
-chmod +x install_ollama.sh
-./install_ollama.sh
-```
-Installs Ollama AI and downloads models
-
-### 5. Test Installation
-```bash
-chmod +x test_installation.sh
-./test_installation.sh
-```
-Tests the complete installation
-
-## 🎯 What Gets Installed
-
-- **System Dependencies**: Build tools, Git, OpenSSL
+- **System Dependencies**: Build tools, OpenSSL, pkg-config
 - **Rust**: Latest stable Rust compiler and Cargo
 - **Trading Bot**: Optimized binary with all features
 - **Ollama AI**: AI engine with tinyllama model
@@ -77,7 +39,7 @@ Tests the complete installation
 
 ## 🛠️ Manual Installation
 
-If the automated scripts fail, you can install manually:
+If the automated script fails, you can install manually:
 
 ```bash
 # Install dependencies (Ubuntu/Debian)
@@ -123,6 +85,21 @@ cd trading-bot
 ## 🚨 Troubleshooting
 
 ### Common Issues:
+
+**Git not found:**
+```bash
+# Ubuntu/Debian
+sudo apt update && sudo apt install -y git
+
+# CentOS/RHEL
+sudo yum install -y git
+
+# Fedora
+sudo dnf install -y git
+
+# Alpine
+sudo apk add git
+```
 
 **Rust not found after installation:**
 ```bash
