@@ -97,28 +97,7 @@ case $DISTRO in
             echo "Processes cleaned up, proceeding with apt installation..."
             
             # Try to install apt via yum/dnf with timeout
-            if command -v yum &> /dev/null; then
-                echo "Installing apt via yum with timeout protection..."
-                echo "This may take a few minutes..."
-                
-                # Install apt with timeout
-                if timeout 300 sudo yum install -y apt apt-transport-https ca-certificates; then
-                    echo "apt installed successfully via yum!"
-                    
-                    # Now use apt to install Git
-                    echo "Installing Git via apt..."
-                    if sudo apt update && sudo apt install -y git; then
-                        echo "Git installed successfully via apt!"
-                    else
-                        echo "apt Git installation failed, falling back to source build..."
-                        install_git_from_source
-                    fi
-                else
-                    echo "apt installation via yum failed or timed out, falling back to source build..."
-                    install_git_from_source
-                fi
-                
-            elif command -v dnf &> /dev/null; then
+            if command -v dnf &> /dev/null; then
                 echo "Installing apt via dnf with timeout protection..."
                 echo "This may take a few minutes..."
                 
@@ -136,6 +115,27 @@ case $DISTRO in
                     fi
                 else
                     echo "apt installation via dnf failed or timed out, falling back to source build..."
+                    install_git_from_source
+                fi
+                
+            elif command -v yum &> /dev/null; then
+                echo "Installing apt via yum with timeout protection..."
+                echo "This may take a few minutes..."
+                
+                # Install apt with timeout
+                if timeout 300 sudo yum install -y apt apt-transport-https ca-certificates; then
+                    echo "apt installed successfully via yum!"
+                    
+                    # Now use apt to install Git
+                    echo "Installing Git via apt..."
+                    if sudo apt update && sudo apt install -y git; then
+                        echo "Git installed successfully via apt!"
+                    else
+                        echo "apt Git installation failed, falling back to source build..."
+                        install_git_from_source
+                    fi
+                else
+                    echo "apt installation via yum failed or timed out, falling back to source build..."
                     install_git_from_source
                 fi
                 
