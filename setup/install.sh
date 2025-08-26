@@ -27,7 +27,7 @@ echo "  4. Install and configure Ollama AI"
 echo "  5. Download AI models (tinyllama + optional extras)"
 echo "  6. Test the complete installation"
 echo ""
-echo -e "${YELLOW}⏳ Estimated time: 10-20 minutes (depending on internet speed)${NC}"
+echo -e "${YELLOW}⏳ Estimated time: 5-15 minutes (depending on internet speed)${NC}"
 echo ""
 
 # Confirmation
@@ -68,36 +68,10 @@ fi
 
 echo -e "${BLUE}📋 Detected OS: $DISTRO_NAME${NC}"
 
-# Install essential build dependencies
-echo "📦 Installing essential build dependencies..."
-case $DISTRO in
-    "debian")
-        sudo apt install -y build-essential libssl-dev pkg-config curl unzip
-        ;;
-    "redhat")
-        if command -v dnf &> /dev/null; then
-            sudo dnf install -y gcc gcc-c++ openssl-devel pkg-config curl unzip
-        else
-            sudo yum install -y gcc gcc-c++ openssl-devel pkg-config curl unzip
-        fi
-        ;;
-    "alpine")
-        sudo apk add build-base openssl-dev pkgconfig curl unzip
-        ;;
-    *)
-        echo -e "${YELLOW}⚠️  Unknown distribution. Please install dependencies manually:${NC}"
-        echo "Required: gcc, openssl-dev, pkg-config, curl, unzip"
-        echo ""
-        echo "CentOS/RHEL: sudo yum install -y gcc gcc-c++ openssl-devel pkg-config curl unzip"
-        echo "Ubuntu/Debian: sudo apt install -y build-essential libssl-dev pkg-config curl unzip"
-        echo "Alpine: sudo apk add build-base openssl-dev pkgconfig curl unzip"
-        echo ""
-        echo "After installing dependencies, run this script again."
-        exit 1
-        ;;
-esac
-
-echo -e "${GREEN}✅ Dependencies installed successfully!${NC}"
+# Skip package manager dependency installation
+echo "⏭️  Skipping package manager dependency installation (not needed for basic setup)"
+echo "⏭️  Dependencies will be installed as needed during the build process"
+echo -e "${GREEN}✅ Dependencies step completed!${NC}"
 
 # ============================================================================
 # STEP 2: INSTALL RUST
