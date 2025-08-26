@@ -81,6 +81,24 @@ check_and_install_tools() {
     fi
 }
 
+# Function to setup Python environment for Ubuntu 22.04+
+setup_python_environment() {
+    log_message "Setting up Python environment..."
+    
+    # Install python3-venv and pipx for better Python management
+    apt-get install -y python3-venv python3-pip python3-full
+    
+    # Create a virtual environment for the trading bot
+    echo "🐍 Creating Python virtual environment..."
+    python3 -m venv /opt/trading-bot-venv
+    
+    # Activate virtual environment and upgrade pip
+    echo "🔄 Upgrading pip in virtual environment..."
+    /opt/trading-bot-venv/bin/pip install --upgrade pip
+    
+    echo -e "${GREEN}✅ Python environment setup complete${NC}"
+}
+
 # Function to create necessary directories
 create_directories() {
     log_message "Creating necessary directories..."
@@ -267,14 +285,21 @@ run_installation() {
         cp -r "$INSTALL_DIR/setup" /home/trading-bot-user/
         chown -R trading-bot-user:trading-bot-user /home/trading-bot-user/setup
         
-        # Run the install script as the non-root user
+        # Run the install script as the non-root user with virtual environment
         echo "🔧 Running installation as trading-bot-user..."
-        su - trading-bot-user -c "cd setup && ./install.sh"
+        su - trading-bot-user -c "cd setup && source /opt/trading-bot-venv/bin/activate && ./install.sh"
         
         # Copy back any generated files
         if [ -d "/home/trading-bot-user/.cargo" ]; then
             cp -r /home/trading-bot-user/.cargo /root/
             echo "✅ Rust environment copied to root user"
+        fi
+        
+        # Handle Python environment issues
+        echo "🐍 Setting up Python environment..."
+        if [ -d "/home/trading-bot-user/.local" ]; then
+            cp -r /home/trading-bot-user/.local /root/
+            echo "✅ Python packages copied to root user"
         fi
         
         if [ $? -eq 0 ]; then
@@ -671,6 +696,9 @@ main() {
     
     # Check and install essential tools
     check_and_install_tools
+    
+    # Setup Python environment for Ubuntu 22.04+
+    setup_python_environment
     
     # Create directories
     create_directories
