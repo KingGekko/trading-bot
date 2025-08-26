@@ -214,18 +214,18 @@ case $method_choice in
         # Create pkg-config file
         echo "🔧 Creating pkg-config configuration..."
         sudo mkdir -p /usr/local/openssl/lib64/pkgconfig
-        sudo tee /usr/local/openssl/lib64/pkgconfig/openssl.pc > /dev/null <<EOF
+        sudo tee /usr/local/openssl/lib64/pkgconfig/openssl.pc > /dev/null << 'EOF'
 prefix=/usr/local/openssl
-exec_prefix=\${prefix}
-libdir=\${exec_prefix}/lib64
-includedir=\${prefix}/include
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib64
+includedir=${prefix}/include
 
 Name: OpenSSL
 Description: Secure Sockets Layer and cryptography libraries
 Version: 3.0.12
 Requires: 
-Libs: -L\${libdir} -lssl -lcrypto
-Cflags: -I\${includedir}
+Libs: -L${libdir} -lssl -lcrypto
+Cflags: -I${includedir}
 EOF
         
         # Install pkg-config if not available
