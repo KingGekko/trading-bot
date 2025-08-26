@@ -111,12 +111,22 @@ setup_python_environment() {
 create_directories() {
     log_message "Creating necessary directories..."
     
+    # Create directories with proper permissions
     mkdir -p "$INSTALL_DIR"
     mkdir -p "$BACKUP_DIR"
     mkdir -p "$CLOUD_INIT_DIR"
     mkdir -p "$(dirname "$LOG_FILE")"
     
-    echo -e "${GREEN}✅ Directories created${NC}"
+    # Set proper ownership and permissions
+    chown -R root:root "$INSTALL_DIR" 2>/dev/null || true
+    chown -R root:root "$BACKUP_DIR" 2>/dev/null || true
+    chown -R root:root "$CLOUD_INIT_DIR" 2>/dev/null || true
+    
+    chmod -R 755 "$INSTALL_DIR"
+    chmod -R 755 "$BACKUP_DIR"
+    chmod -R 755 "$CLOUD_INIT_DIR"
+    
+    echo -e "${GREEN}✅ Directories created with proper permissions${NC}"
 }
 
 # Function to backup existing installation
@@ -137,7 +147,15 @@ backup_existing() {
 download_source() {
     log_message "Downloading trading bot source code..."
     
+    # Ensure /tmp is clean and accessible
     cd /tmp
+    rm -rf trading-bot-* 2>/dev/null || true
+    
+    # Ensure we have write permissions
+    if [ ! -w /tmp ]; then
+        echo -e "${RED}❌ No write permission to /tmp directory${NC}"
+        exit 1
+    fi
     
     # Try multiple download methods with fallbacks
     local download_success=false
@@ -145,6 +163,11 @@ download_source() {
     # Method 1: Try git clone first (most reliable)
     if command -v git >/dev/null 2>&1; then
         echo "🌐 Attempting git clone..."
+        
+        # Clean up any existing directories
+        rm -rf trading-bot-git trading-bot-main
+        
+        # Try git clone with proper error handling
         if git clone "$GIT_REPO" trading-bot-git 2>/dev/null; then
             echo "✅ Git clone successful"
             rm -rf "$INSTALL_DIR"
@@ -152,6 +175,8 @@ download_source() {
             download_success=true
         else
             echo "❌ Git clone failed, trying alternative methods..."
+            # Clean up failed clone attempt
+            rm -rf trading-bot-git 2>/dev/null || true
         fi
     fi
     
