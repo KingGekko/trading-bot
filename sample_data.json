@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-08-26T18:00:00Z",
+  "symbol": "BTC/USD",
+  "price": 45000.50,
+  "volume": 1250.75,
+  "change_24h": 2.5,
+  "market_cap": 850000000000,
+  "indicators": {
+    "rsi": 65.2,
+    "macd": "bullish",
+    "bollinger_bands": {
+      "upper": 46000.0,
+      "middle": 45000.0,
+      "lower": 44000.0
+    }
+  },
+  "trades": [
+    {
+      "id": "trade_001",
+      "side": "buy",
+      "amount": 0.5,
+      "price": 45000.50,
+      "timestamp": "2025-08-26T18:00:00Z"
+    },
+    {
+      "id": "trade_002",
+      "side": "sell",
+      "amount": 0.3,
+      "price": 45001.00,
+      "timestamp": "2025-08-26T18:00:01Z"
+    }
+  ],
+  "sentiment": "positive",
+  "news_impact": "moderate"
+} 

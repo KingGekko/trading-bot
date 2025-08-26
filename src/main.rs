@@ -6,8 +6,10 @@ use std::fs;
 use std::path::Path;
 
 mod ollama;
+mod api;
 
 use ollama::{OllamaClient, Config, OllamaReceipt, ProtobufReceipt};
+use api::start_api_server;
 
 /// Ensure log directory exists with proper permissions
 fn ensure_log_directory(log_directory: &str) -> Result<()> {
@@ -128,6 +130,19 @@ async fn main() -> Result<()> {
                 .long("benchmark")
                 .value_name("PROMPT")
                 .help("Benchmark multiple models with the same prompt and save results to protobuf"),
+        )
+        .arg(
+            Arg::new("api")
+                .long("api")
+                .help("Start the JSON streaming API server")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("api-port")
+                .long("api-port")
+                .value_name("PORT")
+                .help("Port for the API server (default: 8080)")
+                .default_value("8080"),
         );
 
     let matches = app.get_matches();
@@ -550,6 +565,39 @@ async fn main() -> Result<()> {
                 }
             }
         }
+    } else if matches.get_flag("api") {
+        // API server mode
+        let port: u16 = matches.get_one::<String>("api-port")
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(8080);
+        
+        println!("🚀 STARTING JSON STREAMING API SERVER");
+        println!("{}", "=".repeat(50));
+        println!("Port: {}", port);
+        println!("Base URL: http://localhost:{}", port);
+        println!();
+        println!("📡 Available endpoints:");
+        println!("   GET  /health                    - Health check");
+        println!("   POST /api/watch                 - Start watching a JSON file");
+        println!("   GET  /api/watch/:file_path     - Stop watching a file");
+        println!("   GET  /api/files                - List watched files");
+        println!("   GET  /api/content/:file_path   - Get file content");
+        println!("   GET  /api/stream/:file_path    - WebSocket stream for real-time updates");
+        println!();
+        println!("💡 Example usage:");
+        println!("   curl http://localhost:{}/health", port);
+        println!("   curl -X POST http://localhost:{}/api/watch -d '{{\"file_path\":\"/path/to/file.json\"}}'", port);
+        println!("   curl http://localhost:{}/api/stream/file.json", port);
+        println!();
+        println!("🌐 Starting server...");
+        
+        match start_api_server(port).await {
+            Ok(_) => println!("✅ API server started successfully"),
+            Err(e) => {
+                eprintln!("❌ Failed to start API server: {}", e);
+                return Err(anyhow::anyhow!("API server error: {}", e));
+            }
+        }
     } else {
         println!("Trading Bot started. Use --help for usage information.");
         println!("Available modes:");
@@ -560,6 +608,8 @@ async fn main() -> Result<()> {
         println!("  -b, --benchmark \"text\" Benchmark multiple models and save to protobuf");
         println!("  -l, --logs            View receipt logs summary");
         println!("  -m, --model \"name\"    Override auto-detection with specific model");
+        println!("  --api                 Start JSON streaming API server");
+        println!("  --api-port PORT       Custom port for API server (default: 8080)");
         println!();
         println!("💡 Streaming is now the default for all modes for enhanced responsiveness!");
         println!("🤖 Model auto-detection is enabled by default for optimal performance!");
@@ -568,6 +618,12 @@ async fn main() -> Result<()> {
         println!("   • For fastest responses (3-5s), try models: phi, qwen2.5:0.5b, gemma2:2b");
         println!("   • Current model optimization: Reduced tokens, faster sampling");
         println!("   • Connection pooling and TCP keep-alive enabled for better throughput");
+        println!();
+        println!("🌐 API Server Features:");
+        println!("   • Real-time JSON file streaming");
+        println!("   • WebSocket support for live updates");
+        println!("   • File change monitoring");
+        println!("   • RESTful API endpoints");
     }
 
     Ok(())
