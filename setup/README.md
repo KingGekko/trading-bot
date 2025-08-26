@@ -2,6 +2,40 @@
 
 This folder contains the complete installation script for the Rust trading bot.
 
+## 🚨 Pre-Setup: No Git Required!
+
+**If you're on a fresh machine without Git, use these methods:**
+
+### **Option 1: Direct Script Download (Recommended)**
+```bash
+# Download and run in one command (no Git needed)
+curl -fsSL https://raw.githubusercontent.com/KingGekko/trading-bot/main/setup/install.sh -o install.sh && chmod +x install.sh && ./install.sh
+```
+
+### **Option 2: Download Source Archive**
+```bash
+# Download source code directly
+curl -L -o trading-bot.zip https://github.com/KingGekko/trading-bot/archive/refs/heads/main.zip
+
+# Install unzip and extract
+sudo apt update && sudo apt install -y unzip
+unzip trading-bot.zip
+mv trading-bot-main trading-bot
+cd trading-bot/setup
+chmod +x install.sh
+./install.sh
+```
+
+### **Option 3: Install Git First**
+```bash
+# Install Git, then clone
+sudo apt update && sudo apt install -y git
+git clone https://github.com/KingGekko/trading-bot.git
+cd trading-bot/setup
+chmod +x install.sh
+./install.sh
+```
+
 ## 🚀 Quick Start
 
 **Prerequisites: Git must be installed on your system**
