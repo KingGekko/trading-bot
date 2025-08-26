@@ -68,6 +68,50 @@ fi
 
 echo -e "${BLUE}📋 Detected OS: $DISTRO_NAME${NC}"
 
+# Install lightweight package manager if needed
+echo "📦 Installing lightweight package manager..."
+case $DISTRO in
+    "redhat")
+        if ! command -v yum &> /dev/null && ! command -v dnf &> /dev/null; then
+            echo "📥 Installing microdnf (lightweight package manager)..."
+            curl -L -o microdnf.rpm https://dl.fedoraproject.org/pub/fedora/linux/releases/38/Everything/x86_64/os/Packages/m/microdnf-3.8.0-1.fc38.x86_64.rpm
+            sudo rpm -i microdnf.rpm
+            rm microdnf.rpm
+            echo "✅ microdnf installed successfully"
+        else
+            echo "✅ Package manager already available: $(command -v yum || command -v dnf)"
+        fi
+        ;;
+    "debian")
+        if ! command -v apt &> /dev/null; then
+            echo "📥 Installing apt (package manager)..."
+            # For minimal systems, install basic apt
+            curl -L -o apt.deb http://archive.ubuntu.com/ubuntu/pool/main/a/apt/apt_2.4.9_amd64.deb
+            sudo dpkg -i apt.deb
+            rm apt.deb
+            echo "✅ apt installed successfully"
+        else
+            echo "✅ Package manager already available: apt"
+        fi
+        ;;
+    "alpine")
+        if ! command -v apk &> /dev/null; then
+            echo "📥 Installing apk (package manager)..."
+            # Alpine usually comes with apk, but if missing, download it
+            curl -L -o apk.static https://github.com/alpinelinux/apk-tools/releases/download/v2.12.11-r1/apk-tools-2.12.11-x86_64-linux.tar.gz
+            tar -xzf apk.static
+            sudo mv apk /usr/local/bin/
+            rm apk.static
+            echo "✅ apk installed successfully"
+        else
+            echo "✅ Package manager already available: apk"
+        fi
+        ;;
+    *)
+        echo -e "${YELLOW}⚠️  Unknown distribution. Will try to install basic tools manually.${NC}"
+        ;;
+esac
+
 # Install only OpenSSL development packages (essential for build)
 echo "📦 Installing OpenSSL development packages (required for build)..."
 case $DISTRO in
@@ -77,6 +121,8 @@ case $DISTRO in
     "redhat")
         if command -v dnf &> /dev/null; then
             sudo dnf install -y openssl-devel pkg-config
+        elif command -v microdnf &> /dev/null; then
+            sudo microdnf install -y openssl-devel pkg-config
         else
             sudo yum install -y openssl-devel pkg-config
         fi
