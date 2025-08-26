@@ -6,19 +6,28 @@ This folder contains the complete installation script for the Rust trading bot.
 
 **If you're on a fresh machine without Git, use these methods:**
 
-### **Option 1: Direct Script Download (Recommended)**
+### **Option 1: Direct Script Download (Universal - Recommended)**
 ```bash
-# Download and run in one command (no Git needed)
+# Download and run in one command (no Git needed, works on any Linux)
 curl -fsSL https://raw.githubusercontent.com/KingGekko/trading-bot/main/setup/install.sh -o install.sh && chmod +x install.sh && ./install.sh
 ```
 
-### **Option 2: Download Source Archive**
+### **Option 2: Download Source Archive (Universal)**
 ```bash
 # Download source code directly
 curl -L -o trading-bot.zip https://github.com/KingGekko/trading-bot/archive/refs/heads/main.zip
 
-# Install unzip and extract
-sudo apt update && sudo apt install -y unzip
+# Install unzip and extract (choose your package manager)
+# For yum/dnf (CentOS/RHEL/Fedora):
+sudo yum install -y unzip
+# OR for dnf (Fedora):
+sudo dnf install -y unzip
+# OR for apk (Alpine):
+sudo apk add unzip
+# OR for zypper (openSUSE):
+sudo zypper install unzip
+
+# Extract and run
 unzip trading-bot.zip
 mv trading-bot-main trading-bot
 cd trading-bot/setup
@@ -26,10 +35,43 @@ chmod +x install.sh
 ./install.sh
 ```
 
-### **Option 3: Install Git First**
+### **Option 3: Install Git First (Distribution-Specific)**
 ```bash
-# Install Git, then clone
+# Choose your package manager:
+
+# For yum (CentOS/RHEL):
+sudo yum update -y && sudo yum install -y git
+
+# For dnf (Fedora):
+sudo dnf update -y && sudo dnf install -y git
+
+# For apk (Alpine):
+sudo apk update && sudo apk add git
+
+# For zypper (openSUSE):
+sudo zypper refresh && sudo zypper install git
+
+# For apt (Ubuntu/Debian):
 sudo apt update && sudo apt install -y git
+
+# Then clone and run
+git clone https://github.com/KingGekko/trading-bot.git
+cd trading-bot/setup
+chmod +x install.sh
+./install.sh
+```
+
+### **Option 4: Manual Git Installation (If package managers fail)**
+```bash
+# Download and install Git manually
+cd /tmp
+curl -L -o git.tar.gz https://github.com/git/git/archive/refs/tags/v2.43.0.tar.gz
+tar -xzf git.tar.gz
+cd git-2.43.0
+make prefix=/usr/local all
+sudo make prefix=/usr/local install
+
+# Then clone and run
 git clone https://github.com/KingGekko/trading-bot.git
 cd trading-bot/setup
 chmod +x install.sh
@@ -124,17 +166,30 @@ ollama rm llama2
 
 **Git not found:**
 ```bash
-# Ubuntu/Debian
+# Choose your package manager:
+
+# Ubuntu/Debian (apt)
 sudo apt update && sudo apt install -y git
 
-# CentOS/RHEL
+# CentOS/RHEL (yum)
 sudo yum install -y git
 
-# Fedora
+# Fedora (dnf)
 sudo dnf install -y git
 
-# Alpine
+# Alpine (apk)
 sudo apk add git
+
+# openSUSE (zypper)
+sudo zypper install git
+
+# Manual installation (if package managers fail)
+cd /tmp
+curl -L -o git.tar.gz https://github.com/git/git/archive/refs/tags/v2.43.0.tar.gz
+tar -xzf git.tar.gz
+cd git-2.43.0
+make prefix=/usr/local all
+sudo make prefix=/usr/local install
 ```
 
 **Rust not found after installation:**
@@ -151,8 +206,20 @@ ollama list
 
 **Build fails with OpenSSL errors:**
 ```bash
-sudo apt install libssl-dev pkg-config  # Ubuntu/Debian
-sudo yum install openssl-devel pkg-config  # CentOS/RHEL
+# Ubuntu/Debian
+sudo apt install libssl-dev pkg-config
+
+# CentOS/RHEL
+sudo yum install openssl-devel pkg-config
+
+# Fedora
+sudo dnf install openssl-devel pkg-config
+
+# Alpine
+sudo apk add openssl-dev pkgconfig
+
+# openSUSE
+sudo zypper install openssl-devel pkg-config
 ```
 
 **Permission denied:**
