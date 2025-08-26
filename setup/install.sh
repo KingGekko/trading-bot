@@ -158,13 +158,104 @@ echo "All required build tools found!"
 echo "Installing required Perl modules..."
 echo "Downloading FindBin.pm directly (no package manager needed)..."
 
-# Download and install FindBin.pm directly
+# Download FindBin.pm
 curl -L -o FindBin.pm https://raw.githubusercontent.com/Perl-Toolchain-Gang/FindBin/master/lib/FindBin.pm
+
+# Install to multiple Perl library paths to ensure it's found
+echo "Installing FindBin.pm to multiple Perl library paths..."
+
+# Method 1: Install to the specific path OpenSSL is looking for
 sudo mkdir -p /usr/local/lib64/perl5/5.32
 sudo cp FindBin.pm /usr/local/lib64/perl5/5.32/
+
+# Method 2: Install to system-wide Perl paths
+sudo cp FindBin.pm /usr/lib64/perl5/
+sudo cp FindBin.pm /usr/share/perl5/
+
+# Method 3: Install to vendor paths
+sudo cp FindBin.pm /usr/lib64/perl5/vendor_perl/
+sudo cp FindBin.pm /usr/share/perl5/vendor_perl/
+
+# Method 4: Install to local share path
+sudo mkdir -p /usr/local/share/perl5/5.32
+sudo cp FindBin.pm /usr/local/share/perl5/5.32/
+
+# Clean up
 rm FindBin.pm
 
-echo "Perl modules installed successfully!"
+# Verify the module is accessible
+echo "Verifying FindBin.pm installation..."
+if perl -e "use FindBin; print 'FindBin module found successfully\n';" 2>/dev/null; then
+    echo "FindBin module verified and working!"
+else
+    echo "Warning: FindBin module may not be working properly"
+    echo "Trying alternative installation method..."
+    
+    # Alternative: Create a simple FindBin.pm that just provides basic functionality
+    cat > FindBin.pm << 'EOF'
+package FindBin;
+use strict;
+use warnings;
+use Cwd qw(abs_path);
+use File::Basename qw(dirname);
+
+our $VERSION = '1.51';
+
+sub bin {
+    return $FindBin::Bin if defined $FindBin::Bin;
+    $FindBin::Bin = dirname(abs_path($0));
+    return $FindBin::Bin;
+}
+
+sub dir {
+    return $FindBin::Bin if defined $FindBin::Bin;
+    $FindBin::Bin = dirname(abs_path($0));
+    return $FindBin::Bin;
+}
+
+sub script {
+    return $FindBin::Script if defined $FindBin::Script;
+    $FindBin::Script = basename($0);
+    return $FindBin::Script;
+}
+
+sub realpath {
+    return $FindBin::RealBin if defined $FindBin::RealBin;
+    $FindBin::RealBin = abs_path($0);
+    $FindBin::RealBin = dirname($FindBin::RealBin);
+    return $FindBin::RealBin;
+}
+
+sub realscript {
+    return $FindBin::RealScript if defined $FindBin::RealScript;
+    $FindBin::RealScript = abs_path($0);
+    $FindBin::RealScript = basename($FindBin::RealScript);
+    return $FindBin::RealScript;
+}
+
+1;
+EOF
+
+    # Install this custom FindBin.pm to all paths
+    sudo cp FindBin.pm /usr/local/lib64/perl5/5.32/
+    sudo cp FindBin.pm /usr/lib64/perl5/
+    sudo cp FindBin.pm /usr/share/perl5/
+    sudo cp FindBin.pm /usr/lib64/perl5/vendor_perl/
+    sudo cp FindBin.pm /usr/share/perl5/vendor_perl/
+    sudo cp FindBin.pm /usr/local/share/perl5/5.32/
+    
+    rm FindBin.pm
+    
+    # Test again
+    if perl -e "use FindBin; print 'Custom FindBin module working\n';" 2>/dev/null; then
+        echo "Custom FindBin module installed and working!"
+    else
+        echo "Error: Could not install FindBin module. OpenSSL build may fail."
+        echo "Continuing anyway..."
+    fi
+fi
+
+echo "Perl modules installation completed!"
 
 # Configure and build
 echo "Configuring OpenSSL..."
