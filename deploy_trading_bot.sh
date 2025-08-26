@@ -96,6 +96,10 @@ setup_python_environment() {
     echo "🔄 Upgrading pip in virtual environment..."
     /opt/trading-bot-venv/bin/pip install --upgrade pip
     
+    # Set proper permissions for the virtual environment
+    chmod -R 755 /opt/trading-bot-venv
+    chown -R trading-bot-user:trading-bot-user /opt/trading-bot-venv 2>/dev/null || true
+    
     echo -e "${GREEN}✅ Python environment setup complete${NC}"
 }
 
@@ -287,7 +291,14 @@ run_installation() {
         
         # Run the install script as the non-root user with virtual environment
         echo "🔧 Running installation as trading-bot-user..."
-        su - trading-bot-user -c "cd setup && source /opt/trading-bot-venv/bin/activate && ./install.sh"
+        
+        # Set environment variables to force virtual environment usage
+        export PIP_USER=no
+        export PIP_REQUIRE_VIRTUALENV=true
+        export VIRTUAL_ENV=/opt/trading-bot-venv
+        
+        # Run the install script with proper environment
+        su - trading-bot-user -c "cd setup && source /opt/trading-bot-venv/bin/activate && export PIP_USER=no && export PIP_REQUIRE_VIRTUALENV=true && ./install.sh"
         
         # Copy back any generated files
         if [ -d "/home/trading-bot-user/.cargo" ]; then
