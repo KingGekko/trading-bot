@@ -27,7 +27,7 @@ echo "  4. Install and configure Ollama AI"
 echo "  5. Download AI models (tinyllama + optional extras)"
 echo "  6. Test the complete installation"
 echo ""
-echo -e "${YELLOW}⏳ Estimated time: 5-15 minutes (depending on internet speed)${NC}"
+echo -e "${YELLOW}⏳ Estimated time: 8-18 minutes (depending on internet speed)${NC}"
 echo ""
 
 # Confirmation
@@ -68,10 +68,35 @@ fi
 
 echo -e "${BLUE}📋 Detected OS: $DISTRO_NAME${NC}"
 
-# Skip package manager dependency installation
-echo "⏭️  Skipping package manager dependency installation (not needed for basic setup)"
-echo "⏭️  Dependencies will be installed as needed during the build process"
-echo -e "${GREEN}✅ Dependencies step completed!${NC}"
+# Install only OpenSSL development packages (essential for build)
+echo "📦 Installing OpenSSL development packages (required for build)..."
+case $DISTRO in
+    "debian")
+        sudo apt install -y libssl-dev pkg-config
+        ;;
+    "redhat")
+        if command -v dnf &> /dev/null; then
+            sudo dnf install -y openssl-devel pkg-config
+        else
+            sudo yum install -y openssl-devel pkg-config
+        fi
+        ;;
+    "alpine")
+        sudo apk add openssl-dev pkgconfig
+        ;;
+    *)
+        echo -e "${RED}⚠️  Unknown distribution. Please install OpenSSL manually:${NC}"
+        echo ""
+        echo "CentOS/RHEL: sudo yum install -y openssl-devel pkg-config"
+        echo "Ubuntu/Debian: sudo apt install -y libssl-dev pkg-config"
+        echo "Alpine: sudo apk add openssl-dev pkgconfig"
+        echo ""
+        echo "After installing OpenSSL, run this script again."
+        exit 1
+        ;;
+esac
+
+echo -e "${GREEN}✅ OpenSSL development packages installed successfully!${NC}"
 
 # ============================================================================
 # STEP 2: INSTALL RUST
