@@ -52,17 +52,17 @@ echo -e "📦 STEP 1/6: Installing dependencies"
 echo -e "==================================${NC}"
 
 # Detect OS and install essential dependencies
-echo "📋 Detecting operating system..."
+echo "Detecting operating system..."
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     DISTRO=$(echo "$ID" | tr '[:upper:]' '[:lower:]')
-    echo "📋 Detected OS: $PRETTY_NAME"
+    echo "Detected OS: $PRETTY_NAME"
 else
-    echo "📋 Could not detect OS, assuming generic Linux"
+    echo "Could not detect OS, assuming generic Linux"
     DISTRO="generic"
 fi
 
-echo "📦 Checking for essential build tools..."
+echo "Checking for essential build tools..."
 echo "Note: This script will use existing system tools without package managers"
 echo ""
 
@@ -94,7 +94,7 @@ if ! command -v unzip &> /dev/null; then
 fi
 
 if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
-    echo "❌ Missing essential tools: ${MISSING_TOOLS[*]}"
+    echo "Missing essential tools: ${MISSING_TOOLS[*]}"
     echo ""
     echo "Please install these tools manually:"
     echo "CentOS/RHEL: sudo yum install -y ${MISSING_TOOLS[*]}"
@@ -105,12 +105,12 @@ if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
     exit 1
 fi
 
-echo "✅ All essential build tools found!"
-echo "✅ Package manager check completed!"
+echo "All essential build tools found!"
+echo "Package manager check completed!"
 
 # Install OpenSSL directly (no package manager)
-echo "📦 Installing OpenSSL (required for build)..."
-echo "📥 Downloading OpenSSL directly - this method is faster and more reliable"
+echo "Installing OpenSSL (required for build)..."
+echo "Downloading OpenSSL directly - this method is faster and more reliable"
 echo ""
 
 # Create temporary directory
@@ -118,50 +118,50 @@ mkdir -p /tmp/openssl_install
 cd /tmp/openssl_install
 
 # Download OpenSSL source
-echo "📥 Downloading OpenSSL 3.0.12 source..."
+echo "Downloading OpenSSL 3.0.12 source..."
 curl -L -o openssl.tar.gz https://www.openssl.org/source/openssl-3.0.12.tar.gz
 
 # Extract
-echo "📁 Extracting OpenSSL source..."
+echo "Extracting OpenSSL source..."
 tar -xzf openssl.tar.gz
 cd openssl-3.0.12
 
 # Check if required tools exist
-echo "📦 Checking build tools..."
+echo "Checking build tools..."
 echo "Note: Using system's existing build tools (gcc, make, perl)"
 echo ""
 
 if ! command -v gcc &> /dev/null; then
-    echo "❌ Error: gcc (C compiler) not found. Please install it manually:"
+    echo "Error: gcc (C compiler) not found. Please install it manually:"
     echo "CentOS/RHEL: sudo yum install -y gcc"
     echo "Ubuntu/Debian: sudo apt install -y gcc"
     exit 1
 fi
 
 if ! command -v make &> /dev/null; then
-    echo "❌ Error: make not found. Please install it manually:"
+    echo "Error: make not found. Please install it manually:"
     echo "CentOS/RHEL: sudo yum install -y make"
     echo "Ubuntu/Debian: sudo apt install -y make"
     exit 1
 fi
 
 if ! command -v perl &> /dev/null; then
-    echo "❌ Error: perl not found. Please install it manually:"
+    echo "Error: perl not found. Please install it manually:"
     echo "CentOS/RHEL: sudo yum install -y perl"
     echo "Ubuntu/Debian: sudo apt install -y perl"
     exit 1
 fi
 
-echo "✅ All required build tools found!"
+echo "All required build tools found!"
 
 # Configure and build
-echo "🔧 Configuring OpenSSL..."
+echo "Configuring OpenSSL..."
 ./config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl
 
-echo "🔨 Building OpenSSL (this may take 5-10 minutes)..."
+echo "Building OpenSSL (this may take 5-10 minutes)..."
 make -j$(nproc)
 
-echo "📦 Installing OpenSSL..."
+echo "Installing OpenSSL..."
 sudo make install
 
 # Set environment variables
@@ -171,7 +171,7 @@ export OPENSSL_LIB_DIR="/usr/local/openssl/lib64"
 export PKG_CONFIG_PATH="/usr/local/openssl/lib64/pkgconfig"
 
 # Create pkg-config file
-echo "🔧 Creating pkg-config configuration..."
+echo "Creating pkg-config configuration..."
 sudo mkdir -p /usr/local/openssl/lib64/pkgconfig
 sudo tee /usr/local/openssl/lib64/pkgconfig/openssl.pc > /dev/null << 'EOF'
 prefix=/usr/local/openssl
@@ -187,24 +187,24 @@ Libs: -L${libdir} -lssl -lcrypto
 Cflags: -I${includedir}
 EOF
 
-echo "✅ OpenSSL installed successfully to /usr/local/openssl"
-echo "🔧 Environment variables set for this session"
+echo "OpenSSL installed successfully to /usr/local/openssl"
+echo "Environment variables set for this session"
 
 # Clean up
 cd ~
 rm -rf /tmp/openssl_install
 
 # Verify installation
-echo "🔍 Verifying OpenSSL installation..."
+echo "Verifying OpenSSL installation..."
 if [ -f "/usr/local/openssl/bin/openssl" ]; then
-    echo "✅ OpenSSL binary found: $(/usr/local/openssl/bin/openssl version)"
+    echo "OpenSSL binary found: $(/usr/local/openssl/bin/openssl version)"
 fi
 
 if [ -f "/usr/local/openssl/lib64/pkgconfig/openssl.pc" ]; then
-    echo "✅ pkg-config file created successfully"
+    echo "pkg-config file created successfully"
 fi
 
-echo "✅ OpenSSL development packages installed and configured successfully!"
+echo "OpenSSL development packages installed and configured successfully!"
 
 # ============================================================================
 # STEP 2: INSTALL RUST
