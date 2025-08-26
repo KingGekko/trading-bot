@@ -122,24 +122,30 @@ echo "Downloading OpenSSL 3.4.4 source (latest stable version)..."
 echo "Note: This may take a few minutes depending on your internet connection..."
 
 # Try multiple download methods for OpenSSL
-if curl -L -o openssl.tar.gz "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.4.4.tar.gz"; then
+echo "Attempting download from GitHub..."
+if curl -L -v -o openssl.tar.gz "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.4.4.tar.gz" 2>&1 | grep -q "HTTP.*200"; then
     echo "OpenSSL 3.4.4 downloaded successfully from GitHub"
-elif curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-3.4.4.tar.gz"; then
-    echo "OpenSSL 3.4.4 downloaded successfully from official source"
+elif curl -L -o openssl.tar.gz "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.4.4.tar.gz"; then
+    echo "OpenSSL 3.4.4 downloaded from GitHub (status check failed)"
 else
-    echo "Error: Failed to download OpenSSL 3.4.4"
-    echo "Trying alternative version: OpenSSL 3.3.0..."
-    if curl -L -o openssl.tar.gz "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.3.0.tar.gz"; then
-        echo "OpenSSL 3.3.0 downloaded successfully from GitHub (fallback version)"
-        # Update directory references for 3.3.0
-        sed -i 's/openssl-3.4.4/openssl-3.3.0/g' /tmp/openssl_install/install.sh
-    elif curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-3.3.0.tar.gz"; then
-        echo "OpenSSL 3.3.0 downloaded successfully from official source (fallback version)"
-        # Update directory references for 3.3.0
-        sed -i 's/openssl-3.4.4/openssl-3.3.0/g' /tmp/openssl_install/install.sh
+    echo "GitHub download failed, trying official source..."
+    if curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-3.4.4.tar.gz"; then
+        echo "OpenSSL 3.4.4 downloaded successfully from official source"
     else
-        echo "Error: Failed to download OpenSSL. Please check your internet connection."
-        exit 1
+        echo "Error: Failed to download OpenSSL 3.4.4"
+        echo "Trying alternative version: OpenSSL 3.3.0..."
+        if curl -L -o openssl.tar.gz "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.3.0.tar.gz"; then
+            echo "OpenSSL 3.3.0 downloaded successfully from GitHub (fallback version)"
+            # Update directory references for 3.3.0
+            sed -i 's/openssl-3.4.4/openssl-3.3.0/g' /tmp/openssl_install/install.sh
+        elif curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-3.3.0.tar.gz"; then
+            echo "OpenSSL 3.3.0 downloaded successfully from official source (fallback version)"
+            # Update directory references for 3.3.0
+            sed -i 's/openssl-3.4.4/openssl-3.3.0/g' /tmp/openssl_install/install.sh
+        else
+            echo "Error: Failed to download OpenSSL. Please check your internet connection."
+            exit 1
+        fi
     fi
 fi
 
