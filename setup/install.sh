@@ -69,118 +69,47 @@ echo "Note: This script will install Git first, then clone the repository"
 case $DISTRO in
     "ol"|"rhel"|"centos"|"fedora"|"rocky"|"alma")
         echo "Installing Git on RedHat-based system..."
-        echo "Strategy: Install apt via yum/dnf, then use apt for everything..."
+        echo "Since OpenSSL is no longer needed, using direct source build..."
         
-        # More aggressive process cleanup
-        echo "Aggressive cleanup of hanging processes..."
+        # Kill any existing hanging processes first
+        echo "Cleaning up any hanging processes..."
         sudo pkill -9 -f yum 2>/dev/null || true
         sudo pkill -9 -f dnf 2>/dev/null || true
         sudo pkill -9 -f git 2>/dev/null || true
         sudo pkill -9 -f apt 2>/dev/null || true
         
-        # Kill specific process if it exists
-        if ps -p 4545 > /dev/null 2>&1; then
-            echo "Killing specific process 4545..."
-            sudo kill -9 4545 2>/dev/null || true
-        fi
+        # Wait for processes to clean up
+        sleep 2
         
-        # Wait longer for processes to clean up
-        echo "Waiting for processes to clean up..."
-        sleep 5
-        
-        # Check if yum/dnf are still hanging
-        if pgrep -f yum > /dev/null || pgrep -f dnf > /dev/null; then
-            echo "Warning: yum/dnf processes still running, trying alternative approach..."
-            echo "Skipping apt installation, going directly to source build..."
-            install_git_from_source
-        else
-            echo "Processes cleaned up, proceeding with apt installation..."
-            
-            # Try to install apt via yum/dnf with timeout
-            if command -v dnf &> /dev/null; then
-                echo "Installing apt via dnf with timeout protection..."
-                echo "This may take a few minutes..."
-                
-                # Install apt with timeout
-                if timeout 300 sudo dnf install -y apt apt-transport-https ca-certificates; then
-                    echo "apt installed successfully via dnf!"
-                    
-                    # Now use apt to install Git
-                    echo "Installing Git via apt..."
-                    if sudo apt update && sudo apt install -y git; then
-                        echo "Git installed successfully via apt!"
-                    else
-                        echo "apt Git installation failed, falling back to source build..."
-                        install_git_from_source
-                    fi
-                else
-                    echo "apt installation via dnf failed or timed out, falling back to source build..."
-                    install_git_from_source
-                fi
-                
-            elif command -v yum &> /dev/null; then
-                echo "Installing apt via yum with timeout protection..."
-                echo "This may take a few minutes..."
-                
-                # Install apt with timeout
-                if timeout 300 sudo yum install -y apt apt-transport-https ca-certificates; then
-                    echo "apt installed successfully via yum!"
-                    
-                    # Now use apt to install Git
-                    echo "Installing Git via apt..."
-                    if sudo apt update && sudo apt install -y git; then
-                        echo "Git installed successfully via apt!"
-                    else
-                        echo "apt Git installation failed, falling back to source build..."
-                        install_git_from_source
-                    fi
-                else
-                    echo "apt installation via yum failed or timed out, falling back to source build..."
-                    install_git_from_source
-                fi
-                
-            else
-                echo "No package manager found, falling back to source build..."
-                install_git_from_source
-            fi
-        fi
+        # Go directly to source build (no package managers needed)
+        echo "Building Git from source (no package managers required)..."
+        install_git_from_source
         ;;
     "ubuntu"|"debian"|"linuxmint")
         echo "Installing Git on Debian-based system..."
-        echo "Using apt directly..."
+        echo "Since OpenSSL is no longer needed, using direct source build..."
         
         # Kill any existing hanging processes
-        sudo pkill -f apt 2>/dev/null || true
+        sudo pkill -9 -f apt 2>/dev/null || true
         
-        # Use apt directly
-        if sudo apt update && sudo apt install -y git; then
-            echo "Git installed successfully via apt!"
-        else
-            echo "apt Git installation failed, falling back to source build..."
-            install_git_from_source
-        fi
+        # Go directly to source build
+        echo "Building Git from source (no package managers required)..."
+        install_git_from_source
         ;;
     "alpine")
         echo "Installing Git on Alpine..."
-        echo "Using apk directly..."
+        echo "Since OpenSSL is no longer needed, using direct source build..."
         
         # Kill any existing hanging processes
-        sudo pkill -f apk 2>/dev/null || true
+        sudo pkill -9 -f apk 2>/dev/null || true
         
-        # Use apk directly
-        if sudo apk add git; then
-            echo "Git installed successfully via apk!"
-        else
-            echo "apk Git installation failed, falling back to source build..."
-            install_git_from_source
-        fi
+        # Go directly to source build
+        echo "Building Git from source (no package managers required)..."
+        install_git_from_source
         ;;
     *)
-        echo "Unknown distribution. Please install Git manually:"
-        echo "CentOS/RHEL: sudo yum install -y git"
-        echo "Ubuntu/Debian: sudo apt install -y git"
-        echo "Alpine: sudo apk add git"
-        exit 1
+        echo "Unknown distribution. Using direct source build..."
+        install_git_from_source
         ;;
 esac
 
