@@ -62,6 +62,49 @@ else
     DISTRO="generic"
 fi
 
+echo "Installing Git (required for downloading source code)..."
+echo "Note: This script will install Git first, then clone the repository"
+
+# Install Git based on detected OS
+case $DISTRO in
+    "ol"|"rhel"|"centos"|"fedora"|"rocky"|"alma")
+        echo "Installing Git on RedHat-based system..."
+        if command -v yum &> /dev/null; then
+            sudo yum install -y git
+        elif command -v dnf &> /dev/null; then
+            sudo dnf install -y git
+        else
+            echo "Error: No package manager found for Git installation"
+            exit 1
+        fi
+        ;;
+    "ubuntu"|"debian"|"linuxmint")
+        echo "Installing Git on Debian-based system..."
+        sudo apt update && sudo apt install -y git
+        ;;
+    "alpine")
+        echo "Installing Git on Alpine..."
+        sudo apk add git
+        ;;
+    *)
+        echo "Unknown distribution. Please install Git manually:"
+        echo "CentOS/RHEL: sudo yum install -y git"
+        echo "Ubuntu/Debian: sudo apt install -y git"
+        echo "Alpine: sudo apk add git"
+        exit 1
+        ;;
+esac
+
+# Verify Git installation
+if command -v git &> /dev/null; then
+    echo "Git installed successfully: $(git --version)"
+else
+    echo "Error: Git installation failed"
+    exit 1
+fi
+
+echo "Git installation completed!"
+
 echo "Checking for essential build tools..."
 echo "Note: This script will use existing system tools without package managers"
 echo ""
@@ -107,6 +150,21 @@ fi
 
 echo "All essential build tools found!"
 echo "Package manager check completed!"
+
+# Clone the trading bot repository
+echo "Cloning trading bot repository..."
+if [ -d "trading-bot" ]; then
+    echo "Repository directory already exists, updating..."
+    cd trading-bot
+    git pull origin main
+else
+    echo "Cloning fresh repository..."
+    git clone https://github.com/KingGekko/trading-bot.git
+    cd trading-bot
+fi
+
+echo "Repository cloned/updated successfully!"
+echo "Current directory: $(pwd)"
 
 # Install OpenSSL directly (no package manager)
 echo "Installing OpenSSL (required for build)..."
