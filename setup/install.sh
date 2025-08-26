@@ -159,6 +159,7 @@ echo "Installing required Perl modules..."
 echo "Creating working FindBin.pm module..."
 
 # Create a working FindBin.pm module directly in the OpenSSL source directory
+echo "Creating FindBin.pm in OpenSSL directory..."
 cat > /tmp/openssl_install/openssl-3.0.12/FindBin.pm << 'EOF'
 package FindBin;
 use strict;
@@ -203,35 +204,17 @@ sub realscript {
 1;
 EOF
 
+# Check if the file was created successfully
+if [ -f "/tmp/openssl_install/openssl-3.0.12/FindBin.pm" ]; then
+    echo "FindBin.pm created successfully in OpenSSL directory"
+else
+    echo "Error: Failed to create FindBin.pm"
+    exit 1
+fi
+
 # Set environment variable to include OpenSSL source directory in Perl's @INC
 export PERL5LIB="/tmp/openssl_install/openssl-3.0.12:$PERL5LIB"
-
-# Also try to install to system paths as backup
-echo "Installing FindBin.pm to system Perl paths as backup..."
-
-# Create directories
-sudo mkdir -p /usr/local/lib64/perl5/5.32
-sudo mkdir -p /usr/local/share/perl5/5.32
-sudo mkdir -p /usr/lib64/perl5
-sudo mkdir -p /usr/share/perl5
-sudo mkdir -p /usr/lib64/perl5/vendor_perl
-sudo mkdir -p /usr/share/perl5/vendor_perl
-
-# Install to all paths
-sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/local/lib64/perl5/5.32/
-sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/lib64/perl5/
-sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/share/perl5/
-sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/lib64/perl5/vendor_perl/
-sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/share/perl5/vendor_perl/
-sudo cp /tmp/openssl_install/openssl-3.0.12/FindBin.pm /usr/local/share/perl5/5.32/
-
-# Set permissions
-sudo chmod 644 /usr/local/lib64/perl5/5.32/FindBin.pm
-sudo chmod 644 /usr/lib64/perl5/FindBin.pm
-sudo chmod 644 /usr/share/perl5/FindBin.pm
-sudo chmod 644 /usr/lib64/perl5/vendor_perl/FindBin.pm
-sudo chmod 644 /usr/share/perl5/vendor_perl/FindBin.pm
-sudo chmod 644 /usr/local/share/perl5/5.32/FindBin.pm
+echo "Set PERL5LIB to include OpenSSL directory: $PERL5LIB"
 
 # Test if the module works
 echo "Testing FindBin.pm module..."
@@ -242,6 +225,7 @@ else
 fi
 
 echo "Perl modules installation completed!"
+echo "Continuing with OpenSSL build..."
 
 # Configure and build
 echo "Configuring OpenSSL..."
