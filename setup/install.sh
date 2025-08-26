@@ -28,7 +28,7 @@ echo "  4. Install and configure Ollama AI"
 echo "  5. Download AI models (tinyllama + optional extras)"
 echo "  6. Test the complete installation"
 echo ""
-echo -e "${YELLOW}⏳ Estimated time: 10-20 minutes (depending on internet speed)${NC}"
+echo -e "${YELLOW}⏳ Estimated time: 5-15 minutes (depending on internet speed)${NC}"
 echo ""
 
 # Confirmation
@@ -69,70 +69,10 @@ fi
 
 echo -e "${BLUE}📋 Detected OS: $DISTRO_NAME${NC}"
 
-# Update package manager
-echo "📦 Updating package manager..."
-case $DISTRO in
-    "debian")
-        sudo apt update
-        ;;
-    "redhat")
-        if command -v dnf &> /dev/null; then
-            sudo dnf update -y
-        else
-            sudo yum update -y
-        fi
-        ;;
-    "alpine")
-        sudo apk update
-        ;;
-    *)
-        echo -e "${RED}⚠️  Unknown distribution. Please install dependencies manually.${NC}"
-        echo "Required: git, curl, gcc, openssl-dev, pkg-config"
-        exit 1
-        ;;
-esac
-
-# Install build dependencies
-echo "🛠️  Installing build dependencies..."
-case $DISTRO in
-    "debian")
-        sudo apt install -y \
-            curl \
-            build-essential \
-            pkg-config \
-            libssl-dev \
-            ca-certificates
-        ;;
-    "redhat")
-        if command -v dnf &> /dev/null; then
-            sudo dnf install -y \
-                curl \
-                gcc \
-                gcc-c++ \
-                openssl-devel \
-                pkg-config \
-                ca-certificates
-        else
-            sudo yum install -y \
-                curl \
-                gcc \
-                gcc-c++ \
-                openssl-devel \
-                pkg-config \
-                ca-certificates
-        fi
-        ;;
-    "alpine")
-        sudo apk add \
-            curl \
-            build-base \
-            openssl-dev \
-            pkgconfig \
-            ca-certificates
-        ;;
-esac
-
-echo -e "${GREEN}✅ Dependencies installed successfully!${NC}"
+# Skip package manager updates and dependency installation
+echo "⏭️  Skipping package manager updates (not needed for basic installation)"
+echo "⏭️  Skipping dependency installation (will install as needed during build)"
+echo -e "${GREEN}✅ Dependencies step completed!${NC}"
 
 # ============================================================================
 # STEP 2: INSTALL RUST
@@ -152,7 +92,21 @@ if command -v cargo &> /dev/null; then
 else
     echo "📥 Installing Rust programming language..."
     
+    # Check for basic requirements
+    if ! command -v curl &> /dev/null; then
+        echo -e "${RED}❌ curl is required but not found${NC}"
+        echo ""
+        echo "Please install curl manually:"
+        echo "  CentOS/RHEL: sudo yum install -y curl"
+        echo "  Ubuntu/Debian: sudo apt install -y curl"
+        echo "  Alpine: sudo apk add curl"
+        echo ""
+        echo "After installing curl, run this script again."
+        exit 1
+    fi
+    
     # Download and install Rust
+    echo "📥 Downloading Rust installer..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
     
     # Source the cargo environment
@@ -222,12 +176,33 @@ echo ""
 echo "🔨 Building trading bot (release mode)..."
 echo -e "${YELLOW}⏳ This may take several minutes on first build...${NC}"
 
-# Build with release optimizations
-cargo build --release
+# Try to build with release optimizations
+if cargo build --release; then
+    echo -e "${GREEN}✅ Build completed successfully!${NC}"
+else
+    echo -e "${RED}❌ Build failed!${NC}"
+    echo ""
+    echo "🔍 Common causes and solutions:"
+    echo ""
+    echo "📦 Missing build dependencies:"
+    echo "  CentOS/RHEL: sudo yum install -y gcc gcc-c++ openssl-devel pkg-config"
+    echo "  Ubuntu/Debian: sudo apt install -y build-essential libssl-dev pkg-config"
+    echo "  Alpine: sudo apk add build-base openssl-dev pkgconfig"
+    echo ""
+    echo "🦀 Rust toolchain issues:"
+    echo "  source ~/.cargo/env"
+    echo "  rustup update"
+    echo ""
+    echo "🌐 Network issues:"
+    echo "  Check your internet connection"
+    echo "  Try again in a few minutes"
+    echo ""
+    echo "📚 For more help, see: https://github.com/KingGekko/trading-bot/issues"
+    exit 1
+fi
 
 # Check if build was successful
 if [ -f "target/release/trading_bot" ]; then
-    echo -e "${GREEN}✅ Build completed successfully!${NC}"
     echo ""
     echo "📍 Binary location: $(pwd)/target/release/trading_bot"
     echo "📏 Binary size: $(du -h target/release/trading_bot | cut -f1)"
@@ -240,8 +215,8 @@ if [ -f "target/release/trading_bot" ]; then
     ./target/release/trading_bot --help
     
 else
-    echo -e "${RED}❌ Build failed!${NC}"
-    echo "🔍 Check the error messages above"
+    echo -e "${RED}❌ Build succeeded but binary not found!${NC}"
+    echo "🔍 Check the build output above for errors"
     exit 1
 fi
 
