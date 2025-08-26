@@ -96,7 +96,56 @@ case $DISTRO in
         ;;
 esac
 
-echo -e "${GREEN}✅ OpenSSL development packages installed successfully!${NC}"
+# Verify OpenSSL installation and set environment variables
+echo "🔍 Verifying OpenSSL installation..."
+if command -v pkg-config &> /dev/null; then
+    echo "✅ pkg-config found: $(pkg-config --version)"
+    
+    # Check if OpenSSL is found by pkg-config
+    if pkg-config --exists openssl; then
+        echo "✅ OpenSSL found via pkg-config"
+        echo "📋 OpenSSL version: $(pkg-config --modversion openssl)"
+        echo "📋 OpenSSL flags: $(pkg-config --cflags openssl)"
+        echo "📋 OpenSSL libs: $(pkg-config --libs openssl)"
+        
+        # Set environment variables for the build
+        export PKG_CONFIG_PATH=$(pkg-config --variable pc_path pkg-config)
+        export OPENSSL_DIR=$(pkg-config --variable prefix openssl)
+        echo "🔧 Set PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
+        echo "🔧 Set OPENSSL_DIR: $OPENSSL_DIR"
+    else
+        echo -e "${RED}❌ OpenSSL not found via pkg-config${NC}"
+        echo "🔍 Checking for OpenSSL files manually..."
+        
+        # Look for OpenSSL files
+        if [ -f "/usr/include/openssl/ssl.h" ]; then
+            echo "✅ Found OpenSSL headers in /usr/include"
+            export OPENSSL_DIR="/usr"
+            export OPENSSL_INCLUDE_DIR="/usr/include"
+            export OPENSSL_LIB_DIR="/usr/lib64"
+        elif [ -f "/usr/local/include/openssl/ssl.h" ]; then
+            echo "✅ Found OpenSSL headers in /usr/local/include"
+            export OPENSSL_DIR="/usr/local"
+            export OPENSSL_INCLUDE_DIR="/usr/local/include"
+            export OPENSSL_LIB_DIR="/usr/local/lib"
+        else
+            echo -e "${RED}❌ OpenSSL headers not found in standard locations${NC}"
+            echo "🔍 Searching for OpenSSL installation..."
+            find /usr -name "ssl.h" 2>/dev/null | head -5
+            echo ""
+            echo "Please install OpenSSL development packages manually:"
+            echo "CentOS/RHEL: sudo yum install -y openssl-devel pkg-config"
+            exit 1
+        fi
+    fi
+else
+    echo -e "${RED}❌ pkg-config not found${NC}"
+    echo "Please install pkg-config manually:"
+    echo "CentOS/RHEL: sudo yum install -y pkg-config"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ OpenSSL development packages installed and configured successfully!${NC}"
 
 # ============================================================================
 # STEP 2: INSTALL RUST
@@ -193,6 +242,10 @@ echo "🔨 Building trading bot (release mode)..."
 echo -e "${YELLOW}⏳ This may take several minutes on first build...${NC}"
 
 # Try to build with release optimizations
+echo "🔧 Building with OpenSSL environment variables..."
+echo "🔧 OPENSSL_DIR: $OPENSSL_DIR"
+echo "🔧 PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
+
 if cargo build --release; then
     echo -e "${GREEN}✅ Build completed successfully!${NC}"
 else
@@ -208,6 +261,10 @@ else
     echo "🦀 Rust toolchain issues:"
     echo "  source ~/.cargo/env"
     echo "  rustup update"
+    echo ""
+    echo "🔧 OpenSSL configuration issues:"
+    echo "  export OPENSSL_DIR=$OPENSSL_DIR"
+    echo "  export PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
     echo ""
     echo "🌐 Network issues:"
     echo "  Check your internet connection"
