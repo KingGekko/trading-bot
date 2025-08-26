@@ -16,6 +16,18 @@ NC='\033[0m' # No Color
 # Configuration
 PROJECT_DIR="trading-bot"
 
+# Check if running with sudo
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}❌ This script requires admin privileges!${NC}"
+    echo ""
+    echo "Please run with sudo:"
+    echo "  sudo ./update.sh"
+    echo ""
+    echo "Or run the full installation with sudo:"
+    echo "  sudo ./install.sh"
+    exit 1
+fi
+
 echo -e "${CYAN}🔄 Trading Bot - Update Script${NC}"
 echo -e "${CYAN}=============================${NC}"
 echo ""
@@ -33,10 +45,10 @@ if [ ! -f "install.sh" ] && [ ! -d "$PROJECT_DIR" ]; then
     echo -e "${RED}❌ Please run this script from the setup directory or trading-bot root${NC}"
     echo ""
     echo "Run from setup directory:"
-    echo "  cd setup && ./update.sh"
+    echo "  sudo cd setup && sudo ./update.sh"
     echo ""
     echo "OR run from trading-bot root:"
-    echo "  cd trading-bot && ../setup/update.sh"
+    echo "  sudo cd trading-bot && sudo ../setup/update.sh"
     exit 1
 fi
 
@@ -57,10 +69,7 @@ if [ ! -d "$PROJECT_PATH" ]; then
     echo ""
     echo "Creating trading bot directory and downloading source code..."
     
-    # Create the directory
-    mkdir -p "$PROJECT_PATH"
-    
-    # Clone the repository
+    # Create the directory with proper permissions
     if [ "$PROJECT_PATH" = "." ]; then
         # We're in the trading-bot root, so clone here
         git clone https://github.com/KingGekko/trading-bot.git temp-clone

@@ -13,6 +13,21 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Check if running with sudo
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}❌ This script requires admin privileges!${NC}"
+    echo ""
+    echo "Please run with sudo:"
+    echo "  sudo ./install.sh"
+    echo ""
+    echo "The script needs sudo to:"
+    echo "  • Install system packages"
+    echo "  • Install Rust globally"
+    echo "  • Install Ollama"
+    echo "  • Create system directories"
+    exit 1
+fi
+
 # Configuration
 PROJECT_DIR="trading-bot"
 
