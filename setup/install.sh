@@ -70,9 +70,71 @@ case $DISTRO in
     "ol"|"rhel"|"centos"|"fedora"|"rocky"|"alma")
         echo "Installing Git on RedHat-based system..."
         if command -v yum &> /dev/null; then
-            sudo yum install -y git
+            echo "Using yum package manager..."
+            echo "Installing Git with timeout protection..."
+            
+            # Install Git with timeout protection
+            timeout 300 sudo yum install -y git || {
+                echo "Git installation timed out or failed with yum"
+                echo "Trying alternative method: direct download..."
+                
+                # Try to download Git binary directly
+                if command -v curl &> /dev/null; then
+                    echo "Downloading Git binary directly..."
+                    curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz
+                    if [ -f "git.tar.gz" ]; then
+                        echo "Git source downloaded, building from source..."
+                        tar -xzf git.tar.gz
+                        cd git-2.44.0
+                        make prefix=/usr/local all
+                        sudo make prefix=/usr/local install
+                        cd ~
+                        rm -rf git-2.44.0 git.tar.gz
+                        echo "Git built and installed from source"
+                    else
+                        echo "Error: Failed to download Git. Please install manually:"
+                        echo "sudo yum install -y git"
+                        exit 1
+                    fi
+                else
+                    echo "Error: curl not available. Please install Git manually:"
+                    echo "sudo yum install -y git"
+                    exit 1
+                fi
+            }
         elif command -v dnf &> /dev/null; then
-            sudo dnf install -y git
+            echo "Using dnf package manager..."
+            echo "Installing Git with timeout protection..."
+            
+            # Install Git with timeout protection
+            timeout 300 sudo dnf install -y git || {
+                echo "Git installation timed out or failed with dnf"
+                echo "Trying alternative method: direct download..."
+                
+                # Try to download Git binary directly
+                if command -v curl &> /dev/null; then
+                    echo "Downloading Git binary directly..."
+                    curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz
+                    if [ -f "git.tar.gz" ]; then
+                        echo "Git source downloaded, building from source..."
+                        tar -xzf git.tar.gz
+                        cd git-2.44.0
+                        make prefix=/usr/local all
+                        sudo make prefix=/usr/local install
+                        cd ~
+                        rm -rf git-2.44.0 git.tar.gz
+                        echo "Git built and installed from source"
+                    else
+                        echo "Error: Failed to download Git. Please install manually:"
+                        echo "sudo dnf install -y git"
+                        exit 1
+                    fi
+                else
+                    echo "Error: curl not available. Please install Git manually:"
+                    echo "sudo dnf install -y git"
+                    exit 1
+                fi
+            }
         else
             echo "Error: No package manager found for Git installation"
             exit 1
@@ -80,11 +142,19 @@ case $DISTRO in
         ;;
     "ubuntu"|"debian"|"linuxmint")
         echo "Installing Git on Debian-based system..."
-        sudo apt update && sudo apt install -y git
+        timeout 300 sudo apt update && timeout 300 sudo apt install -y git || {
+            echo "Git installation failed. Please install manually:"
+            echo "sudo apt install -y git"
+            exit 1
+        }
         ;;
     "alpine")
         echo "Installing Git on Alpine..."
-        sudo apk add git
+        timeout 300 sudo apk add git || {
+            echo "Git installation failed. Please install manually:"
+            echo "sudo apk add git"
+            exit 1
+        }
         ;;
     *)
         echo "Unknown distribution. Please install Git manually:"
