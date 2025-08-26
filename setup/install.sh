@@ -287,6 +287,23 @@ ollama serve &
 # Wait a moment for service to start
 sleep 5
 
+# Verify Ollama is running
+echo "🔍 Verifying Ollama service..."
+if pgrep -x "ollama" > /dev/null; then
+    echo -e "${GREEN}✅ Ollama service is running${NC}"
+else
+    echo -e "${YELLOW}⚠️  Ollama service not detected, trying to start again...${NC}"
+    ollama serve &
+    sleep 3
+    if pgrep -x "ollama" > /dev/null; then
+        echo -e "${GREEN}✅ Ollama service started successfully${NC}"
+    else
+        echo -e "${RED}❌ Failed to start Ollama service${NC}"
+        echo "🔧 Please check Ollama installation and try again"
+        exit 1
+    fi
+fi
+
 # ============================================================================
 # STEP 5: DOWNLOAD AI MODELS
 # ============================================================================
@@ -296,20 +313,25 @@ echo -e "${PURPLE}=================================="
 echo -e "📦 STEP 5/6: Downloading AI models"
 echo -e "==================================${NC}"
 
-# Pull the default model (tinyllama - fast and lightweight)
-echo "📥 Downloading tinyllama model (default for trading bot)..."
-ollama pull tinyllama
+# Pull the default model (llama2 - around 6GB, good quality)
+echo "📥 Downloading llama2 model (default for trading bot)..."
+echo -e "${YELLOW}⏳ This will download ~6GB and may take 10-30 minutes depending on internet speed...${NC}"
+ollama pull llama2
 
 # Ask about additional models
 echo ""
-echo -e "${BLUE}🎯 Would you like to install additional fast models for better analysis? (y/n)${NC}"
-echo "   • phi (Microsoft's efficient model) - Better analysis quality"
-echo "   • gemma2:2b (Google's optimized model) - Best analysis quality"
+echo -e "${BLUE}🎯 Would you like to install additional models for different use cases? (y/n)${NC}"
+echo "   • tinyllama (1.1GB) - Ultra-fast responses, basic analysis"
+echo "   • phi (2.7GB) - Microsoft's efficient model, good analysis quality"
+echo "   • gemma2:2b (1.5GB) - Google's optimized model, excellent analysis"
 read -r model_response
 
 if [[ "$model_response" =~ ^[Yy]$ ]]; then
     echo "📦 Installing additional models..."
     echo -e "${YELLOW}⏳ This may take several minutes...${NC}"
+    
+    echo "📥 Installing tinyllama (ultra-fast)..."
+    ollama pull tinyllama
     
     echo "📥 Installing phi (Microsoft's efficient model)..."
     ollama pull phi
@@ -351,7 +373,7 @@ ollama list
 echo ""
 echo "🧪 Running quick response test..."
 echo -e "${YELLOW}⏳ Testing with prompt: 'What is blockchain?'${NC}"
-echo "📊 Expected: 8-12 second response with good analysis"
+echo "📊 Expected: 15-25 second response with excellent analysis (llama2)"
 echo ""
 
 # Run the test
@@ -369,10 +391,11 @@ echo -e "${GREEN}✅ Trading bot is fully installed and tested!${NC}"
 echo "📍 Location: $(pwd)/target/release/trading_bot"
 echo ""
 echo -e "${CYAN}📊 Performance Summary:${NC}"
-echo "   • Response time: 8-12 seconds (balanced mode)"
-echo "   • Analysis quality: ⭐⭐⭐ Good structured analysis"
-echo "   • Response length: ~150-200 words"
+echo "   • Response time: 15-25 seconds (llama2 default)"
+echo "   • Analysis quality: ⭐⭐⭐⭐⭐ Excellent structured analysis"
+echo "   • Response length: ~300-500 words"
 echo "   • Streaming: Real-time output during generation"
+echo "   • Model size: ~6GB (llama2)"
 echo ""
 echo -e "${CYAN}📋 Quick Reference:${NC}"
 echo "   • Test mode:        ./target/release/trading_bot -t 'Your prompt'"
@@ -384,10 +407,12 @@ echo -e "${CYAN}🔧 Configuration:${NC}"
 echo "   • Config file: $(pwd)/config.env"
 echo "   • Log directory: $(pwd)/ollama_logs/"
 echo "   • Binary size: $(du -h target/release/trading_bot | cut -f1)"
+echo "   • Default model: llama2 (~6GB)"
 echo ""
 echo -e "${CYAN}💡 Tips:${NC}"
 echo "   • For faster responses: Set OLLAMA_MODEL=tinyllama in config.env"
-echo "   • For better analysis: Set OLLAMA_MODEL=phi in config.env"
+echo "   • For best analysis: Set OLLAMA_MODEL=llama2 in config.env (default)"
+echo "   • For balanced performance: Set OLLAMA_MODEL=phi in config.env"
 echo "   • For system-wide access: sudo cp target/release/trading_bot /usr/local/bin/"
 echo ""
 echo -e "${CYAN}🎯 What's next?${NC}"

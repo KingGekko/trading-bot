@@ -25,10 +25,11 @@ This single script will install everything needed and test the installation.
 
 ## 📊 Performance Expectations
 
-- **Response Time**: 8-12 seconds (balanced mode)
-- **Analysis Quality**: ⭐⭐⭐ Good structured analysis  
+- **Response Time**: 15-25 seconds (llama2 default)
+- **Analysis Quality**: ⭐⭐⭐⭐⭐ Excellent structured analysis  
 - **Binary Size**: ~5-10 MB
 - **Memory Usage**: ~50-100 MB during operation
+- **Default Model**: llama2 (~6GB download)
 
 ## 🔧 Supported Linux Distributions
 
@@ -58,7 +59,7 @@ cargo build --release
 # Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
 ollama serve &
-ollama pull tinyllama
+ollama pull llama2
 ```
 
 ## 🎯 After Installation
@@ -124,6 +125,19 @@ sudo yum install openssl-devel pkg-config  # CentOS/RHEL
 chmod +x target/release/trading_bot
 ```
 
+**Ollama model download fails:**
+```bash
+# Check internet connection
+curl -I https://ollama.ai
+
+# Restart Ollama service
+pkill ollama
+ollama serve &
+
+# Try downloading again
+ollama pull llama2
+```
+
 ## 📞 Support
 
 - **Repository**: https://github.com/KingGekko/trading-bot
@@ -133,12 +147,13 @@ chmod +x target/release/trading_bot
 ## 🎉 Features
 
 - ✅ Real-time streaming responses
-- ✅ Balanced performance (8-12s responses)
+- ✅ High-quality analysis (llama2 default)
 - ✅ Comprehensive logging and receipts
 - ✅ Security validation and input sanitization
 - ✅ Multiple interaction modes (interactive, single prompt, test)
 - ✅ Cross-platform support
 - ✅ Performance optimizations (connection pooling, TCP keep-alive)
+- ✅ Multiple AI model support (llama2, phi, tinyllama, gemma2:2b)
 
 ---
 
