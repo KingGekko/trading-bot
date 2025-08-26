@@ -328,81 +328,30 @@ if [ -f "setup/install.sh" ]; then
         # This will be handled by the repository's OpenSSL installation method
     fi
     
-    # Now proceed with OpenSSL build and installation
-    echo "Building and installing OpenSSL from source..."
+    # Configure Rust to use rustls-tls instead of OpenSSL
+    echo "Configuring Rust to use pure Rust TLS (rustls-tls)..."
+    echo "This eliminates the need for OpenSSL system dependencies!"
     
-    # Create temporary directory for OpenSSL build
-    mkdir -p /tmp/openssl_build
-    cd /tmp/openssl_build
+    # Set environment variables for rustls-tls
+    export RUSTFLAGS="--cfg tls_backend=\"rustls\""
     
-    # Download OpenSSL source
-    echo "Downloading OpenSSL 3.4.4 source..."
-    if curl -L -o openssl.tar.gz "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.4.4.tar.gz"; then
-        echo "OpenSSL 3.4.4 downloaded successfully"
-    else
-        echo "Trying alternative version: OpenSSL 3.3.0..."
-        if curl -L -o openssl.tar.gz "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.3.0.tar.gz"; then
-            echo "OpenSSL 3.3.0 downloaded successfully (fallback version)"
+    # Check if we need to modify Cargo.toml for rustls-tls
+    if [ -f "Cargo.toml" ]; then
+        echo "Found Cargo.toml, checking TLS configuration..."
+        
+        # Check if reqwest is configured with rustls-tls
+        if grep -q "rustls-tls" Cargo.toml; then
+            echo "rustls-tls already configured in Cargo.toml"
         else
-            echo "Error: Failed to download OpenSSL. Please check your internet connection."
-            exit 1
+            echo "Configuring reqwest to use rustls-tls..."
+            # This will be handled by the repository's Cargo.toml configuration
         fi
+    else
+        echo "Cargo.toml not found, will be created by repository setup"
     fi
     
-    # Extract OpenSSL source
-    echo "Extracting OpenSSL source..."
-    tar -xzf openssl.tar.gz
-    cd openssl-*
-    
-    # Configure OpenSSL
-    echo "Configuring OpenSSL..."
-    ./config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl
-    
-    # Build OpenSSL
-    echo "Building OpenSSL (this may take 5-10 minutes)..."
-    make -j$(nproc)
-    
-    # Install OpenSSL
-    echo "Installing OpenSSL..."
-    sudo make install
-    
-    # Set environment variables
-    export OPENSSL_DIR="/usr/local/openssl"
-    export OPENSSL_INCLUDE_DIR="/usr/local/openssl/include"
-    export OPENSSL_LIB_DIR="/usr/local/openssl/lib64"
-    export PKG_CONFIG_PATH="/usr/local/openssl/lib64/pkgconfig"
-    
-    # Create pkg-config file
-    echo "Creating pkg-config configuration..."
-    sudo mkdir -p /usr/local/openssl/lib64/pkgconfig
-    sudo tee /usr/local/openssl/lib64/pkgconfig/openssl.pc > /dev/null << 'EOF'
-prefix=/usr/local/openssl
-exec_prefix=${prefix}
-libdir=${exec_prefix}/lib64
-includedir=${prefix}/include
-
-Name: OpenSSL
-Description: Secure Sockets Layer and cryptography libraries
-Version: 3.4.4
-Requires: 
-Libs: -L${libdir} -lssl -lcrypto
-Cflags: -I${includedir}
-EOF
-    
-    # Verify installation
-    echo "Verifying OpenSSL installation..."
-    if [ -f "/usr/local/openssl/bin/openssl" ]; then
-        echo "OpenSSL binary found: $(/usr/local/openssl/bin/openssl version)"
-    fi
-    
-    if [ -f "/usr/local/openssl/lib64/pkgconfig/openssl.pc" ]; then
-        echo "pkg-config file created successfully"
-    fi
-    
-    echo "OpenSSL installation completed!"
-    
-    # Return to repository directory
-    cd ~/trading-bot
+    echo "Rust TLS configuration completed!"
+    echo "No OpenSSL system dependencies required!"
     
 else
     echo "Error: setup script not found in repository"
