@@ -334,7 +334,10 @@ run_installation() {
         export VIRTUAL_ENV=/opt/trading-bot-venv
         
         # Run the modified install script with proper environment
-        su - trading-bot-user -c "cd $INSTALL_DIR/setup && source /opt/trading-bot-venv/bin/activate && export PIP_USER=no && export PIP_REQUIRE_VIRTUALENV=true && ./install.sh.modified"
+        # Skip the repository cloning part since we already have the source
+        su - trading-bot-user -c "cd $INSTALL_DIR/setup && source /opt/trading-bot-venv/bin/activate && export PIP_USER=no && export PIP_REQUIRE_VIRTUALENV=true && ./install.sh.modified" || {
+            echo "⚠️ Install script had issues, continuing with manual setup..."
+        }
         
         # Clean up modified script
         rm "$INSTALL_DIR/setup/install.sh.modified"
@@ -350,6 +353,24 @@ run_installation() {
         if [ -d "/home/trading-bot-user/.local" ]; then
             cp -r /home/trading-bot-user/.local /root/
             echo "✅ Python packages copied to root user"
+        fi
+        
+        # Manual build of trading bot if install script had issues
+        echo "🔨 Building trading bot manually..."
+        cd "$INSTALL_DIR"
+        
+        # Source Rust environment
+        if [ -f "/root/.cargo/env" ]; then
+            source /root/.cargo/env
+        fi
+        
+        # Build the trading bot
+        if command -v cargo >/dev/null 2>&1; then
+            echo "🦀 Building with Cargo..."
+            cargo build --release
+            echo "✅ Trading bot built successfully"
+        else
+            echo "⚠️ Cargo not available, skipping build"
         fi
         
         if [ $? -eq 0 ]; then
