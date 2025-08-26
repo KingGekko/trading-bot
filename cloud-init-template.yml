@@ -1,0 +1,93 @@
+#cloud-config
+# Trading Bot Cloud Init Configuration
+# Use this for automated deployment on cloud platforms (AWS, GCP, Azure, etc.)
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - curl
+  - wget
+  - git
+  - unzip
+  - build-essential
+  - cmake
+  - pkg-config
+  - python3
+  - python3-pip
+  - protobuf-compiler
+  - libprotobuf-dev
+  - libssl-dev
+  - clang
+  - llvm-dev
+
+runcmd:
+  # Create directories
+  - mkdir -p /opt/trading-bot
+  - mkdir -p /var/log/trading-bot
+  
+  # Download and install trading bot
+  - cd /tmp
+  - curl -L -o trading-bot.zip "https://github.com/KingGekko/trading-bot/archive/refs/heads/main.zip"
+  - unzip -q trading-bot.zip
+  - mv trading-bot-main/* /opt/trading-bot/
+  - rm -rf trading-bot-main trading-bot.zip
+  
+  # Install Rust
+  - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  - source /root/.cargo/env
+  
+  # Install Ollama
+  - curl -fsSL https://ollama.ai/install.sh | sh
+  
+  # Build trading bot
+  - cd /opt/trading-bot
+  - source /root/.cargo/env
+  - cargo build --release
+  
+  # Set permissions
+  - chown -R root:root /opt/trading-bot
+  - chmod -R 755 /opt/trading-bot
+  - chmod 644 /opt/trading-bot/config.env
+  - chown -R root:root /var/log/trading-bot
+  - chmod -R 755 /var/log/trading-bot
+  
+  # Create systemd service
+  - |
+    cat > /etc/systemd/system/trading-bot.service << 'SERVICEEOF'
+    [Unit]
+    Description=Trading Bot Service
+    After=network.target ollama.service
+    Wants=ollama.service
+    
+    [Service]
+    Type=simple
+    User=root
+    WorkingDirectory=/opt/trading-bot
+    ExecStart=/opt/trading-bot/target/release/trading_bot
+    Restart=always
+    RestartSec=10
+    StandardOutput=journal
+    StandardError=journal
+    SyslogIdentifier=trading-bot
+    Environment=LOG_LEVEL=info
+    Environment=RUST_LOG=info
+    NoNewPrivileges=true
+    PrivateTmp=true
+    ProtectSystem=strict
+    ProtectHome=true
+    ReadWritePaths=/var/log/trading-bot
+    
+    [Install]
+    WantedBy=multi-user.target
+    SERVICEEOF
+  
+  # Enable and start services
+  - systemctl daemon-reload
+  - systemctl enable trading-bot.service
+  - systemctl enable ollama.service
+  - systemctl start ollama.service
+  - systemctl start trading-bot.service
+
+# Final message
+final_message: "Trading Bot deployment completed successfully!" 
