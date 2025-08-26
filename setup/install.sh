@@ -75,6 +75,11 @@ echo "Updating package lists..."
 sudo apt update
 
 echo ""
+echo "Upgrading system packages to latest versions..."
+echo -e "${YELLOW}⏳ This may take several minutes depending on system size...${NC}"
+sudo apt upgrade -y
+
+echo ""
 echo "Installing essential build dependencies..."
 sudo apt install -y \
     build-essential \
@@ -123,6 +128,22 @@ if apt-cache show libssl1.1 &> /dev/null; then
     echo "Installing libssl1.1 (Ubuntu 18.04-20.04)..."
     sudo apt install -y libssl1.1
 fi
+
+# Check OpenSSL version and ensure we have the latest
+echo ""
+echo "Checking OpenSSL installation..."
+if command -v openssl &> /dev/null; then
+    echo "OpenSSL version: $(openssl version)"
+    echo "OpenSSL location: $(which openssl)"
+else
+    echo "Installing OpenSSL..."
+    sudo apt install -y openssl
+fi
+
+# Ensure we have the latest OpenSSL development packages
+echo ""
+echo "Ensuring latest OpenSSL development packages..."
+sudo apt install -y --only-upgrade libssl-dev || sudo apt install -y libssl-dev
 
 echo ""
 echo "Installing additional development tools..."
