@@ -24,32 +24,77 @@ install_git_from_source() {
         mkdir -p /tmp/git_build
         cd /tmp/git_build
         
-        # Download Git source
-        if curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz; then
-            echo "Git source downloaded successfully"
-            
-            # Extract and build
-            echo "Extracting Git source..."
-            tar -xzf git.tar.gz
-            cd git-2.44.0
-            
-            echo "Building Git from source..."
-            make prefix=/usr/local all
-            
-            echo "Installing Git..."
-            sudo make prefix=/usr/local install
-            
-            # Clean up
-            cd ~
-            rm -rf /tmp/git_build
-            
-            echo "Git built and installed from source successfully!"
+        # Try multiple Git download sources with better error handling
+        echo "Attempting to download Git source from GitHub..."
+        
+        # Method 1: Try direct GitHub release with proper headers
+        if curl -L -H "Accept: application/octet-stream" -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz; then
+            # Verify the downloaded file is actually a tarball
+            if file git.tar.gz | grep -q "gzip compressed data"; then
+                echo "Git source downloaded successfully from GitHub"
+            else
+                echo "Downloaded file is not a valid tarball, trying alternative source..."
+                rm -f git.tar.gz
+                
+                # Method 2: Try kernel.org mirror
+                if curl -L -o git.tar.gz https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.44.0.tar.gz; then
+                    if file git.tar.gz | grep -q "gzip compressed data"; then
+                        echo "Git source downloaded successfully from kernel.org"
+                    else
+                        echo "Kernel.org download also failed, trying direct source..."
+                        rm -f git.tar.gz
+                        
+                        # Method 3: Try direct source with verbose output
+                        if curl -v -L -o git.tar.gz https://github.com/git/git/archive/refs/tags/v2.44.0.tar.gz; then
+                            if file git.tar.gz | grep -q "gzip compressed data"; then
+                                echo "Git source downloaded successfully from GitHub archive"
+                            else
+                                echo "All download methods failed. File contents:"
+                                head -5 git.tar.gz
+                                echo "Error: All Git download methods failed"
+                                exit 1
+                            fi
+                        else
+                            echo "Error: All Git download methods failed"
+                            exit 1
+                        fi
+                    fi
+                else
+                    echo "Error: Failed to download Git from kernel.org"
+                    exit 1
+                fi
+            fi
         else
-            echo "Error: Failed to download Git source"
-            echo "Please install Git manually:"
-            echo "sudo yum install -y git"
+            echo "Error: Failed to download Git from GitHub"
             exit 1
         fi
+        
+        # Extract and build
+        echo "Extracting Git source..."
+        tar -xzf git.tar.gz
+        
+        # Handle different directory names from different sources
+        if [ -d "git-2.44.0" ]; then
+            cd git-2.44.0
+        elif [ -d "git-v2.44.0" ]; then
+            cd git-v2.44.0
+        else
+            echo "Error: Unexpected directory structure after extraction"
+            ls -la
+            exit 1
+        fi
+        
+        echo "Building Git from source..."
+        make prefix=/usr/local all
+        
+        echo "Installing Git..."
+        sudo make prefix=/usr/local install
+        
+        # Clean up
+        cd ~
+        rm -rf /tmp/git_build
+        
+        echo "Git built and installed from source successfully!"
     else
         echo "Error: curl not available. Please install Git manually:"
         echo "sudo yum install -y git"
