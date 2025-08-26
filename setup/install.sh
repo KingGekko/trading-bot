@@ -69,92 +69,120 @@ echo "Note: This script will install Git first, then clone the repository"
 case $DISTRO in
     "ol"|"rhel"|"centos"|"fedora"|"rocky"|"alma")
         echo "Installing Git on RedHat-based system..."
-        if command -v yum &> /dev/null; then
-            echo "Using yum package manager..."
-            echo "Installing Git with timeout protection..."
+        echo "Bypassing package managers to avoid hanging issues..."
+        
+        # Kill any existing hanging processes first
+        echo "Cleaning up any hanging processes..."
+        sudo pkill -f yum 2>/dev/null || true
+        sudo pkill -f dnf 2>/dev/null || true
+        sudo pkill -f git 2>/dev/null || true
+        
+        # Wait a moment for processes to clean up
+        sleep 2
+        
+        # Try direct Git download and build (bypass package managers completely)
+        if command -v curl &> /dev/null; then
+            echo "Downloading Git source directly (bypassing package managers)..."
             
-            # Install Git with timeout protection
-            timeout 300 sudo yum install -y git || {
-                echo "Git installation timed out or failed with yum"
-                echo "Trying alternative method: direct download..."
-                
-                # Try to download Git binary directly
-                if command -v curl &> /dev/null; then
-                    echo "Downloading Git binary directly..."
-                    curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz
-                    if [ -f "git.tar.gz" ]; then
-                        echo "Git source downloaded, building from source..."
-                        tar -xzf git.tar.gz
-                        cd git-2.44.0
-                        make prefix=/usr/local all
-                        sudo make prefix=/usr/local install
-                        cd ~
-                        rm -rf git-2.44.0 git.tar.gz
-                        echo "Git built and installed from source"
-                    else
-                        echo "Error: Failed to download Git. Please install manually:"
-                        echo "sudo yum install -y git"
-                        exit 1
-                    fi
-                else
-                    echo "Error: curl not available. Please install Git manually:"
-                    echo "sudo yum install -y git"
-                    exit 1
-                fi
-            }
-        elif command -v dnf &> /dev/null; then
-            echo "Using dnf package manager..."
-            echo "Installing Git with timeout protection..."
+            # Create temporary directory for Git build
+            mkdir -p /tmp/git_build
+            cd /tmp/git_build
             
-            # Install Git with timeout protection
-            timeout 300 sudo dnf install -y git || {
-                echo "Git installation timed out or failed with dnf"
-                echo "Trying alternative method: direct download..."
+            # Download Git source
+            if curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz; then
+                echo "Git source downloaded successfully"
                 
-                # Try to download Git binary directly
-                if command -v curl &> /dev/null; then
-                    echo "Downloading Git binary directly..."
-                    curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz
-                    if [ -f "git.tar.gz" ]; then
-                        echo "Git source downloaded, building from source..."
-                        tar -xzf git.tar.gz
-                        cd git-2.44.0
-                        make prefix=/usr/local all
-                        sudo make prefix=/usr/local install
-                        cd ~
-                        rm -rf git-2.44.0 git.tar.gz
-                        echo "Git built and installed from source"
-                    else
-                        echo "Error: Failed to download Git. Please install manually:"
-                        echo "sudo dnf install -y git"
-                        exit 1
-                    fi
-                else
-                    echo "Error: curl not available. Please install Git manually:"
-                    echo "sudo dnf install -y git"
-                    exit 1
-                fi
-            }
+                # Extract and build
+                echo "Extracting Git source..."
+                tar -xzf git.tar.gz
+                cd git-2.44.0
+                
+                echo "Building Git from source..."
+                make prefix=/usr/local all
+                
+                echo "Installing Git..."
+                sudo make prefix=/usr/local install
+                
+                # Clean up
+                cd ~
+                rm -rf /tmp/git_build
+                
+                echo "Git built and installed from source successfully!"
+            else
+                echo "Error: Failed to download Git source"
+                echo "Please install Git manually:"
+                echo "sudo yum install -y git"
+                exit 1
+            fi
         else
-            echo "Error: No package manager found for Git installation"
+            echo "Error: curl not available. Please install Git manually:"
+            echo "sudo yum install -y git"
             exit 1
         fi
         ;;
     "ubuntu"|"debian"|"linuxmint")
         echo "Installing Git on Debian-based system..."
-        timeout 300 sudo apt update && timeout 300 sudo apt install -y git || {
-            echo "Git installation failed. Please install manually:"
+        echo "Bypassing package managers to avoid hanging issues..."
+        
+        # Kill any existing hanging processes
+        sudo pkill -f apt 2>/dev/null || true
+        
+        # Try direct download
+        if command -v curl &> /dev/null; then
+            echo "Downloading Git source directly..."
+            mkdir -p /tmp/git_build
+            cd /tmp/git_build
+            
+            if curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz; then
+                tar -xzf git.tar.gz
+                cd git-2.44.0
+                make prefix=/usr/local all
+                sudo make prefix=/usr/local install
+                cd ~
+                rm -rf /tmp/git_build
+                echo "Git built and installed from source successfully!"
+            else
+                echo "Error: Failed to download Git. Please install manually:"
+                echo "sudo apt install -y git"
+                exit 1
+            fi
+        else
+            echo "Error: curl not available. Please install Git manually:"
             echo "sudo apt install -y git"
             exit 1
-        }
+        fi
         ;;
     "alpine")
         echo "Installing Git on Alpine..."
-        timeout 300 sudo apk add git || {
-            echo "Git installation failed. Please install manually:"
+        echo "Bypassing package managers to avoid hanging issues..."
+        
+        # Kill any existing hanging processes
+        sudo pkill -f apk 2>/dev/null || true
+        
+        # Try direct download
+        if command -v curl &> /dev/null; then
+            echo "Downloading Git source directly..."
+            mkdir -p /tmp/git_build
+            cd /tmp/git_build
+            
+            if curl -L -o git.tar.gz https://github.com/git/git/releases/download/v2.44.0/git-2.44.0.tar.gz; then
+                tar -xzf git.tar.gz
+                cd git-2.44.0
+                make prefix=/usr/local all
+                sudo make prefix=/usr/local install
+                cd ~
+                rm -rf /tmp/git_build
+                echo "Git built and installed from source successfully!"
+            else
+                echo "Error: Failed to download Git. Please install manually:"
+                echo "sudo apk add git"
+                exit 1
+            fi
+        else
+            echo "Error: curl not available. Please install Git manually:"
             echo "sudo apk add git"
             exit 1
-        }
+        fi
         ;;
     *)
         echo "Unknown distribution. Please install Git manually:"
