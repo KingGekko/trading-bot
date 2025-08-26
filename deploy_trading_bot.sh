@@ -297,10 +297,11 @@ run_installation() {
         echo "🔧 Running installation as trading-bot-user..."
         
         # Create a modified install script that removes --user flags
-        cp install.sh install.sh.modified
+        # Use absolute paths to avoid directory issues
+        cp "$INSTALL_DIR/setup/install.sh" "$INSTALL_DIR/setup/install.sh.modified"
         
         # Remove --user flags from pip commands
-        sed -i 's/--user//g' install.sh.modified
+        sed -i 's/--user//g' "$INSTALL_DIR/setup/install.sh.modified"
         
         # Set environment variables to force virtual environment usage
         export PIP_USER=no
@@ -308,10 +309,10 @@ run_installation() {
         export VIRTUAL_ENV=/opt/trading-bot-venv
         
         # Run the modified install script with proper environment
-        su - trading-bot-user -c "cd setup && source /opt/trading-bot-venv/bin/activate && export PIP_USER=no && export PIP_REQUIRE_VIRTUALENV=true && ./install.sh.modified"
+        su - trading-bot-user -c "cd $INSTALL_DIR/setup && source /opt/trading-bot-venv/bin/activate && export PIP_USER=no && export PIP_REQUIRE_VIRTUALENV=true && ./install.sh.modified"
         
         # Clean up modified script
-        rm install.sh.modified
+        rm "$INSTALL_DIR/setup/install.sh.modified"
         
         # Copy back any generated files
         if [ -d "/home/trading-bot-user/.cargo" ]; then
