@@ -104,6 +104,7 @@ tempfile = "3.8"
 assert_fs = "1.1"
 
 [build-dependencies]
+prost-build = "0.14"
 tonic-build = "0.14"
 
 [features]

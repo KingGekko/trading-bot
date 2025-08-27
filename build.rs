@@ -24,7 +24,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Compile protobuf files
-    tonic_build::compile_protos("proto/receipt.proto")?;
+    // Compile protobuf files using prost_build
+    prost_build::compile_protos(&["proto/receipt.proto"], &["proto"])?;
+    
     Ok(())
 } 
