@@ -587,6 +587,7 @@ async fn main() -> Result<()> {
         println!("   POST /api/ollama/process/threaded - Process JSON file with Ollama AI (threaded, non-blocking)");
         println!("   POST /api/ollama/process/ultra-fast - Process JSON file with Ollama AI (maximum speed, direct async)");
         println!("   POST /api/ollama/process/ultra-threaded - Process JSON file with Ollama AI (maximum threading, parallel operations)");
+        println!("   POST /api/ollama/conversation - Multi-model AI conversation (models talk to each other)");
         println!("   GET  /api/available-files      - List available JSON files in directory");
         println!();
         println!("💡 Example usage:");
@@ -597,6 +598,7 @@ async fn main() -> Result<()> {
         println!("   curl -X POST http://localhost:{}/api/ollama/process/threaded -d '{{\"file_path\":\"./sample_data.json\",\"prompt\":\"Analyze this trading data\"}}'", port);
         println!("   curl -X POST http://localhost:{}/api/ollama/process/ultra-fast -d '{{\"file_path\":\"./sample_data.json\",\"prompt\":\"Analyze this trading data\"}}'", port);
         println!("   curl -X POST http://localhost:{}/api/ollama/process/ultra-threaded -d '{{\"file_path\":\"./sample_data.json\",\"prompt\":\"Analyze this trading data\"}}'", port);
+        println!("   curl -X POST http://localhost:{}/api/ollama/conversation -d '{{\"file_path\":\"./sample_data.json\",\"initial_prompt\":\"Analyze this trading data\",\"models\":[\"phi:latest\",\"qwen2.5:0.5b\"],\"conversation_type\":\"debate\"}}'", port);
         println!("   curl http://localhost:{}/api/available-files", port);
         println!();
         println!("🌐 Starting server...");

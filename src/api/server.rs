@@ -35,6 +35,7 @@ pub async fn start_api_server(port: u16) -> Result<(), Box<dyn std::error::Error
     info!("   POST /api/ollama/process/threaded - Process JSON file with Ollama AI (threaded, non-blocking)");
     info!("   POST /api/ollama/process/ultra-fast - Process JSON file with Ollama AI (maximum speed, direct async)");
     info!("   POST /api/ollama/process/ultra-threaded - Process JSON file with Ollama AI (maximum threading, parallel operations)");
+    info!("   POST /api/ollama/conversation - Multi-model AI conversation (models talk to each other)");
     info!("   GET  /api/available-files      - List available JSON files in directory");
     
     // Start server

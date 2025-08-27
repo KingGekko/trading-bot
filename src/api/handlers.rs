@@ -217,6 +217,7 @@ pub fn create_router(state: ApiState) -> Router {
         .route("/api/ollama/process/threaded", post(ollama_process_json_threaded))
         .route("/api/ollama/process/ultra-fast", post(ollama_process_ultra_fast))
         .route("/api/ollama/process/ultra-threaded", post(ollama_process_ultra_threaded))
+        .route("/api/ollama/conversation", post(multi_model_conversation))
         .route("/api/available-files", get(list_available_files))
         .with_state(state)
 }
@@ -643,6 +644,218 @@ pub async fn ollama_process_ultra_threaded(
             Err(StatusCode::REQUEST_TIMEOUT)
         }
     }
+}
+
+/// Multi-model conversation request
+#[derive(Debug, serde::Deserialize)]
+pub struct MultiModelConversationRequest {
+    pub file_path: String,
+    pub initial_prompt: String,
+    pub models: Vec<String>,
+    pub conversation_rounds: Option<u8>,
+    pub conversation_type: Option<String>, // "debate", "collaboration", "review"
+}
+
+/// Multi-model conversation response
+#[derive(Debug, serde::Serialize)]
+pub struct ModelResponse {
+    pub model: String,
+    pub response: String,
+    pub round: u8,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+/// Multi-model conversation handler
+pub async fn multi_model_conversation(
+    State(state): State<ApiState>,
+    Json(payload): Json<MultiModelConversationRequest>,
+) -> Result<Json<Value>, StatusCode> {
+    let start_time = Instant::now();
+    let conversation_rounds = payload.conversation_rounds.unwrap_or(3);
+    let conversation_type = payload.conversation_type.as_deref().unwrap_or("collaboration");
+    
+    // Normalize file path
+    let file_path = if payload.file_path.starts_with("./") {
+        let current_dir = std::env::current_dir()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        current_dir.join(&payload.file_path[2..])
+    } else if payload.file_path.starts_with("/") {
+        std::path::PathBuf::from(&payload.file_path)
+    } else {
+        let current_dir = std::env::current_dir()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        current_dir.join(&payload.file_path)
+    };
+    
+    let file_path_str = file_path.to_string_lossy().to_string();
+    
+    // Get file content and config in parallel
+    let (file_content_result, config_result) = tokio::join!(
+        tokio::spawn_blocking(move || std::fs::read_to_string(&file_path_str)),
+        tokio::spawn_blocking(|| Config::from_env())
+    );
+    
+    let file_content = match file_content_result? {
+        Ok(content) => content,
+        Err(e) => {
+            log::error!("Failed to read file {}: {}", file_path_str, e);
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+    
+    let config = match config_result? {
+        Ok(config) => config,
+        Err(e) => {
+            log::error!("Failed to load config: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    
+    let file_read_time = start_time.elapsed();
+    
+    // Create Ollama client
+    let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
+    
+    // Initialize conversation context
+    let mut conversation_history = Vec::new();
+    let mut current_context = format!(
+        "Analyze this JSON data: {}\n\nData: {}\n\n",
+        payload.initial_prompt,
+        serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
+    );
+    
+    // Start multi-model conversation
+    for round in 1..=conversation_rounds {
+        log::info!("Starting conversation round {} with {} models", round, payload.models.len());
+        
+        // Process each model in parallel for this round
+        let mut round_responses = Vec::new();
+        let mut model_futures = Vec::new();
+        
+        for (model_index, model_name) in payload.models.iter().enumerate() {
+            let model_name = model_name.clone();
+            let current_context = current_context.clone();
+            let conversation_type = conversation_type.to_string();
+            let round = round;
+            let model_index = model_index;
+            
+            // Create model-specific prompt based on conversation type
+            let model_prompt = match conversation_type.as_str() {
+                "debate" => format!(
+                    "You are participating in a debate round {}. Previous context: {}\n\nTake a position and respond to the previous statements. Be concise but persuasive.",
+                    round, current_context
+                ),
+                "collaboration" => format!(
+                    "You are collaborating with other AI models in round {}. Previous context: {}\n\nBuild upon the previous responses and add your insights. Work together to provide comprehensive analysis.",
+                    round, current_context
+                ),
+                "review" => format!(
+                    "You are reviewing responses in round {}. Previous context: {}\n\nReview the previous responses and provide feedback, corrections, or additional insights.",
+                    round, current_context
+                ),
+                _ => format!(
+                    "You are participating in round {} of a multi-model conversation. Previous context: {}\n\nProvide your analysis and insights.",
+                    round, current_context
+                )
+            };
+            
+            // Spawn model response generation in separate thread
+            let future = tokio::spawn_blocking(move || {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    // Create a new client instance for this thread
+                    let client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
+                    client.generate_optimized(&model_name, &model_prompt).await
+                })
+            });
+            
+            model_futures.push((model_name, future, model_index));
+        }
+        
+        // Wait for all models to respond in this round
+        for (model_name, future, model_index) in model_futures {
+            match timeout(Duration::from_secs(15), future).await {
+                Ok(Ok(Ok(response))) => {
+                    let model_response = ModelResponse {
+                        model: model_name.clone(),
+                        response: response.clone(),
+                        round,
+                        timestamp: chrono::Utc::now(),
+                    };
+                    
+                    round_responses.push(model_response.clone());
+                    conversation_history.push(model_response);
+                    
+                    // Update context for next round
+                    current_context.push_str(&format!(
+                        "\n\n--- Round {} - {} ---\n{}\n",
+                        round, model_name, response
+                    ));
+                    
+                    log::info!("Model {} completed round {} in {}ms", model_name, round, start_time.elapsed().as_millis());
+                }
+                Ok(Ok(Err(e))) => {
+                    log::error!("Model {} failed in round {}: {}", model_name, round, e);
+                    // Continue with other models
+                }
+                Ok(Err(e)) => {
+                    log::error!("Threading error for model {} in round {}: {}", model_name, round, e);
+                }
+                Err(_) => {
+                    log::error!("Model {} timed out in round {}", model_name, round);
+                }
+            }
+        }
+        
+        // Add round separator
+        current_context.push_str(&format!("\n\n=== End of Round {} ===\n", round));
+        
+        log::info!("Completed round {} with {} responses", round, round_responses.len());
+    }
+    
+    let total_time = start_time.elapsed();
+    
+    // Generate conversation summary
+    let summary_prompt = format!(
+        "Summarize this multi-model conversation about the trading data. \
+         Models involved: {}. Conversation type: {}. \
+         Key insights from all rounds:\n\n{}",
+        payload.models.join(", "),
+        conversation_type,
+        current_context
+    );
+    
+    let summary_future = tokio::spawn_blocking(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
+            client.generate_optimized(&payload.models[0], &summary_prompt).await
+        })
+    });
+    
+    let summary = match timeout(Duration::from_secs(10), summary_future).await {
+        Ok(Ok(Ok(summary))) => summary,
+        _ => "Failed to generate summary".to_string(),
+    };
+    
+    Ok(Json(json!({
+        "status": "success",
+        "file_path": file_path_str,
+        "initial_prompt": payload.initial_prompt,
+        "models": payload.models,
+        "conversation_type": conversation_type,
+        "conversation_rounds": conversation_rounds,
+        "conversation_history": conversation_history,
+        "summary": summary,
+        "processing_method": "multi_model_conversation",
+        "performance_metrics": {
+            "file_read_ms": file_read_time.as_millis(),
+            "total_conversation_ms": total_time.as_millis(),
+            "models_per_round": payload.models.len(),
+            "total_responses": conversation_history.len(),
+            "average_response_time_ms": total_time.as_millis() / conversation_history.len() as u128
+        }
+    })))
 }
 
 /// Get list of available JSON files in current directory
