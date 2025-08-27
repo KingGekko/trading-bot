@@ -583,7 +583,7 @@ async fn main() -> Result<()> {
         println!("   GET  /api/files                - List watched files");
         println!("   GET  /api/content/:file_path   - Get file content");
         println!("   GET  /api/stream/:file_path    - WebSocket stream for real-time updates");
-        println!("   POST /api/ollama/process       - Process JSON file with Ollama AI");
+        println!("   POST /api/ollama/process       - Process JSON file with Ollama AI (ULTRA-FAST THREADING - DEFAULT)");
         println!("   POST /api/ollama/process/threaded - Process JSON file with Ollama AI (threaded, non-blocking)");
         println!("   POST /api/ollama/process/ultra-fast - Process JSON file with Ollama AI (maximum speed, direct async)");
         println!("   POST /api/ollama/process/ultra-threaded - Process JSON file with Ollama AI (maximum threading, parallel operations)");

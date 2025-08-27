@@ -8,6 +8,7 @@ use axum::{
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::time::{timeout, Duration, Instant};
+use tokio::task::spawn_blocking;
 
 use futures_util::{SinkExt, StreamExt};
 
@@ -236,75 +237,126 @@ pub struct OllamaProcessRequest {
     pub model: Option<String>,
 }
 
-/// Process JSON file content with Ollama using a prompt
+/// Process JSON file with Ollama AI (default: ultra-fast threading)
 pub async fn ollama_process_json(
     State(state): State<ApiState>,
     Json(payload): Json<OllamaProcessRequest>,
 ) -> Result<Json<Value>, StatusCode> {
-    // Normalize the file path - handle both relative and absolute paths
+    let start_time = Instant::now();
+    
+    // Normalize the file path
     let file_path = if payload.file_path.starts_with("./") {
-        // Convert relative path to absolute path
         let current_dir = std::env::current_dir()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         current_dir.join(&payload.file_path[2..])
     } else if payload.file_path.starts_with("/") {
-        // Absolute path
         std::path::PathBuf::from(&payload.file_path)
     } else {
-        // Relative path from current directory
         let current_dir = std::env::current_dir()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         current_dir.join(&payload.file_path)
     };
     
-    // Convert back to string for the API response
     let file_path_str = file_path.to_string_lossy().to_string();
     
-    // Get the file content
-    let file_content = match state.json_manager.get_file_content(&file_path_str).await {
+    // Get file content and config in parallel using ultra-fast threading
+    let (file_content_result, config_result) = tokio::join!(
+        spawn_blocking(move || std::fs::read_to_string(&file_path_str)),
+        spawn_blocking(|| Config::from_env())
+    );
+    
+    let file_content = match file_content_result? {
         Ok(content) => content,
         Err(e) => {
-            log::error!("Failed to get content for {}: {}", file_path_str, e);
+            log::error!("Failed to read file {}: {}", file_path_str, e);
             return Err(StatusCode::NOT_FOUND);
         }
     };
     
-    // Create Ollama client
-    let config = match Config::from_env() {
+    let config = match config_result? {
         Ok(config) => config,
         Err(e) => {
-            log::error!("Failed to load Ollama config: {}", e);
+            log::error!("Failed to load config: {}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
     
+    let file_read_time = start_time.elapsed();
+    
+    // Create optimized Ollama client
     let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
     
     // Use provided model or default from config
     let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
     
-    // Create a comprehensive prompt that includes the JSON data
-    let enhanced_prompt = format!(
-        "Please analyze the following JSON data and respond to this prompt: {}\n\nJSON Data:\n{}",
-        payload.prompt,
-        serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
-    );
+    // Create optimized prompt in separate thread
+    let prompt_future = spawn_blocking(move || {
+        format!(
+            "Analyze this JSON data: {}\n\nData: {}",
+            payload.prompt,
+            serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
+        )
+    });
     
-    // Process with Ollama
-    match ollama_client.generate(&model, &enhanced_prompt).await {
-        Ok(response) => {
+    let enhanced_prompt: String = prompt_future.await?;
+    let prompt_prep_time = start_time.elapsed() - file_read_time;
+    
+    // Process with Ollama using ultra-fast threading
+    let ollama_start = Instant::now();
+    let timeout_duration = Duration::from_secs(10); // 10 second timeout for ultra-fast mode
+    
+    let ollama_future = spawn_blocking(move || {
+        // This runs in a separate thread for the blocking Ollama call
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            ollama_client.generate_optimized(&model, &enhanced_prompt).await
+        })
+    });
+    
+    match timeout(timeout_duration, ollama_future).await {
+        Ok(Ok(Ok(response))) => {
+            let ollama_time = ollama_start.elapsed();
+            let total_time = start_time.elapsed();
+            
+            // Log performance metrics
+            log::info!("Ultra-fast threading (default) completed - File: {}ms, Prompt: {}ms, Ollama: {}ms, Total: {}ms", 
+                file_read_time.as_millis(), 
+                prompt_prep_time.as_millis(), 
+                ollama_time.as_millis(), 
+                total_time.as_millis()
+            );
+            
             Ok(Json(json!({
                 "status": "success",
                 "file_path": file_path_str,
                 "prompt": payload.prompt,
                 "model": model,
                 "ollama_response": response,
-                "json_data_processed": file_content
+                "json_data_processed": file_content,
+                "processing_method": "ultra_fast_threading_default",
+                "timeout_seconds": 10,
+                "performance_mode": "maximum_speed_threading",
+                "threading_strategy": "parallel_file_config_prompt_ollama",
+                "performance_metrics": {
+                    "file_read_ms": file_read_time.as_millis(),
+                    "prompt_prep_ms": prompt_prep_time.as_millis(),
+                    "ollama_processing_ms": ollama_time.as_millis(),
+                    "total_time_ms": total_time.as_millis(),
+                    "threading_overhead_ms": (total_time - file_read_time - prompt_prep_time - ollama_time).as_millis()
+                }
             })))
         }
-        Err(e) => {
+        Ok(Ok(Err(e))) => {
             log::error!("Ollama processing failed: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        Ok(Err(e)) => {
+            log::error!("Threading error: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        Err(_) => {
+            log::error!("Ollama request timed out after {} seconds", timeout_duration.as_secs());
+            Err(StatusCode::REQUEST_TIMEOUT)
         }
     }
 }
@@ -363,8 +415,8 @@ pub async fn ollama_process_json_threaded(
         serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
     );
     
-    // Process with Ollama using threaded streams with timeout
-    let ollama_future = tokio::spawn_blocking(move || {
+            // Process with Ollama using threaded streams with timeout
+        let ollama_future = spawn_blocking(move || {
         // This runs in a separate thread to prevent blocking
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
@@ -533,13 +585,13 @@ pub async fn ollama_process_ultra_threaded(
     let file_path_str = file_path.to_string_lossy().to_string();
     
     // Spawn file content reading in a separate thread
-    let file_content_future = tokio::spawn_blocking(move || {
+    let file_content_future = spawn_blocking(move || {
         // This runs in a separate thread for I/O operations
         std::fs::read_to_string(&file_path_str)
     });
     
     // Spawn config loading in parallel
-    let config_future = tokio::spawn_blocking(|| {
+    let config_future = spawn_blocking(|| {
         Config::from_env()
     });
     
@@ -574,7 +626,7 @@ pub async fn ollama_process_ultra_threaded(
     let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
     
     // Spawn prompt preparation in a separate thread
-    let prompt_future = tokio::spawn_blocking(move || {
+    let prompt_future = spawn_blocking(move || {
         // This runs in a separate thread for string processing
         format!(
             "Analyze this JSON data: {}\n\nData: {}",
@@ -590,7 +642,7 @@ pub async fn ollama_process_ultra_threaded(
     let ollama_start = Instant::now();
     let timeout_duration = Duration::from_secs(10); // 10 second timeout for ultra-threaded mode
     
-    let ollama_future = tokio::spawn_blocking(move || {
+    let ollama_future = spawn_blocking(move || {
         // This runs in a separate thread for the blocking Ollama call
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
