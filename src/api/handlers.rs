@@ -216,6 +216,7 @@ pub fn create_router(state: ApiState) -> Router {
         .route("/api/ollama/process", post(ollama_process_json))
         .route("/api/ollama/process/threaded", post(ollama_process_json_threaded))
         .route("/api/ollama/process/ultra-fast", post(ollama_process_ultra_fast))
+        .route("/api/ollama/process/ultra-threaded", post(ollama_process_ultra_threaded))
         .route("/api/available-files", get(list_available_files))
         .with_state(state)
 }
@@ -499,6 +500,142 @@ pub async fn ollama_process_ultra_fast(
         }
         Ok(Err(e)) => {
             log::error!("Ollama processing failed: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        Err(_) => {
+            log::error!("Ollama request timed out after {} seconds", timeout_duration.as_secs());
+            Err(StatusCode::REQUEST_TIMEOUT)
+        }
+    }
+}
+
+/// Ultra-threaded Ollama processing (maximum threading optimization)
+pub async fn ollama_process_ultra_threaded(
+    State(state): State<ApiState>,
+    Json(payload): Json<OllamaProcessRequest>,
+) -> Result<Json<Value>, StatusCode> {
+    let start_time = Instant::now();
+    
+    // Spawn file reading in a separate thread (I/O bound)
+    let file_path = if payload.file_path.starts_with("./") {
+        let current_dir = std::env::current_dir()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        current_dir.join(&payload.file_path[2..])
+    } else if payload.file_path.starts_with("/") {
+        std::path::PathBuf::from(&payload.file_path)
+    } else {
+        let current_dir = std::env::current_dir()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        current_dir.join(&payload.file_path)
+    };
+    
+    let file_path_str = file_path.to_string_lossy().to_string();
+    
+    // Spawn file content reading in a separate thread
+    let file_content_future = tokio::spawn_blocking(move || {
+        // This runs in a separate thread for I/O operations
+        std::fs::read_to_string(&file_path_str)
+    });
+    
+    // Spawn config loading in parallel
+    let config_future = tokio::spawn_blocking(|| {
+        Config::from_env()
+    });
+    
+    // Wait for both operations to complete
+    let (file_content_result, config_result) = tokio::join!(
+        file_content_future,
+        config_future
+    );
+    
+    let file_content = match file_content_result? {
+        Ok(content) => content,
+        Err(e) => {
+            log::error!("Failed to read file {}: {}", file_path_str, e);
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+    
+    let config = match config_result? {
+        Ok(config) => config,
+        Err(e) => {
+            log::error!("Failed to load config: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    
+    let file_read_time = start_time.elapsed();
+    
+    // Create optimized Ollama client
+    let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
+    
+    // Use provided model or default from config
+    let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
+    
+    // Spawn prompt preparation in a separate thread
+    let prompt_future = tokio::spawn_blocking(move || {
+        // This runs in a separate thread for string processing
+        format!(
+            "Analyze this JSON data: {}\n\nData: {}",
+            payload.prompt,
+            serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
+        )
+    });
+    
+    let enhanced_prompt = prompt_future.await?;
+    let prompt_prep_time = start_time.elapsed() - file_read_time;
+    
+    // Spawn Ollama processing in a separate thread with timeout
+    let ollama_start = Instant::now();
+    let timeout_duration = Duration::from_secs(10); // 10 second timeout for ultra-threaded mode
+    
+    let ollama_future = tokio::spawn_blocking(move || {
+        // This runs in a separate thread for the blocking Ollama call
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            ollama_client.generate_optimized(&model, &enhanced_prompt).await
+        })
+    });
+    
+    match timeout(timeout_duration, ollama_future).await {
+        Ok(Ok(Ok(response))) => {
+            let ollama_time = ollama_start.elapsed();
+            let total_time = start_time.elapsed();
+            
+            // Log performance metrics
+            log::info!("Ultra-threaded processing completed - File: {}ms, Prompt: {}ms, Ollama: {}ms, Total: {}ms", 
+                file_read_time.as_millis(), 
+                prompt_prep_time.as_millis(), 
+                ollama_time.as_millis(), 
+                total_time.as_millis()
+            );
+            
+            Ok(Json(json!({
+                "status": "success",
+                "file_path": file_path_str,
+                "prompt": payload.prompt,
+                "model": model,
+                "ollama_response": response,
+                "json_data_processed": file_content,
+                "processing_method": "ultra_threaded_optimized",
+                "timeout_seconds": 10,
+                "performance_mode": "maximum_threading",
+                "threading_strategy": "parallel_file_config_prompt_ollama",
+                "performance_metrics": {
+                    "file_read_ms": file_read_time.as_millis(),
+                    "prompt_prep_ms": prompt_prep_time.as_millis(),
+                    "ollama_processing_ms": ollama_time.as_millis(),
+                    "total_time_ms": total_time.as_millis(),
+                    "threading_overhead_ms": (total_time - file_read_time - prompt_prep_time - ollama_time).as_millis()
+                }
+            })))
+        }
+        Ok(Ok(Err(e))) => {
+            log::error!("Ollama processing failed: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        Ok(Err(e)) => {
+            log::error!("Threading error: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
         Err(_) => {
