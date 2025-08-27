@@ -1,207 +1,104 @@
 #!/usr/bin/env python3
 """
-Test script for the Trading Bot JSON Streaming API
-Demonstrates how to use the REST endpoints and WebSocket streaming
+Trading Bot API Test Script
+Tests all endpoints including the new Ollama JSON processing
 """
 
 import requests
 import json
 import time
-import websocket
-import threading
-from datetime import datetime
+import sys
 
-# API configuration
+# Configuration
 BASE_URL = "http://localhost:8080"
-WS_BASE_URL = "ws://localhost:8080"
+TIMEOUT = 30
 
-def test_health_check():
-    """Test the health check endpoint"""
-    print("🏥 Testing health check...")
-    try:
-        response = requests.get(f"{BASE_URL}/health")
-        if response.status_code == 200:
-            data = response.json()
-            print(f"✅ Health check passed: {data['status']}")
-            print(f"   Service: {data['service']}")
-            print(f"   Timestamp: {data['timestamp']}")
-        else:
-            print(f"❌ Health check failed: {response.status_code}")
-    except Exception as e:
-        print(f"❌ Health check error: {e}")
-    print()
-
-def test_start_watching():
-    """Test starting to watch a JSON file"""
-    print("👀 Testing start watching...")
-    try:
-        payload = {"file_path": "./sample_data.json"}
-        response = requests.post(f"{BASE_URL}/api/watch", json=payload)
-        if response.status_code == 200:
-            data = response.json()
-            print(f"✅ Started watching: {data['message']}")
-        else:
-            print(f"❌ Start watching failed: {response.status_code}")
-            print(f"   Response: {response.text}")
-    except Exception as e:
-        print(f"❌ Start watching error: {e}")
-    print()
-
-def test_get_watched_files():
-    """Test getting list of watched files"""
-    print("📁 Testing get watched files...")
-    try:
-        response = requests.get(f"{BASE_URL}/api/files")
-        if response.status_code == 200:
-            data = response.json()
-            print(f"✅ Watched files: {data['watched_files']}")
-        else:
-            print(f"❌ Get watched files failed: {response.status_code}")
-    except Exception as e:
-        print(f"❌ Get watched files error: {e}")
-    print()
-
-def test_get_file_content():
-    """Test getting file content"""
-    print("📄 Testing get file content...")
-    try:
-        response = requests.get(f"{BASE_URL}/api/content/sample_data.json")
-        if response.status_code == 200:
-            data = response.json()
-            print(f"✅ File content retrieved for: {data['file_path']}")
-            print(f"   Content preview: {str(data['content'])[:100]}...")
-        else:
-            print(f"❌ Get file content failed: {response.status_code}")
-    except Exception as e:
-        print(f"❌ Get file content error: {e}")
-    print()
-
-def test_websocket_streaming():
-    """Test WebSocket streaming for real-time updates"""
-    print("🌊 Testing WebSocket streaming...")
+def test_endpoint(method, endpoint, data=None, description=""):
+    """Test an API endpoint and return the response"""
+    url = f"{BASE_URL}{endpoint}"
     
-    def on_message(ws, message):
-        """Handle incoming WebSocket messages"""
-        try:
-            data = json.loads(message)
-            msg_type = data.get('type', 'unknown')
-            timestamp = data.get('timestamp', 'N/A')
+    print(f"\n🔍 Testing: {description}")
+    print(f"   {method} {endpoint}")
+    
+    try:
+        if method == "GET":
+            response = requests.get(url, timeout=TIMEOUT)
+        elif method == "POST":
+            headers = {"Content-Type": "application/json"}
+            response = requests.post(url, json=data, headers=headers, timeout=TIMEOUT)
+        else:
+            print(f"❌ Unknown method: {method}")
+            return None
             
-            if msg_type == 'initial':
-                print(f"📡 Received initial content at {timestamp}")
-                print(f"   File: {data.get('file_path', 'N/A')}")
-            elif msg_type == 'update':
-                print(f"🔄 Received update at {timestamp}")
-                print(f"   File: {data.get('file_path', 'N/A')}")
-            elif msg_type == 'pong':
-                print(f"🏓 Received pong at {timestamp}")
-            
-        except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse message: {e}")
-    
-    def on_error(ws, error):
-        print(f"❌ WebSocket error: {error}")
-    
-    def on_close(ws, close_status_code, close_msg):
-        print("🔌 WebSocket connection closed")
-    
-    def on_open(ws):
-        print("🔗 WebSocket connection opened")
-        # Send ping to test connection
-        ws.send("ping")
-    
-    try:
-        # Create WebSocket connection
-        ws = websocket.WebSocketApp(
-            f"{WS_BASE_URL}/api/stream/sample_data.json",
-            on_open=on_open,
-            on_message=on_message,
-            on_error=on_error,
-            on_close=on_close
-        )
+        print(f"   Status: {response.status_code}")
         
-        # Start WebSocket in a separate thread
-        ws_thread = threading.Thread(target=ws.run_forever)
-        ws_thread.daemon = True
-        ws_thread.start()
-        
-        # Wait a bit for connection and messages
-        print("⏳ Waiting for WebSocket messages...")
-        time.sleep(5)
-        
-        # Close connection
-        ws.close()
-        ws_thread.join(timeout=2)
-        
-    except Exception as e:
-        print(f"❌ WebSocket test error: {e}")
-    print()
-
-def test_stop_watching():
-    """Test stopping to watch a file"""
-    print("🛑 Testing stop watching...")
-    try:
-        response = requests.get(f"{BASE_URL}/api/watch/sample_data.json")
         if response.status_code == 200:
-            data = response.json()
-            print(f"✅ Stopped watching: {data['message']}")
+            try:
+                result = response.json()
+                print(f"   ✅ Success: {json.dumps(result, indent=2)}")
+                return result
+            except json.JSONDecodeError:
+                print(f"   ⚠️ Response is not JSON: {response.text}")
+                return response.text
         else:
-            print(f"❌ Stop watching failed: {response.status_code}")
-    except Exception as e:
-        print(f"❌ Stop watching error: {e}")
-    print()
-
-def update_sample_file():
-    """Update the sample file to trigger streaming updates"""
-    print("✏️ Updating sample file to trigger streaming...")
-    try:
-        # Read current content
-        with open('sample_data.json', 'r') as f:
-            data = json.load(f)
-        
-        # Update timestamp and price
-        data['timestamp'] = datetime.utcnow().isoformat() + 'Z'
-        data['price'] = round(data['price'] + (time.time() % 100), 2)
-        
-        # Write updated content
-        with open('sample_data.json', 'w') as f:
-            json.dump(data, f, indent=2)
-        
-        print(f"✅ Updated sample file - new price: {data['price']}")
-        
-    except Exception as e:
-        print(f"❌ Failed to update sample file: {e}")
+            print(f"   ❌ Error: {response.status_code}")
+            try:
+                error = response.json()
+                print(f"   Error details: {json.dumps(error, indent=2)}")
+            except:
+                print(f"   Error text: {response.text}")
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        print(f"   ❌ Request failed: {e}")
+        return None
 
 def main():
     """Run all API tests"""
-    print("🧪 TRADING BOT API TEST SUITE")
+    print("🧪 Trading Bot API Test Suite")
     print("=" * 50)
-    print()
     
-    # Test basic endpoints
-    test_health_check()
-    test_start_watching()
-    test_get_watched_files()
-    test_get_file_content()
+    # Test 1: Health Check
+    test_endpoint("GET", "/health", description="Health Check")
     
-    # Test WebSocket streaming
-    test_websocket_streaming()
+    # Test 2: Start watching sample_data.json
+    watch_data = {"file_path": "./sample_data.json"}
+    test_endpoint("POST", "/api/watch", watch_data, "Start Watching File")
     
-    # Update file to trigger streaming
-    update_sample_file()
+    # Test 3: List watched files
+    test_endpoint("GET", "/api/files", description="List Watched Files")
     
-    # Wait a bit for streaming to process
-    time.sleep(2)
+    # Test 4: Get file content
+    test_endpoint("GET", "/api/content/sample_data.json", description="Get File Content")
     
-    # Test stopping
-    test_stop_watching()
+    # Test 5: NEW! Process JSON with Ollama AI
+    ollama_data = {
+        "file_path": "./sample_data.json",
+        "prompt": "Analyze this trading data and provide insights about market sentiment, price trends, and trading opportunities. Focus on the technical indicators and recent price action.",
+        "model": "phi"  # Optional: specify a model, or let it use default
+    }
+    test_endpoint("POST", "/api/ollama/process", ollama_data, "Ollama AI JSON Analysis")
     
-    print("🎉 API testing completed!")
-    print()
-    print("💡 To test real-time updates:")
-    print("   1. Start the API server: ./trading_bot --api")
-    print("   2. Run this test script: python3 test_api.py")
-    print("   3. Modify sample_data.json to see live updates")
+    # Test 6: Test with different prompt
+    analysis_data = {
+        "file_path": "./sample_data.json",
+        "prompt": "What are the key risk factors in this trading data? Provide a risk assessment score from 1-10.",
+    }
+    test_endpoint("POST", "/api/ollama/process", analysis_data, "Ollama AI Risk Analysis")
+    
+    print("\n🎉 API Test Suite Completed!")
+    print("\n💡 Try these additional tests:")
+    print("   • Change the prompt in the Ollama requests")
+    print("   • Use different models (e.g., 'qwen2.5:0.5b', 'gemma2:2b')")
+    print("   • Watch different JSON files")
+    print("   • Test WebSocket streaming with: wscat -c ws://localhost:8080/api/stream/sample_data.json")
 
 if __name__ == "__main__":
-    main() 
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n⏹️ Test interrupted by user")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n❌ Test failed with error: {e}")
+        sys.exit(1) 

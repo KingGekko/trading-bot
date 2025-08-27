@@ -399,7 +399,7 @@ update_system_packages() {
     sudo apt-get upgrade -y
     
     # Install/upgrade development packages
-    sudo apt-get install -y build-essential cmake pkg-config curl wget git
+    sudo apt-get install -y build-essential cmake pkg-config curl wget git jq
     
     # Install additional development tools
     sudo apt-get install -y clang llvm-dev libssl-dev

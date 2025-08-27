@@ -290,7 +290,8 @@ install_dependencies() {
         libprotobuf-dev \
         libssl-dev \
         clang \
-        llvm-dev
+        llvm-dev \
+        jq
     
     echo -e "${GREEN}✅ System dependencies installed${NC}"
 }
@@ -618,7 +619,7 @@ fi
 echo "📦 Installing dependencies..."
 apt-get update
 apt-get install -y curl wget git unzip build-essential cmake pkg-config \
-    python3 python3-pip protobuf-compiler libprotobuf-dev libssl-dev clang llvm-dev
+    python3 python3-pip protobuf-compiler libprotobuf-dev libssl-dev clang llvm-dev jq
 
 # Download and install
 echo "📥 Downloading trading bot..."

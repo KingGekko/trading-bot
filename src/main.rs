@@ -583,11 +583,17 @@ async fn main() -> Result<()> {
         println!("   GET  /api/files                - List watched files");
         println!("   GET  /api/content/:file_path   - Get file content");
         println!("   GET  /api/stream/:file_path    - WebSocket stream for real-time updates");
+        println!("   POST /api/ollama/process       - Process JSON file with Ollama AI");
+        println!("   POST /api/ollama/process/threaded - Process JSON file with Ollama AI (threaded, non-blocking)");
+        println!("   GET  /api/available-files      - List available JSON files in directory");
         println!();
         println!("💡 Example usage:");
         println!("   curl http://localhost:{}/health", port);
         println!("   curl -X POST http://localhost:{}/api/watch -d '{{\"file_path\":\"/path/to/file.json\"}}'", port);
         println!("   curl http://localhost:{}/api/stream/file.json", port);
+        println!("   curl -X POST http://localhost:{}/api/ollama/process -d '{{\"file_path\":\"./sample_data.json\",\"prompt\":\"Analyze this trading data\"}}'", port);
+        println!("   curl -X POST http://localhost:{}/api/ollama/process/threaded -d '{{\"file_path\":\"./sample_data.json\",\"prompt\":\"Analyze this trading data\"}}'", port);
+        println!("   curl http://localhost:{}/api/available-files", port);
         println!();
         println!("🌐 Starting server...");
         
@@ -624,6 +630,7 @@ async fn main() -> Result<()> {
         println!("   • WebSocket support for live updates");
         println!("   • File change monitoring");
         println!("   • RESTful API endpoints");
+        println!("   • Ollama AI integration for JSON analysis");
     }
 
     Ok(())

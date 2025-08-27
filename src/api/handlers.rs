@@ -7,10 +7,13 @@ use axum::{
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
+use tokio::time::{timeout, Duration};
 
 use futures_util::{SinkExt, StreamExt};
 
 use super::json_stream::JsonStreamManager;
+use crate::ollama::OllamaClient;
+use crate::ollama::Config;
 
 /// API state shared across handlers
 #[derive(Clone)]
@@ -210,6 +213,9 @@ pub fn create_router(state: ApiState) -> Router {
         .route("/api/files", get(get_watched_files))
         .route("/api/content/:file_path", get(get_file_content))
         .route("/api/stream/:file_path", get(websocket_handler))
+        .route("/api/ollama/process", post(ollama_process_json))
+        .route("/api/ollama/process/threaded", post(ollama_process_json_threaded))
+        .route("/api/available-files", get(list_available_files))
         .with_state(state)
 }
 
@@ -217,6 +223,220 @@ pub fn create_router(state: ApiState) -> Router {
 #[derive(serde::Deserialize)]
 pub struct StartWatchingRequest {
     pub file_path: String,
+}
+
+/// Request payload for Ollama to process JSON file with prompt
+#[derive(serde::Deserialize)]
+pub struct OllamaProcessRequest {
+    pub file_path: String,
+    pub prompt: String,
+    pub model: Option<String>,
+}
+
+/// Process JSON file content with Ollama using a prompt
+pub async fn ollama_process_json(
+    State(state): State<ApiState>,
+    Json(payload): Json<OllamaProcessRequest>,
+) -> Result<Json<Value>, StatusCode> {
+    // Normalize the file path - handle both relative and absolute paths
+    let file_path = if payload.file_path.starts_with("./") {
+        // Convert relative path to absolute path
+        let current_dir = std::env::current_dir()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        current_dir.join(&payload.file_path[2..])
+    } else if payload.file_path.starts_with("/") {
+        // Absolute path
+        std::path::PathBuf::from(&payload.file_path)
+    } else {
+        // Relative path from current directory
+        let current_dir = std::env::current_dir()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        current_dir.join(&payload.file_path)
+    };
+    
+    // Convert back to string for the API response
+    let file_path_str = file_path.to_string_lossy().to_string();
+    
+    // Get the file content
+    let file_content = match state.json_manager.get_file_content(&file_path_str).await {
+        Ok(content) => content,
+        Err(e) => {
+            log::error!("Failed to get content for {}: {}", file_path_str, e);
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+    
+    // Create Ollama client
+    let config = match Config::from_env() {
+        Ok(config) => config,
+        Err(e) => {
+            log::error!("Failed to load Ollama config: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    
+    let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
+    
+    // Use provided model or default from config
+    let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
+    
+    // Create a comprehensive prompt that includes the JSON data
+    let enhanced_prompt = format!(
+        "Please analyze the following JSON data and respond to this prompt: {}\n\nJSON Data:\n{}",
+        payload.prompt,
+        serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
+    );
+    
+    // Process with Ollama
+    match ollama_client.generate(&model, &enhanced_prompt).await {
+        Ok(response) => {
+            Ok(Json(json!({
+                "status": "success",
+                "file_path": file_path_str,
+                "prompt": payload.prompt,
+                "model": model,
+                "ollama_response": response,
+                "json_data_processed": file_content
+            })))
+        }
+        Err(e) => {
+            log::error!("Ollama processing failed: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+/// Process JSON file content with Ollama using a prompt (Threaded Stream Version)
+pub async fn ollama_process_json_threaded(
+    State(state): State<ApiState>,
+    Json(payload): Json<OllamaProcessRequest>,
+) -> Result<Json<Value>, StatusCode> {
+    // Normalize the file path - handle both relative and absolute paths
+    let file_path = if payload.file_path.starts_with("./") {
+        // Convert relative path to absolute path
+        let current_dir = std::env::current_dir()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        current_dir.join(&payload.file_path[2..])
+    } else if payload.file_path.starts_with("/") {
+        // Absolute path
+        std::path::PathBuf::from(&payload.file_path)
+    } else {
+        // Relative path from current directory
+        let current_dir = std::env::current_dir()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        current_dir.join(&payload.file_path)
+    };
+    
+    // Convert back to string for the API response
+    let file_path_str = file_path.to_string_lossy().to_string();
+    
+    // Get the file content
+    let file_content = match state.json_manager.get_file_content(&file_path_str).await {
+        Ok(content) => content,
+        Err(e) => {
+            log::error!("Failed to get content for {}: {}", file_path_str, e);
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+    
+    // Create Ollama client
+    let config = match Config::from_env() {
+        Ok(config) => config,
+        Err(e) => {
+            log::error!("Failed to load Ollama config: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    
+    let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
+    
+    // Use provided model or default from config
+    let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
+    
+    // Create a comprehensive prompt that includes the JSON data
+    let enhanced_prompt = format!(
+        "Please analyze the following JSON data and respond to this prompt: {}\n\nJSON Data:\n{}",
+        payload.prompt,
+        serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
+    );
+    
+    // Process with Ollama using threaded streams with timeout
+    let ollama_future = tokio::spawn_blocking(move || {
+        // This runs in a separate thread to prevent blocking
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            ollama_client.generate(&model, &enhanced_prompt).await
+        })
+    });
+    
+    // Add timeout to prevent hanging
+    let timeout_duration = Duration::from_secs(30); // 30 second timeout
+    
+    match timeout(timeout_duration, ollama_future).await {
+        Ok(Ok(Ok(response))) => {
+            // Success: model processed the request
+            Ok(Json(json!({
+                "status": "success",
+                "file_path": file_path_str,
+                "prompt": payload.prompt,
+                "model": model,
+                "ollama_response": response,
+                "json_data_processed": file_content,
+                "processing_method": "threaded_stream",
+                "timeout_seconds": 30
+            })))
+        }
+        Ok(Ok(Err(e))) => {
+            // Ollama error
+            log::error!("Ollama processing failed: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        Ok(Err(join_error)) => {
+            // Thread join error
+            log::error!("Thread execution failed: {}", join_error);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        Err(_) => {
+            // Timeout error
+            log::error!("Ollama request timed out after {} seconds", timeout_duration.as_secs());
+            Err(StatusCode::REQUEST_TIMEOUT)
+        }
+    }
+}
+
+/// Get list of available JSON files in current directory
+pub async fn list_available_files() -> Json<Value> {
+    let current_dir = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Json(json!({
+                "status": "error",
+                "message": "Failed to get current directory"
+            }));
+        }
+    };
+    
+    let mut json_files = Vec::new();
+    
+    if let Ok(entries) = std::fs::read_dir(current_dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if let Some(extension) = path.extension() {
+                    if extension == "json" {
+                        json_files.push(path.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+    }
+    
+    Json(json!({
+        "status": "success",
+        "current_directory": current_dir.to_string_lossy(),
+        "available_json_files": json_files,
+        "total_files": json_files.len()
+    }))
 }
 
 #[cfg(test)]

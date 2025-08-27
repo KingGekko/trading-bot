@@ -29,11 +29,33 @@ command_exists() {
 
 # Function to check if we're in a Rust project
 check_rust_project() {
-    if [ ! -f "Cargo.toml" ]; then
+    # Find the Rust project root directory (where Cargo.toml is located)
+    local current_dir="$(pwd)"
+    local project_root=""
+    
+    # Look for Cargo.toml in current directory or parent directories
+    while [[ "$(pwd)" != "/" ]]; do
+        if [[ -f "Cargo.toml" ]]; then
+            project_root="$(pwd)"
+            break
+        fi
+        cd ..
+    done
+    
+    # Return to original directory
+    cd "$current_dir"
+    
+    if [[ -z "$project_root" ]]; then
         echo -e "${RED}❌ Not in a Rust project directory${NC}"
-        echo "Please run this script from the root of a Rust project"
+        echo "Please run this script from a Rust project or its subdirectories"
         exit 1
     fi
+    
+    echo -e "${BLUE}📍 Found Rust project at: $project_root${NC}"
+    
+    # Change to the project root directory
+    cd "$project_root"
+    echo -e "${GREEN}✅ Changed to project root directory${NC}"
 }
 
 # Function to update Rust toolchain
@@ -282,10 +304,19 @@ EOF
     fi
 }
 
+# Function to show current working directory
+show_current_directory() {
+    echo -e "${BLUE}📍 Current working directory: $(pwd)${NC}"
+    echo ""
+}
+
 # Main execution
 main() {
     echo -e "${BLUE}🚀 Starting dependency update process...${NC}"
     echo ""
+    
+    # Show current directory
+    show_current_directory
     
     # Check if we're in a Rust project
     check_rust_project

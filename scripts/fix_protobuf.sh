@@ -116,10 +116,10 @@ install_protobuf_source() {
     
     # Install build dependencies
     if [[ "$(detect_os)" == "ubuntu" ]]; then
-        sudo apt-get install -y build-essential cmake pkg-config
+        sudo apt-get install -y build-essential cmake pkg-config jq
     elif [[ "$(detect_os)" == "centos" ]]; then
         sudo yum groupinstall -y "Development Tools"
-        sudo yum install -y cmake pkg-config
+        sudo yum install -y cmake pkg-config jq
     fi
     
     # Download and install protobuf from source
