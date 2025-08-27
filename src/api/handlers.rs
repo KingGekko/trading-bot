@@ -7,7 +7,7 @@ use axum::{
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
-use tokio::time::{timeout, Duration};
+use tokio::time::{timeout, Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
 
@@ -215,6 +215,7 @@ pub fn create_router(state: ApiState) -> Router {
         .route("/api/stream/:file_path", get(websocket_handler))
         .route("/api/ollama/process", post(ollama_process_json))
         .route("/api/ollama/process/threaded", post(ollama_process_json_threaded))
+        .route("/api/ollama/process/ultra-fast", post(ollama_process_ultra_fast))
         .route("/api/available-files", get(list_available_files))
         .with_state(state)
 }
@@ -365,7 +366,8 @@ pub async fn ollama_process_json_threaded(
         // This runs in a separate thread to prevent blocking
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            ollama_client.generate(&model, &enhanced_prompt).await
+            // Use the optimized client for maximum performance
+            ollama_client.generate_optimized(&model, &enhanced_prompt).await
         })
     });
     
@@ -398,6 +400,108 @@ pub async fn ollama_process_json_threaded(
         }
         Err(_) => {
             // Timeout error
+            log::error!("Ollama request timed out after {} seconds", timeout_duration.as_secs());
+            Err(StatusCode::REQUEST_TIMEOUT)
+        }
+    }
+}
+
+/// Ultra-fast Ollama processing (direct async, no threading overhead)
+pub async fn ollama_process_ultra_fast(
+    State(state): State<ApiState>,
+    Json(payload): Json<OllamaProcessRequest>,
+) -> Result<Json<Value>, StatusCode> {
+    let start_time = Instant::now();
+    
+    // Normalize the file path
+    let file_path = if payload.file_path.starts_with("./") {
+        let current_dir = std::env::current_dir()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        current_dir.join(&payload.file_path[2..])
+    } else if payload.file_path.starts_with("/") {
+        std::path::PathBuf::from(&payload.file_path)
+    } else {
+        let current_dir = std::env::current_dir()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        current_dir.join(&payload.file_path)
+    };
+    
+    let file_path_str = file_path.to_string_lossy().to_string();
+    
+    // Get the file content
+    let file_content = match state.json_manager.get_file_content(&file_path_str).await {
+        Ok(content) => content,
+        Err(e) => {
+            log::error!("Failed to get content for {}: {}", file_path_str, e);
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+    
+    let file_read_time = start_time.elapsed();
+    
+    // Create optimized Ollama client
+    let config = match Config::from_env() {
+        Ok(config) => config,
+        Err(e) => {
+            log::error!("Failed to load Ollama config: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    
+    let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
+    
+    // Use provided model or default from config
+    let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
+    
+    // Create optimized prompt
+    let enhanced_prompt = format!(
+        "Analyze this JSON data: {}\n\nData: {}",
+        payload.prompt,
+        serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
+    );
+    
+    let prompt_prep_time = start_time.elapsed() - file_read_time;
+    
+    // Process with ultra-fast timeout
+    let timeout_duration = Duration::from_secs(15); // 15 second timeout for ultra-fast mode
+    
+    let ollama_start = Instant::now();
+    match timeout(timeout_duration, ollama_client.generate_optimized(&model, &enhanced_prompt)).await {
+        Ok(Ok(response)) => {
+            let ollama_time = ollama_start.elapsed();
+            let total_time = start_time.elapsed();
+            
+            // Log performance metrics
+            log::info!("Ultra-fast processing completed - File: {}ms, Prompt: {}ms, Ollama: {}ms, Total: {}ms", 
+                file_read_time.as_millis(), 
+                prompt_prep_time.as_millis(), 
+                ollama_time.as_millis(), 
+                total_time.as_millis()
+            );
+            
+            Ok(Json(json!({
+                "status": "success",
+                "file_path": file_path_str,
+                "prompt": payload.prompt,
+                "model": model,
+                "ollama_response": response,
+                "json_data_processed": file_content,
+                "processing_method": "ultra_fast_direct",
+                "timeout_seconds": 15,
+                "performance_mode": "maximum_speed",
+                "performance_metrics": {
+                    "file_read_ms": file_read_time.as_millis(),
+                    "prompt_prep_ms": prompt_prep_time.as_millis(),
+                    "ollama_processing_ms": ollama_time.as_millis(),
+                    "total_time_ms": total_time.as_millis()
+                }
+            })))
+        }
+        Ok(Err(e)) => {
+            log::error!("Ollama processing failed: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        Err(_) => {
             log::error!("Ollama request timed out after {} seconds", timeout_duration.as_secs());
             Err(StatusCode::REQUEST_TIMEOUT)
         }

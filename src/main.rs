@@ -585,6 +585,7 @@ async fn main() -> Result<()> {
         println!("   GET  /api/stream/:file_path    - WebSocket stream for real-time updates");
         println!("   POST /api/ollama/process       - Process JSON file with Ollama AI");
         println!("   POST /api/ollama/process/threaded - Process JSON file with Ollama AI (threaded, non-blocking)");
+        println!("   POST /api/ollama/process/ultra-fast - Process JSON file with Ollama AI (maximum speed, direct async)");
         println!("   GET  /api/available-files      - List available JSON files in directory");
         println!();
         println!("💡 Example usage:");
@@ -593,6 +594,7 @@ async fn main() -> Result<()> {
         println!("   curl http://localhost:{}/api/stream/file.json", port);
         println!("   curl -X POST http://localhost:{}/api/ollama/process -d '{{\"file_path\":\"./sample_data.json\",\"prompt\":\"Analyze this trading data\"}}'", port);
         println!("   curl -X POST http://localhost:{}/api/ollama/process/threaded -d '{{\"file_path\":\"./sample_data.json\",\"prompt\":\"Analyze this trading data\"}}'", port);
+        println!("   curl -X POST http://localhost:{}/api/ollama/process/ultra-fast -d '{{\"file_path\":\"./sample_data.json\",\"prompt\":\"Analyze this trading data\"}}'", port);
         println!("   curl http://localhost:{}/api/available-files", port);
         println!();
         println!("🌐 Starting server...");

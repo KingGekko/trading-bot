@@ -33,6 +33,7 @@ pub async fn start_api_server(port: u16) -> Result<(), Box<dyn std::error::Error
     info!("   GET  /api/stream/:file_path    - WebSocket stream for real-time updates");
     info!("   POST /api/ollama/process       - Process JSON file with Ollama AI");
     info!("   POST /api/ollama/process/threaded - Process JSON file with Ollama AI (threaded, non-blocking)");
+    info!("   POST /api/ollama/process/ultra-fast - Process JSON file with Ollama AI (maximum speed, direct async)");
     info!("   GET  /api/available-files      - List available JSON files in directory");
     
     // Start server
