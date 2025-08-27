@@ -52,7 +52,7 @@ impl OllamaReceipt {
 
     pub fn save_to_log(&self, log_directory: &str) -> Result<(), std::io::Error> {
         // Try multiple fallback locations for logging
-        let temp_dir = std::env::var("TEMP").unwrap_or_else(|_| "./temp".to_string());
+        let _temp_dir = std::env::var("TEMP").unwrap_or_else(|_| "./temp".to_string());
         let _tmpdir = std::env::var("TMPDIR").unwrap_or_else(|_| "/tmp".to_string());
         
         let fallback_locations = [
@@ -64,7 +64,7 @@ impl OllamaReceipt {
             #[cfg(windows)]
             "./temp/ollama_logs",
             #[cfg(windows)]
-            temp_dir.as_str(),
+            _temp_dir.as_str(),
             #[cfg(unix)]
             _tmpdir.as_str(),
         ];

@@ -2,8 +2,8 @@ use anyhow::{anyhow, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use futures_util::{SinkExt, StreamExt};
-use tokio::time::{timeout, sleep};
+use futures_util::StreamExt;
+use tokio::time::timeout;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use crate::ollama::ollama_receipt::OllamaReceipt;
@@ -118,7 +118,7 @@ impl OllamaClient {
             model: model.to_string(),
             prompt: prompt.to_string(),
             stream: false,
-            options: self.create_ultra_fast_options(),
+            options: OllamaClient::create_ultra_fast_options(),
         };
         
         let generate_url = format!("{}/api/generate", self.base_url);
@@ -335,7 +335,7 @@ impl OllamaClient {
             model: model.to_string(),
             prompt: prompt.to_string(),
             stream: true,
-            options: self.create_ultra_fast_options(),
+            options: OllamaClient::create_ultra_fast_options(),
         };
         
         let generate_url = format!("{}/api/generate", self.base_url);

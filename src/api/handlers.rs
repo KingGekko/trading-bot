@@ -5,6 +5,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use serde::Serialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::time::{timeout, Duration, Instant};
@@ -130,7 +131,7 @@ async fn handle_socket(
         });
         
         if let Err(e) = sender.send(axum::extract::ws::Message::Text(
-            serde_json::to_string(&message).unwrap()
+            serde_json::to_string(&message).unwrap().into()
         )).await {
             log::error!("Failed to send initial content: {}", e);
             return;
@@ -150,7 +151,7 @@ async fn handle_socket(
                 });
                 
                 if let Err(e) = sender.send(axum::extract::ws::Message::Text(
-                    serde_json::to_string(&message).unwrap()
+                    serde_json::to_string(&message).unwrap().into()
                 )).await {
                     log::error!("Failed to send update: {}", e);
                     break;
@@ -173,7 +174,7 @@ async fn handle_socket(
                             });
                             
                             if let Err(e) = sender.send(axum::extract::ws::Message::Text(
-                                serde_json::to_string(&pong).unwrap()
+                                serde_json::to_string(&pong).unwrap().into()
                             )).await {
                                 log::error!("Failed to send pong: {}", e);
                                 break;
@@ -258,14 +259,15 @@ pub async fn ollama_process_json(
     };
     
     let file_path_str = file_path.to_string_lossy().to_string();
+    let file_path_str_clone = file_path_str.clone(); // Clone for closure
     
     // Get file content and config in parallel using ultra-fast threading
     let (file_content_result, config_result) = tokio::join!(
-        spawn_blocking(move || std::fs::read_to_string(&file_path_str)),
+        spawn_blocking(move || std::fs::read_to_string(&file_path_str_clone)),
         spawn_blocking(|| Config::from_env())
     );
     
-    let file_content = match file_content_result? {
+    let file_content = match file_content_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
         Ok(content) => content,
         Err(e) => {
             log::error!("Failed to read file {}: {}", file_path_str, e);
@@ -273,7 +275,7 @@ pub async fn ollama_process_json(
         }
     };
     
-    let config = match config_result? {
+    let config = match config_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
         Ok(config) => config,
         Err(e) => {
             log::error!("Failed to load config: {}", e);
@@ -288,17 +290,20 @@ pub async fn ollama_process_json(
     
     // Use provided model or default from config
     let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
+    let model_clone = model.clone(); // Clone for closure
+    let payload_prompt = payload.prompt.clone(); // Clone for closure
+    let file_content_clone = file_content.clone(); // Clone for closure
     
     // Create optimized prompt in separate thread
     let prompt_future = spawn_blocking(move || {
         format!(
             "Analyze this JSON data: {}\n\nData: {}",
-            payload.prompt,
-            serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
+            payload_prompt,
+            serde_json::to_string_pretty(&file_content_clone).unwrap_or_else(|_| format!("{:?}", file_content_clone))
         )
     });
     
-    let enhanced_prompt: String = prompt_future.await?;
+    let enhanced_prompt: String = prompt_future.await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let prompt_prep_time = start_time.elapsed() - file_read_time;
     
     // Process with Ollama using ultra-fast threading
@@ -309,7 +314,7 @@ pub async fn ollama_process_json(
         // This runs in a separate thread for the blocking Ollama call
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            ollama_client.generate_optimized(&model, &enhanced_prompt).await
+            ollama_client.generate_optimized(&model_clone, &enhanced_prompt).await
         })
     });
     
@@ -363,7 +368,7 @@ pub async fn ollama_process_json(
 
 /// Process JSON file content with Ollama using a prompt (Threaded Stream Version)
 pub async fn ollama_process_json_threaded(
-    State(state): State<ApiState>,
+    State(_state): State<ApiState>,
     Json(payload): Json<OllamaProcessRequest>,
 ) -> Result<Json<Value>, StatusCode> {
     // Normalize the file path - handle both relative and absolute paths
@@ -385,11 +390,11 @@ pub async fn ollama_process_json_threaded(
     // Convert back to string for the API response
     let file_path_str = file_path.to_string_lossy().to_string();
     
-    // Get the file content
-    let file_content = match state.json_manager.get_file_content(&file_path_str).await {
+    // Get the file content directly (ultra-fast mode doesn't use state)
+    let file_content = match std::fs::read_to_string(&file_path_str) {
         Ok(content) => content,
         Err(e) => {
-            log::error!("Failed to get content for {}: {}", file_path_str, e);
+            log::error!("Failed to read file {}: {}", file_path_str, e);
             return Err(StatusCode::NOT_FOUND);
         }
     };
@@ -407,6 +412,7 @@ pub async fn ollama_process_json_threaded(
     
     // Use provided model or default from config
     let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
+    let model_clone = model.clone(); // Clone for the closure
     
     // Create a comprehensive prompt that includes the JSON data
     let enhanced_prompt = format!(
@@ -421,7 +427,7 @@ pub async fn ollama_process_json_threaded(
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             // Use the optimized client for maximum performance
-            ollama_client.generate_optimized(&model, &enhanced_prompt).await
+            ollama_client.generate_optimized(&model_clone, &enhanced_prompt).await
         })
     });
     
@@ -462,7 +468,7 @@ pub async fn ollama_process_json_threaded(
 
 /// Ultra-fast Ollama processing (direct async, no threading overhead)
 pub async fn ollama_process_ultra_fast(
-    State(state): State<ApiState>,
+    State(_state): State<ApiState>,
     Json(payload): Json<OllamaProcessRequest>,
 ) -> Result<Json<Value>, StatusCode> {
     let start_time = Instant::now();
@@ -482,11 +488,11 @@ pub async fn ollama_process_ultra_fast(
     
     let file_path_str = file_path.to_string_lossy().to_string();
     
-    // Get the file content
-    let file_content = match state.json_manager.get_file_content(&file_path_str).await {
+    // Get the file content directly (ultra-fast mode doesn't use state)
+    let file_content = match std::fs::read_to_string(&file_path_str) {
         Ok(content) => content,
         Err(e) => {
-            log::error!("Failed to get content for {}: {}", file_path_str, e);
+            log::error!("Failed to read file {}: {}", file_path_str, e);
             return Err(StatusCode::NOT_FOUND);
         }
     };
@@ -564,7 +570,7 @@ pub async fn ollama_process_ultra_fast(
 
 /// Ultra-threaded Ollama processing (maximum threading optimization)
 pub async fn ollama_process_ultra_threaded(
-    State(state): State<ApiState>,
+    State(_state): State<ApiState>,
     Json(payload): Json<OllamaProcessRequest>,
 ) -> Result<Json<Value>, StatusCode> {
     let start_time = Instant::now();
@@ -583,11 +589,12 @@ pub async fn ollama_process_ultra_threaded(
     };
     
     let file_path_str = file_path.to_string_lossy().to_string();
+    let file_path_str_clone = file_path_str.clone(); // Clone for closure
     
     // Spawn file content reading in a separate thread
     let file_content_future = spawn_blocking(move || {
         // This runs in a separate thread for I/O operations
-        std::fs::read_to_string(&file_path_str)
+        std::fs::read_to_string(&file_path_str_clone)
     });
     
     // Spawn config loading in parallel
@@ -596,12 +603,12 @@ pub async fn ollama_process_ultra_threaded(
     });
     
     // Wait for both operations to complete
-    let (file_content_result, config_result) = tokio::join!(
+    let (file_content_result, config_result): (Result<Result<String, std::io::Error>, _>, Result<Result<Config, _>, _>) = tokio::join!(
         file_content_future,
         config_future
     );
     
-    let file_content = match file_content_result? {
+    let file_content = match file_content_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
         Ok(content) => content,
         Err(e) => {
             log::error!("Failed to read file {}: {}", file_path_str, e);
@@ -609,7 +616,7 @@ pub async fn ollama_process_ultra_threaded(
         }
     };
     
-    let config = match config_result? {
+    let config = match config_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
         Ok(config) => config,
         Err(e) => {
             log::error!("Failed to load config: {}", e);
@@ -624,18 +631,21 @@ pub async fn ollama_process_ultra_threaded(
     
     // Use provided model or default from config
     let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
+    let model_clone = model.clone(); // Clone for closure
+    let payload_prompt = payload.prompt.clone(); // Clone for closure
+    let file_content_clone = file_content.clone(); // Clone for closure
     
     // Spawn prompt preparation in a separate thread
     let prompt_future = spawn_blocking(move || {
         // This runs in a separate thread for string processing
         format!(
             "Analyze this JSON data: {}\n\nData: {}",
-            payload.prompt,
-            serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
+            payload_prompt,
+            serde_json::to_string_pretty(&file_content_clone).unwrap_or_else(|_| format!("{:?}", file_content_clone))
         )
     });
     
-    let enhanced_prompt = prompt_future.await?;
+    let enhanced_prompt = prompt_future.await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let prompt_prep_time = start_time.elapsed() - file_read_time;
     
     // Spawn Ollama processing in a separate thread with timeout
@@ -646,7 +656,7 @@ pub async fn ollama_process_ultra_threaded(
         // This runs in a separate thread for the blocking Ollama call
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            ollama_client.generate_optimized(&model, &enhanced_prompt).await
+            ollama_client.generate_optimized(&model_clone, &enhanced_prompt).await
         })
     });
     
@@ -709,7 +719,7 @@ pub struct MultiModelConversationRequest {
 }
 
 /// Multi-model conversation response
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ModelResponse {
     pub model: String,
     pub response: String,
@@ -740,14 +750,15 @@ pub async fn multi_model_conversation(
     };
     
     let file_path_str = file_path.to_string_lossy().to_string();
+    let file_path_str_clone = file_path_str.clone(); // Clone for closure
     
     // Get file content and config in parallel
-    let (file_content_result, config_result) = tokio::join!(
-        tokio::spawn_blocking(move || std::fs::read_to_string(&file_path_str)),
-        tokio::spawn_blocking(|| Config::from_env())
+    let (file_content_result, config_result): (Result<Result<String, std::io::Error>, _>, Result<Result<Config, _>, _>) = tokio::join!(
+        spawn_blocking(move || std::fs::read_to_string(&file_path_str_clone)),
+        spawn_blocking(|| Config::from_env())
     );
     
-    let file_content = match file_content_result? {
+    let file_content = match file_content_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
         Ok(content) => content,
         Err(e) => {
             log::error!("Failed to read file {}: {}", file_path_str, e);
@@ -755,7 +766,7 @@ pub async fn multi_model_conversation(
         }
     };
     
-    let config = match config_result? {
+    let config = match config_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
         Ok(config) => config,
         Err(e) => {
             log::error!("Failed to load config: {}", e);
@@ -766,7 +777,7 @@ pub async fn multi_model_conversation(
     let file_read_time = start_time.elapsed();
     
     // Create Ollama client
-    let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
+    let _ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
     
     // Initialize conversation context
     let mut conversation_history = Vec::new();
@@ -776,20 +787,31 @@ pub async fn multi_model_conversation(
         serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
     );
     
+    // Clone values for closures
+    let config_ollama_base_url = config.ollama_base_url.clone();
+    let config_max_timeout_seconds = config.max_timeout_seconds;
+    let payload_models = payload.models.clone();
+    let payload_initial_prompt = payload.initial_prompt.clone();
+    
     // Start multi-model conversation
     for round in 1..=conversation_rounds {
-        log::info!("Starting conversation round {} with {} models", round, payload.models.len());
+        log::info!("Starting conversation round {} with {} models", round, payload_models.len());
         
         // Process each model in parallel for this round
         let mut round_responses = Vec::new();
         let mut model_futures = Vec::new();
         
-        for (model_index, model_name) in payload.models.iter().enumerate() {
+        for (model_index, model_name) in payload_models.iter().enumerate() {
             let model_name = model_name.clone();
+            let model_name_for_push = model_name.clone(); // Clone for pushing to vector
             let current_context = current_context.clone();
             let conversation_type = conversation_type.to_string();
             let round = round;
-            let model_index = model_index;
+            let _model_index = model_index; // Prefix with underscore to suppress warning
+            
+            // Clone config values for this iteration
+            let config_ollama_base_url_clone = config_ollama_base_url.clone();
+            let config_max_timeout_seconds_clone = config_max_timeout_seconds;
             
             // Create model-specific prompt based on conversation type
             let model_prompt = match conversation_type.as_str() {
@@ -812,20 +834,20 @@ pub async fn multi_model_conversation(
             };
             
             // Spawn model response generation in separate thread
-            let future = tokio::spawn_blocking(move || {
+            let future = spawn_blocking(move || {
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 rt.block_on(async {
                     // Create a new client instance for this thread
-                    let client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
+                    let client = OllamaClient::new(&config_ollama_base_url_clone, config_max_timeout_seconds_clone);
                     client.generate_optimized(&model_name, &model_prompt).await
                 })
             });
             
-            model_futures.push((model_name, future, model_index));
+            model_futures.push((model_name_for_push, future, _model_index));
         }
         
         // Wait for all models to respond in this round
-        for (model_name, future, model_index) in model_futures {
+        for (model_name, future, _model_index) in model_futures {
             match timeout(Duration::from_secs(15), future).await {
                 Ok(Ok(Ok(response))) => {
                     let model_response = ModelResponse {
@@ -872,16 +894,21 @@ pub async fn multi_model_conversation(
         "Summarize this multi-model conversation about the trading data. \
          Models involved: {}. Conversation type: {}. \
          Key insights from all rounds:\n\n{}",
-        payload.models.join(", "),
+        payload_models.join(", "),
         conversation_type,
         current_context
     );
     
-    let summary_future = tokio::spawn_blocking(move || {
+    // Clone config values for summary generation
+    let config_ollama_base_url_clone = config_ollama_base_url.clone();
+    let config_max_timeout_seconds_clone = config_max_timeout_seconds;
+    let payload_models_clone = payload_models.clone();
+    
+    let summary_future = spawn_blocking(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
-            client.generate_optimized(&payload.models[0], &summary_prompt).await
+            let client = OllamaClient::new(&config_ollama_base_url_clone, config_max_timeout_seconds_clone);
+            client.generate_optimized(&payload_models_clone[0], &summary_prompt).await
         })
     });
     
@@ -893,8 +920,8 @@ pub async fn multi_model_conversation(
     Ok(Json(json!({
         "status": "success",
         "file_path": file_path_str,
-        "initial_prompt": payload.initial_prompt,
-        "models": payload.models,
+        "initial_prompt": payload_initial_prompt,
+        "models": payload_models,
         "conversation_type": conversation_type,
         "conversation_rounds": conversation_rounds,
         "conversation_history": conversation_history,
@@ -924,7 +951,7 @@ pub async fn list_available_files() -> Json<Value> {
     
     let mut json_files = Vec::new();
     
-    if let Ok(entries) = std::fs::read_dir(current_dir) {
+    if let Ok(entries) = std::fs::read_dir(&current_dir) {
         for entry in entries {
             if let Ok(entry) = entry {
                 let path = entry.path();

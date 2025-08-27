@@ -32,7 +32,7 @@ fn ensure_log_directory(log_directory: &str) -> Result<()> {
         log::warn!("Log directory not writable: {} ({}). Trying fallback locations...", log_directory, e);
         
         // Try fallback locations
-        let temp_dir = std::env::var("TEMP").unwrap_or_else(|_| "./temp".to_string());
+        let _temp_dir = std::env::var("TEMP").unwrap_or_else(|_| "./temp".to_string());
         let fallback_locations = [
             "./logs", 
             "./ollama_logs", 
@@ -41,7 +41,7 @@ fn ensure_log_directory(log_directory: &str) -> Result<()> {
             #[cfg(windows)]
             "./temp/ollama_logs",
             #[cfg(windows)]
-            temp_dir.as_str(),
+            _temp_dir.as_str(),
         ];
         for fallback in &fallback_locations {
             let fallback_path = Path::new(fallback);
