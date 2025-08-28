@@ -79,17 +79,16 @@ run_module_tests() {
     # Test specific modules
     local modules=("api" "ollama" "main")
     
-    for module in "${modules[@]}"; do
-        echo "Testing module: $module"
-        if cargo test --package trading_bot --lib "$module" --verbose; then
-            echo -e "${GREEN}✅ $module tests passed${NC}"
-            TEST_RESULTS+=("PASS:$module Tests")
-        else
-            echo -e "${RED}❌ $module tests failed${NC}"
-            TEST_RESULTS+=("FAIL:$module Tests")
-        fi
-        echo ""
-    done
+    # Run all tests at once since this is a binary project, not a library
+    echo "Running all unit tests..."
+    if cargo test --package trading_bot --verbose; then
+        echo -e "${GREEN}✅ All unit tests passed${NC}"
+        TEST_RESULTS+=("PASS:All Unit Tests")
+    else
+        echo -e "${RED}❌ Some unit tests failed${NC}"
+        TEST_RESULTS+=("FAIL:Unit Tests")
+    fi
+    echo ""
 }
 
 # Function to run integration tests
