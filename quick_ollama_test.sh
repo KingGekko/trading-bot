@@ -43,13 +43,27 @@ if curl -s "http://localhost:11434/api/tags" >/dev/null 2>&1; then
     
     # Test direct Ollama API call
     echo "📝 Ollama Response:"
+    
+    # Create a properly formatted prompt with clean JSON data
+    local json_data=$(cat sample_data.json | jq -c '.' 2>/dev/null || cat sample_data.json | tr -d '\n' | sed 's/"/\\"/g')
+    local prompt="Analyze this trading data and provide insights about the market conditions, price trends, and trading opportunities. Here is the data: $json_data"
+    
+    # Use a temporary file to avoid JSON escaping issues
+    local temp_payload=$(mktemp)
+    cat > "$temp_payload" << EOF
+{
+    "model": "$MODEL",
+    "prompt": "$prompt",
+    "stream": false
+}
+EOF
+    
     curl -s -X POST "http://localhost:11434/api/generate" \
         -H "Content-Type: application/json" \
-        -d "{
-            \"model\": \"$MODEL\",
-            \"prompt\": \"Analyze this trading data and provide insights about the market conditions, price trends, and trading opportunities. Here is the data: $(cat sample_data.json)\",
-            \"stream\": false
-        }" | jq -r '.response // .error // "Unknown response"' 2>/dev/null || echo "Failed to get response"
+        -d @"$temp_payload" | jq -r '.response // .error // "Unknown response"' 2>/dev/null || echo "Failed to get response"
+    
+    # Clean up
+    rm -f "$temp_payload"
     
 else
     echo "❌ Ollama is not running"
