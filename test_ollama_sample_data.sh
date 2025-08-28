@@ -14,7 +14,7 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
-API_BASE_URL="http://localhost:3000"
+API_BASE_URL="http://localhost:8080"
 SAMPLE_DATA_FILE="sample_data.json"
 LOG_FILE="ollama_test_results.log"
 
