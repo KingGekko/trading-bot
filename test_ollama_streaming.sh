@@ -58,10 +58,10 @@ if curl -s "http://localhost:11434/api/tags" >/dev/null 2>&1; then
     
     # Get available models and let user select
     echo -e "${BLUE}🔍 Available models:${NC}"
-    local models_response=$(curl -s "http://localhost:11434/api/tags" 2>/dev/null)
+    models_response=$(curl -s "http://localhost:11434/api/tags" 2>/dev/null)
     if [ $? -eq 0 ] && [ -n "$models_response" ]; then
         # Extract model names
-        local model_names=($(echo "$models_response" | jq -r '.models[]?.name // empty' 2>/dev/null))
+        model_names=($(echo "$models_response" | jq -r '.models[]?.name // empty' 2>/dev/null))
         
         if [ ${#model_names[@]} -eq 0 ]; then
             echo -e "${RED}❌ No models found${NC}"
