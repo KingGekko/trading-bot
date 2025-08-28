@@ -55,6 +55,8 @@ install_package "python3"
 install_package "python3-pip"
 install_package "python3-venv"
 install_package "jq"
+install_package "nodejs"
+install_package "npm"
 
 # Verify Python installation
 echo "🐍 Verifying Python installation..."
@@ -304,6 +306,18 @@ fi
 # Install additional Python packages for development
 echo "🐍 Installing Python development packages..."
 python3 -m pip install --user protobuf grpcio-tools
+
+# Install Node.js tools for WebSocket testing
+echo "📦 Installing Node.js tools for WebSocket testing..."
+npm install -g wscat
+
+# Verify wscat installation
+if command_exists wscat; then
+    echo "✅ wscat installed successfully"
+    wscat --version
+else
+    echo "⚠️  wscat installation failed, but continuing..."
+fi
 
 # Clone or update trading bot repository
 echo "📁 Setting up trading bot repository..."

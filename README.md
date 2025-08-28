@@ -256,6 +256,34 @@ You can test if Ollama is running and accessible:
 curl http://localhost:11434/api/tags
 ```
 
+### Testing WebSocket Functionality
+
+After deployment, you can test the WebSocket streaming functionality:
+
+```bash
+# Make the test script executable
+chmod +x test_websocket.sh
+
+# Run comprehensive WebSocket test
+./test_websocket.sh
+
+# Check prerequisites only
+./test_websocket.sh --check-only
+
+# Test only WebSocket connection
+./test_websocket.sh --websocket-only
+
+# Test only file watching
+./test_websocket.sh --watch-only
+```
+
+The WebSocket test script will:
+- ✅ Check if the trading bot API is running
+- ✅ Verify wscat is available (installs if needed)
+- ✅ Test file watching functionality
+- ✅ Establish WebSocket connection
+- ✅ Monitor real-time file updates
+
 ### Adding New Features
 
 This is a foundation project. You can extend it by:

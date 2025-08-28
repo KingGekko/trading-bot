@@ -13,7 +13,12 @@ FROM debian:bookworm-slim
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
+
+# Install wscat for WebSocket testing
+RUN npm install -g wscat
 
 # Copy the binary from builder stage
 COPY --from=builder /app/target/release/trading_bot /usr/local/bin/trading_bot

@@ -291,9 +291,32 @@ install_dependencies() {
         libssl-dev \
         clang \
         llvm-dev \
-        jq
+        jq \
+        nodejs \
+        npm
     
     echo -e "${GREEN}✅ System dependencies installed${NC}"
+}
+
+# Function to install Node.js tools for WebSocket testing
+install_nodejs_tools() {
+    log_message "Installing Node.js tools for WebSocket testing..."
+    
+    # Update npm to latest version
+    npm install -g npm@latest
+    
+    # Install wscat globally for WebSocket testing
+    npm install -g wscat
+    
+    # Verify installation
+    if command -v wscat >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ wscat installed successfully${NC}"
+        wscat --version
+    else
+        echo -e "${YELLOW}⚠️ wscat installation failed, but continuing...${NC}"
+    fi
+    
+    echo -e "${GREEN}✅ Node.js tools setup complete${NC}"
 }
 
 # Function to run trading bot installation
@@ -803,6 +826,9 @@ main() {
     
     # Install system dependencies
     install_dependencies
+    
+    # Install Node.js tools for WebSocket testing
+    install_nodejs_tools
     
     # Run trading bot installation
     run_installation

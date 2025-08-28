@@ -275,6 +275,33 @@ update_pip() {
     fi
 }
 
+# Function to update Node.js tools
+update_nodejs_tools() {
+    echo "📦 Updating Node.js tools..."
+    
+    if command_exists npm; then
+        # Update npm to latest version
+        echo "🔄 Updating npm to latest version..."
+        npm install -g npm@latest
+        
+        # Install/update wscat for WebSocket testing
+        echo "🔄 Installing/updating wscat..."
+        npm install -g wscat
+        
+        # Verify wscat installation
+        if command_exists wscat; then
+            echo "✅ wscat updated successfully"
+            wscat --version
+        else
+            echo "⚠️  wscat installation failed, but continuing..."
+        fi
+        
+        echo "✅ Node.js tools updated"
+    else
+        echo "❌ npm not found, Node.js tools not available"
+    fi
+}
+
 # Function to update Ollama
 update_ollama() {
     echo "🤖 Updating Ollama..."
@@ -399,7 +426,7 @@ update_system_packages() {
     sudo apt-get upgrade -y
     
     # Install/upgrade development packages
-    sudo apt-get install -y build-essential cmake pkg-config curl wget git jq
+    sudo apt-get install -y build-essential cmake pkg-config curl wget git jq nodejs npm
     
     # Install additional development tools
     sudo apt-get install -y clang llvm-dev libssl-dev
@@ -717,38 +744,44 @@ main() {
     update_pip
     echo ""
     
+    # STEP 1.5: Update Node.js tools
+    echo "📦 STEP 1.5/7: Updating Node.js tools"
+    echo "======================================"
+    update_nodejs_tools
+    echo ""
+    
     # STEP 2: Update Ollama
-    echo "🤖 STEP 2/7: Updating Ollama"
+    echo "🤖 STEP 2/8: Updating Ollama"
     echo "============================="
     update_ollama
     echo ""
     
     # STEP 3: Update Rust and dependencies
-    echo "🦀 STEP 3/7: Updating Rust and dependencies"
+    echo "🦀 STEP 3/8: Updating Rust and dependencies"
     echo "============================================"
     update_rust_and_dependencies
     echo ""
     
     # STEP 4: Update system packages
-    echo "🔧 STEP 4/7: Updating system packages"
+    echo "🔧 STEP 4/8: Updating system packages"
     echo "====================================="
     update_system_packages
     echo ""
     
     # STEP 5: Update trading bot
-    echo "📱 STEP 5/7: Updating trading bot"
+    echo "📱 STEP 5/8: Updating trading bot"
     echo "=================================="
     update_trading_bot
     echo ""
     
     # STEP 6: Audit dependencies
-    echo "🔒 STEP 6/7: Auditing dependencies and security"
+    echo "🔒 STEP 6/8: Auditing dependencies and security"
     echo "==============================================="
     audit_dependencies
     echo ""
     
     # STEP 7: Test everything
-    echo "🧪 STEP 7/7: Testing everything"
+    echo "🧪 STEP 7/8: Testing everything"
     echo "================================"
     test_installation
     echo ""
@@ -758,6 +791,7 @@ main() {
     echo "📋 What was updated:"
     echo "  ✅ Protobuf: Verified and repaired if needed"
     echo "  ✅ Python pip: Latest version"
+    echo "  ✅ Node.js tools: wscat for WebSocket testing"
     echo "  ✅ Ollama: Latest version"
     echo "  ✅ Rust: Latest toolchain and components"
     echo "  ✅ Dependencies: Latest versions"
