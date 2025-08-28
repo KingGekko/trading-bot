@@ -45,11 +45,11 @@ if curl -s "http://localhost:11434/api/tags" >/dev/null 2>&1; then
     echo "📝 Ollama Response:"
     
     # Create a properly formatted prompt with clean JSON data
-    local json_data=$(cat sample_data.json | jq -c '.' 2>/dev/null || cat sample_data.json | tr -d '\n' | sed 's/"/\\"/g')
-    local prompt="Analyze this trading data and provide insights about the market conditions, price trends, and trading opportunities. Here is the data: $json_data"
+    json_data=$(cat sample_data.json | jq -c '.' 2>/dev/null || cat sample_data.json | tr -d '\n' | sed 's/"/\\"/g')
+    prompt="Analyze this trading data and provide insights about the market conditions, price trends, and trading opportunities. Here is the data: $json_data"
     
     # Use a temporary file to avoid JSON escaping issues
-    local temp_payload=$(mktemp)
+    temp_payload=$(mktemp)
     cat > "$temp_payload" << EOF
 {
     "model": "$MODEL",
