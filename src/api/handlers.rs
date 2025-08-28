@@ -30,8 +30,20 @@ pub async fn start_watching(
 ) -> Result<Json<Value>, StatusCode> {
     let file_path = payload.file_path;
     
+    log::info!("Starting to watch file: {}", file_path);
+    
+    // Check if file exists
+    let path = std::path::Path::new(&file_path);
+    if !path.exists() {
+        log::error!("File does not exist: {}", file_path);
+        return Err(StatusCode::NOT_FOUND);
+    }
+    
+    log::info!("File exists, attempting to start watch...");
+    
     match state.json_manager.watch_file(&file_path).await {
         Ok(_) => {
+            log::info!("Successfully started watching: {}", file_path);
             Ok(Json(json!({
                 "status": "success",
                 "message": format!("Started watching file: {}", file_path),

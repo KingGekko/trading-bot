@@ -36,18 +36,27 @@ impl JsonStreamManager {
     pub async fn watch_file(&self, file_path: &str) -> Result<broadcast::Receiver<Value>> {
         let path = PathBuf::from(file_path);
         
+        log::info!("JsonStreamManager: Attempting to watch file: {}", file_path);
+        log::info!("JsonStreamManager: Resolved path: {:?}", path);
+        
         if !path.exists() {
+            log::error!("JsonStreamManager: File does not exist: {}", file_path);
             return Err(anyhow::anyhow!("File does not exist: {}", file_path));
         }
-
+        
+        log::info!("JsonStreamManager: File exists, checking if already watching...");
+        
         // Check if already watching
         {
             let channels = self.channels.read().await;
             if let Some(sender) = channels.get(file_path) {
+                log::info!("JsonStreamManager: Already watching file: {}", file_path);
                 return Ok(sender.subscribe());
             }
         }
-
+        
+        log::info!("JsonStreamManager: Creating new broadcast channel...");
+        
         // Create new broadcast channel
         let (tx, rx) = broadcast::channel(100);
         
@@ -55,11 +64,15 @@ impl JsonStreamManager {
         {
             let mut channels = self.channels.write().await;
             channels.insert(file_path.to_string(), tx.clone());
+            log::info!("JsonStreamManager: Stored channel for file: {}", file_path);
         }
-
+        
+        log::info!("JsonStreamManager: Starting file watcher...");
+        
         // Start file watcher
         self.start_file_watcher(file_path.to_string(), path, tx).await?;
-
+        
+        log::info!("JsonStreamManager: Successfully started watching file: {}", file_path);
         Ok(rx)
     }
 
@@ -70,11 +83,18 @@ impl JsonStreamManager {
         path: PathBuf,
         tx: broadcast::Sender<Value>,
     ) -> Result<()> {
+        log::info!("JsonStreamManager: start_file_watcher called for: {}", file_path);
+        
         let (notify_tx, notify_rx) = std::sync::mpsc::channel();
+        log::info!("JsonStreamManager: Created notify channel");
         
         // Create file watcher
+        log::info!("JsonStreamManager: Creating RecommendedWatcher...");
         let mut watcher = RecommendedWatcher::new(notify_tx, notify::Config::default())?;
+        log::info!("JsonStreamManager: Created watcher, starting to watch path: {:?}", path);
+        
         watcher.watch(&path, RecursiveMode::NonRecursive)?;
+        log::info!("JsonStreamManager: Successfully started watching path: {:?}", path);
 
         // Store watcher
         {
@@ -82,19 +102,27 @@ impl JsonStreamManager {
             watchers.insert(file_path.clone(), FileWatcher {
                 _watcher: watcher,
             });
+            log::info!("JsonStreamManager: Stored watcher in watchers map");
         }
 
         // Send initial file content
+        log::info!("JsonStreamManager: Reading initial file content...");
         if let Ok(content) = Self::read_json_file(&path).await {
+            log::info!("JsonStreamManager: Successfully read initial content, sending...");
             if let Err(e) = tx.send(content) {
                 warn!("Failed to send initial content for {}: {}", file_path, e);
+            } else {
+                log::info!("JsonStreamManager: Successfully sent initial content");
             }
+        } else {
+            log::warn!("JsonStreamManager: Failed to read initial file content");
         }
 
         // Spawn background task to handle file changes
         let file_path_clone = file_path.clone();
         let tx_clone = tx.clone();
         let path_clone = path.clone();
+        log::info!("JsonStreamManager: Spawning background task for file changes...");
         tokio::spawn(async move {
             Self::handle_file_changes(file_path_clone, path_clone, tx_clone, notify_rx).await;
         });
@@ -141,12 +169,18 @@ impl JsonStreamManager {
 
     /// Read and parse JSON file
     async fn read_json_file(path: &PathBuf) -> Result<Value> {
+        log::info!("JsonStreamManager: read_json_file called for path: {:?}", path);
+        
         let file = File::open(path).await?;
+        log::info!("JsonStreamManager: Successfully opened file");
+        
         let mut reader = BufReader::new(file);
         let mut content = String::new();
         reader.read_to_string(&mut content).await?;
+        log::info!("JsonStreamManager: Successfully read file content, length: {}", content.len());
         
         let json: Value = serde_json::from_str(&content)?;
+        log::info!("JsonStreamManager: Successfully parsed JSON");
         Ok(json)
     }
 
