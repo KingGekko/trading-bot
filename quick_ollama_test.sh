@@ -3,6 +3,33 @@
 # 🚀 Quick Ollama Sample Data Test
 # Simple test to see if Ollama can read and process the sample trading data
 
+# Parse command line arguments
+SELECTED_MODEL=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -m|--model)
+            SELECTED_MODEL="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 [-m|--model MODEL_NAME]"
+            echo "  -m, --model MODEL_NAME  Specify model to use (e.g., llama3.2, mistral, tinyllama)"
+            echo "  -h, --help              Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0                    # Interactive model selection"
+            echo "  $0 -m llama3.2        # Use llama3.2 model"
+            echo "  $0 --model tinyllama  # Use tinyllama model"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use -h or --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 echo "🧪 Quick Ollama Sample Data Test"
 echo "================================"
 echo ""
@@ -36,9 +63,63 @@ if curl -s "http://localhost:11434/api/tags" >/dev/null 2>&1; then
     echo "Prompt: Analyze this trading data and provide insights about the market conditions, price trends, and trading opportunities."
     echo ""
     
-    # Get first available model
-    MODEL=$(curl -s "http://localhost:11434/api/tags" | jq -r '.models[0]?.name // "llama3.2"' 2>/dev/null)
-    echo "Using model: $MODEL"
+    # Get available models and let user select
+    echo "🔍 Available models:"
+    local models_response=$(curl -s "http://localhost:11434/api/tags" 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$models_response" ]; then
+        # Extract model names
+        local model_names=($(echo "$models_response" | jq -r '.models[]?.name // empty' 2>/dev/null))
+        
+        if [ ${#model_names[@]} -eq 0 ]; then
+            echo "❌ No models found"
+            exit 1
+        fi
+        
+        # Check if user specified a model via command line
+        if [ -n "$SELECTED_MODEL" ]; then
+            # Check if specified model exists
+            if [[ " ${model_names[@]} " =~ " ${SELECTED_MODEL} " ]]; then
+                MODEL="$SELECTED_MODEL"
+                echo "✅ Using specified model: $MODEL"
+            else
+                echo "❌ Specified model '$SELECTED_MODEL' not found"
+                echo "Available models:"
+                for i in "${!model_names[@]}"; do
+                    echo "  $((i+1)). ${model_names[$i]}"
+                done
+                echo ""
+                echo "Please specify a valid model name or run without -m for interactive selection"
+                exit 1
+            fi
+        else
+            # Display models with numbers
+            echo "Available models:"
+            for i in "${!model_names[@]}"; do
+                echo "  $((i+1)). ${model_names[$i]}"
+            done
+            echo ""
+            
+            # Let user select model
+            if [ -t 0 ]; then
+                # Interactive mode
+                read -p "Select model (1-${#model_names[@]}): " selection
+                if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le ${#model_names[@]} ]; then
+                    MODEL="${model_names[$((selection-1))]}"
+                    echo "✅ Selected model: $MODEL"
+                else
+                    echo "❌ Invalid selection, using first model: ${model_names[0]}"
+                    MODEL="${model_names[0]}"
+                fi
+            else
+                # Non-interactive mode, use first model
+                MODEL="${model_names[0]}"
+                echo "✅ Using first available model: $MODEL"
+            fi
+        fi
+    else
+        echo "❌ Failed to get models, using default: llama3.2"
+        MODEL="llama3.2"
+    fi
     echo ""
     
     # Test direct Ollama API call
@@ -78,3 +159,8 @@ echo ""
 echo "To test the full Trading Bot API:"
 echo "1. Start the server: cargo run -- --api"
 echo "2. Run: ./test_ollama_sample_data.sh"
+echo ""
+echo "💡 Model Selection Tips:"
+echo "  - Run without options for interactive selection"
+echo "  - Use -m MODEL_NAME to specify a model directly"
+echo "  - Use -h or --help to see all options"

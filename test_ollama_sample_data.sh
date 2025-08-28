@@ -18,6 +18,33 @@ API_BASE_URL="http://localhost:8080"
 SAMPLE_DATA_FILE="sample_data.json"
 LOG_FILE="ollama_test_results.log"
 
+# Parse command line arguments
+SELECTED_MODEL=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -m|--model)
+            SELECTED_MODEL="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 [-m|--model MODEL_NAME]"
+            echo "  -m, --model MODEL_NAME  Specify model to use (e.g., llama3.2, mistral, tinyllama)"
+            echo "  -h, --help              Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0                    # Interactive model selection"
+            echo "  $0 -m llama3.2        # Use llama3.2 model"
+            echo "  $0 --model tinyllama  # Use tinyllama model"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use -h or --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 echo -e "${BLUE}🧪 Ollama Sample Data Test${NC}"
 echo "================================"
 echo "Testing if Ollama can read and process sample trading data"
@@ -116,9 +143,63 @@ test_basic_ollama() {
     echo "Prompt: $test_prompt"
     echo ""
     
-    # Get first available model
-    local model_name=$(curl -s "http://localhost:11434/api/tags" 2>/dev/null | jq -r '.models[0]?.name // "llama3.2"')
-    echo "Using model: $model_name"
+    # Get available models and let user select
+    echo "🔍 Available models:"
+    local models_response=$(curl -s "http://localhost:11434/api/tags" 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$models_response" ]; then
+        # Extract model names
+        local model_names=($(echo "$models_response" | jq -r '.models[]?.name // empty' 2>/dev/null))
+        
+        if [ ${#model_names[@]} -eq 0 ]; then
+            echo "❌ No models found"
+            return 1
+        fi
+        
+        # Check if user specified a model via command line
+        if [ -n "$SELECTED_MODEL" ]; then
+            # Check if specified model exists
+            if [[ " ${model_names[@]} " =~ " ${SELECTED_MODEL} " ]]; then
+                model_name="$SELECTED_MODEL"
+                echo "✅ Using specified model: $model_name"
+            else
+                echo "❌ Specified model '$SELECTED_MODEL' not found"
+                echo "Available models:"
+                for i in "${!model_names[@]}"; do
+                    echo "  $((i+1)). ${model_names[$i]}"
+                done
+                echo ""
+                echo "Please specify a valid model name or run without -m for interactive selection"
+                return 1
+            fi
+        else
+            # Display models with numbers
+            echo "Available models:"
+            for i in "${!model_names[@]}"; do
+                echo "  $((i+1)). ${model_names[$i]}"
+            done
+            echo ""
+            
+            # Let user select model
+            if [ -t 0 ]; then
+                # Interactive mode
+                read -p "Select model (1-${#model_names[@]}): " selection
+                if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le ${#model_names[@]} ]; then
+                    model_name="${model_names[$((selection-1))]}"
+                    echo "✅ Selected model: $model_name"
+                else
+                    echo "❌ Invalid selection, using first model: ${model_names[0]}"
+                    model_name="${model_names[0]}"
+                fi
+            else
+                # Non-interactive mode, use first model
+                model_name="${model_names[0]}"
+                echo "✅ Using first available model: $model_name"
+            fi
+        fi
+    else
+        echo "❌ Failed to get models, using default: llama3.2"
+        model_name="llama3.2"
+    fi
     echo ""
     
     # Test direct Ollama API call
