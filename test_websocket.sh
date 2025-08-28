@@ -47,12 +47,20 @@ check_wscat() {
     else
         echo -e "${RED}❌ wscat is not available${NC}"
         echo "Installing wscat..."
-        npm install -g wscat
-        if command -v wscat >/dev/null 2>&1; then
+        
+        # Try installing wscat with compatible version first
+        if npm install -g wscat@5.1.1; then
+            echo -e "${GREEN}✅ wscat installed successfully (compatible version)${NC}"
+            return 0
+        elif npm install -g wscat; then
             echo -e "${GREEN}✅ wscat installed successfully${NC}"
             return 0
         else
             echo -e "${RED}❌ Failed to install wscat${NC}"
+            echo "You can try installing manually:"
+            echo "  npm install -g wscat@5.1.1"
+            echo "  or"
+            echo "  npm install -g wscat"
             return 1
         fi
     fi

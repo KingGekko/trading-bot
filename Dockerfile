@@ -17,8 +17,8 @@ RUN apt-get update && apt-get install -y \
     npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Install wscat for WebSocket testing
-RUN npm install -g wscat
+# Install wscat for WebSocket testing (use compatible version)
+RUN npm install -g wscat@5.1.1 || npm install -g wscat
 
 # Copy the binary from builder stage
 COPY --from=builder /app/target/release/trading_bot /usr/local/bin/trading_bot

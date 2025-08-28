@@ -280,20 +280,38 @@ update_nodejs_tools() {
     echo "📦 Updating Node.js tools..."
     
     if command_exists npm; then
-        # Update npm to latest version
-        echo "🔄 Updating npm to latest version..."
-        npm install -g npm@latest
+        # Check Node.js version first
+        if command_exists node; then
+            local node_version=$(node --version)
+            echo "📦 Current Node.js version: $node_version"
+            
+            # Only update npm if Node.js version is compatible
+            if [[ "$node_version" =~ ^v2[0-9]\. ]] || [[ "$node_version" =~ ^v2[2-9]\. ]]; then
+                echo "🔄 Updating npm to latest version..."
+                npm install -g npm@latest
+            else
+                echo "⚠️ Node.js version $node_version is older, keeping current npm version"
+            fi
+        else
+            echo "❌ Node.js not found, skipping npm update"
+        fi
         
         # Install/update wscat for WebSocket testing
         echo "🔄 Installing/updating wscat..."
-        npm install -g wscat
-        
-        # Verify wscat installation
-        if command_exists wscat; then
+        if npm install -g wscat; then
             echo "✅ wscat updated successfully"
             wscat --version
         else
-            echo "⚠️  wscat installation failed, but continuing..."
+            echo "⚠️ wscat installation failed, trying alternative method..."
+            
+            # Try installing wscat with specific version that's more compatible
+            if npm install -g wscat@5.1.1; then
+                echo "✅ wscat installed successfully (compatible version)"
+                wscat --version
+            else
+                echo "⚠️ wscat installation failed, but continuing..."
+                echo "You can install wscat manually later with: npm install -g wscat"
+            fi
         fi
         
         echo "✅ Node.js tools updated"

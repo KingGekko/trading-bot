@@ -302,18 +302,38 @@ install_dependencies() {
 install_nodejs_tools() {
     log_message "Installing Node.js tools for WebSocket testing..."
     
-    # Update npm to latest version
-    npm install -g npm@latest
+    # Check Node.js version first
+    if command -v node >/dev/null 2>&1; then
+        local node_version=$(node --version)
+        echo "📦 Current Node.js version: $node_version"
+        
+        # Only update npm if Node.js version is compatible
+        if [[ "$node_version" =~ ^v2[0-9]\. ]] || [[ "$node_version" =~ ^v2[2-9]\. ]]; then
+            echo "🔄 Updating npm to latest version..."
+            npm install -g npm@latest
+        else
+            echo "⚠️ Node.js version $node_version is older, keeping current npm version"
+        fi
+    else
+        echo "❌ Node.js not found, skipping npm update"
+    fi
     
     # Install wscat globally for WebSocket testing
-    npm install -g wscat
-    
-    # Verify installation
-    if command -v wscat >/dev/null 2>&1; then
+    echo "📦 Installing wscat for WebSocket testing..."
+    if npm install -g wscat; then
         echo -e "${GREEN}✅ wscat installed successfully${NC}"
         wscat --version
     else
-        echo -e "${YELLOW}⚠️ wscat installation failed, but continuing...${NC}"
+        echo -e "${YELLOW}⚠️ wscat installation failed, trying alternative method...${NC}"
+        
+        # Try installing wscat with specific version that's more compatible
+        if npm install -g wscat@5.1.1; then
+            echo -e "${GREEN}✅ wscat installed successfully (compatible version)${NC}"
+            wscat --version
+        else
+            echo -e "${YELLOW}⚠️ wscat installation failed, but continuing...${NC}"
+            echo "You can install wscat manually later with: npm install -g wscat"
+        fi
     fi
     
     echo -e "${GREEN}✅ Node.js tools setup complete${NC}"
