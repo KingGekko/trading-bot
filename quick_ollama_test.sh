@@ -138,12 +138,28 @@ if curl -s "http://localhost:11434/api/tags" >/dev/null 2>&1; then
     # Create a clean prompt with extracted values
     clean_prompt="Analyze this trading data and provide insights about the market conditions, price trends, and trading opportunities. Here is the data: $BTC_SYMBOL price is $BTC_PRICE, RSI is $RSI_VALUE, MACD is $MACD_VALUE, sentiment is $SENTIMENT."
     
-    # Test with clean prompt
+    # Test with clean prompt (extracted values)
+    echo "📝 Testing with extracted data values..."
     curl -s -X POST "http://localhost:11434/api/generate" \
         -H "Content-Type: application/json" \
         -d "{
             \"model\": \"$MODEL\",
             \"prompt\": \"$clean_prompt\",
+            \"stream\": false
+        }" | jq -r '.response // .error // "Unknown response"' 2>/dev/null || echo "Failed to get response"
+    
+    echo ""
+    echo "📝 Now testing with full file content..."
+    
+    # Test with actual file content (full JSON data)
+    full_file_content=$(cat sample_data.json | jq -c '.' 2>/dev/null || cat sample_data.json)
+    full_prompt="Analyze this trading data and provide insights about the market conditions, price trends, and trading opportunities. Here is the complete data: $full_file_content"
+    
+    curl -s -X POST "http://localhost:11434/api/generate" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"model\": \"$MODEL\",
+            \"prompt\": \"$full_prompt\",
             \"stream\": false
         }" | jq -r '.response // .error // "Unknown response"' 2>/dev/null || echo "Failed to get response"
     
