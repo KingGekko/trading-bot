@@ -58,57 +58,65 @@ if curl -s "http://localhost:11434/api/tags" >/dev/null 2>&1; then
     
     # Get available models and let user select
     echo -e "${BLUE}🔍 Available models:${NC}"
+    
+    # Debug: Show raw response
+    echo "Fetching models from Ollama..."
     models_response=$(curl -s "http://localhost:11434/api/tags" 2>/dev/null)
+    echo "Raw response: $models_response"
+    
     if [ $? -eq 0 ] && [ -n "$models_response" ]; then
         # Extract model names
+        echo "Extracting model names..."
         model_names=($(echo "$models_response" | jq -r '.models[]?.name // empty' 2>/dev/null))
+        echo "Extracted models: ${model_names[*]}"
+        echo "Number of models: ${#model_names[@]}"
         
         if [ ${#model_names[@]} -eq 0 ]; then
-            echo -e "${RED}❌ No models found${NC}"
-            exit 1
+            echo -e "${RED}❌ No models found in response${NC}"
+            echo "Trying alternative extraction method..."
+            # Alternative: try to get models without jq
+            model_names=($(echo "$models_response" | grep -o '"name"[^,]*' | cut -d'"' -f4))
+            echo "Alternative extraction: ${model_names[*]}"
+            if [ ${#model_names[@]} -eq 0 ]; then
+                echo -e "${RED}❌ Still no models found, using default${NC}"
+                MODEL="llama3.2"
+            fi
         fi
         
-        # Check if user specified a model via command line
-        if [ -n "$SELECTED_MODEL" ]; then
-            # Check if specified model exists
-            if [[ " ${model_names[@]} " =~ " ${SELECTED_MODEL} " ]]; then
-                MODEL="$SELECTED_MODEL"
-                echo -e "${GREEN}✅ Using specified model: $MODEL${NC}"
+        if [ ${#model_names[@]} -gt 0 ]; then
+            # Check if user specified a model via command line
+            if [ -n "$SELECTED_MODEL" ]; then
+                # Check if specified model exists
+                if [[ " ${model_names[@]} " =~ " ${SELECTED_MODEL} " ]]; then
+                    MODEL="$SELECTED_MODEL"
+                    echo -e "${GREEN}✅ Using specified model: $MODEL${NC}"
+                else
+                    echo -e "${RED}❌ Specified model '$SELECTED_MODEL' not found${NC}"
+                    echo "Available models:"
+                    for i in "${!model_names[@]}"; do
+                        echo "  $((i+1)). ${model_names[$i]}"
+                    done
+                    echo "Using first available model: ${model_names[0]}"
+                    MODEL="${model_names[0]}"
+                fi
             else
-                echo -e "${RED}❌ Specified model '$SELECTED_MODEL' not found${NC}"
+                # Display models with numbers
                 echo "Available models:"
                 for i in "${!model_names[@]}"; do
                     echo "  $((i+1)). ${model_names[$i]}"
                 done
-                exit 1
-            fi
-        else
-            # Display models with numbers
-            echo "Available models:"
-            for i in "${!model_names[@]}"; do
-                echo "  $((i+1)). ${model_names[$i]}"
-            done
-            echo ""
-            
-            # Let user select model
-            if [ -t 0 ]; then
-                # Interactive mode
-                read -p "Select model (1-${#model_names[@]}): " selection
-                if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le ${#model_names[@]} ]; then
-                    MODEL="${model_names[$((selection-1))]}"
-                    echo -e "${GREEN}✅ Selected model: $MODEL${NC}"
-                else
-                    echo -e "${RED}❌ Invalid selection, using first model: ${model_names[0]}${NC}"
-                    MODEL="${model_names[0]}"
-                fi
-            else
-                # Non-interactive mode, use first model
+                echo ""
+                
+                # Auto-select first model to avoid hanging
                 MODEL="${model_names[0]}"
-                echo -e "${GREEN}✅ Using first available model: $MODEL${NC}"
+                echo -e "${GREEN}✅ Auto-selected first model: $MODEL${NC}"
+                echo "To select a specific model, use: $0 -m MODEL_NAME"
             fi
         fi
     else
-        echo -e "${RED}❌ Failed to get models, using default: llama3.2${NC}"
+        echo -e "${RED}❌ Failed to get models from Ollama${NC}"
+        echo "Response: $models_response"
+        echo "Using default model: llama3.2"
         MODEL="llama3.2"
     fi
     echo ""
