@@ -20,7 +20,6 @@ pub struct JsonStreamManager {
 
 /// Individual file watcher
 struct FileWatcher {
-    path: PathBuf,
     _watcher: notify::RecommendedWatcher,
 }
 
@@ -81,7 +80,6 @@ impl JsonStreamManager {
         {
             let mut watchers = self.watchers.write().await;
             watchers.insert(file_path.clone(), FileWatcher {
-                path: path.clone(),
                 _watcher: watcher,
             });
         }

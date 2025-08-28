@@ -44,15 +44,7 @@ pub async fn start_api_server(port: u16) -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
-/// Start API server with default configuration
-pub async fn start_default_api_server() -> Result<(), Box<dyn std::error::Error>> {
-    start_api_server(8080).await
-}
 
-/// Start API server with custom port
-pub async fn start_api_server_with_port(port: u16) -> Result<(), Box<dyn std::error::Error>> {
-    start_api_server(port).await
-}
 
 #[cfg(test)]
 mod tests {

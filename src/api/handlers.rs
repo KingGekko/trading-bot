@@ -240,7 +240,7 @@ pub struct OllamaProcessRequest {
 
 /// Process JSON file with Ollama AI (default: ultra-fast threading)
 pub async fn ollama_process_json(
-    State(state): State<ApiState>,
+    State(_state): State<ApiState>,
     Json(payload): Json<OllamaProcessRequest>,
 ) -> Result<Json<Value>, StatusCode> {
     let start_time = Instant::now();
@@ -729,7 +729,7 @@ pub struct ModelResponse {
 
 /// Multi-model conversation handler
 pub async fn multi_model_conversation(
-    State(state): State<ApiState>,
+    State(_state): State<ApiState>,
     Json(payload): Json<MultiModelConversationRequest>,
 ) -> Result<Json<Value>, StatusCode> {
     let start_time = Instant::now();
