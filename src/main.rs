@@ -7,6 +7,7 @@ use std::path::Path;
 
 mod ollama;
 mod api;
+mod market_data;
 
 use ollama::{OllamaClient, Config, OllamaReceipt, ProtobufReceipt};
 use api::start_api_server;

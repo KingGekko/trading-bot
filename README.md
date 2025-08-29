@@ -37,7 +37,7 @@ A high-performance Rust-based trading bot with Ollama AI integration, real-time 
 - Node.js + npm (for WebSocket testing)
 
 ### **Installation**
-```bash
+   ```bash
 # Clone the repository
 git clone https://github.com/KingGekko/trading-bot.git
 cd trading-bot
@@ -45,9 +45,30 @@ cd trading-bot
 # Install dependencies
 ./setup/install.sh
 
-# Start the server
+# Market data streaming is now integrated into Rust
+```
+
+### **Dual-Mode Operation**
+
+#### **🧪 Test Mode (Development)**
+```bash
+# Start in test mode for development and testing
+./start_test_mode.sh
+
+# Or manually start
 cargo run -- --api
 ```
+
+#### **🚀 Live Mode (Production)**
+```bash
+# Start in live mode with real market data
+./start_live_mode.sh
+
+# Stop live mode
+./stop_live_mode.sh
+```
+
+**Note**: Live mode requires Alpaca API credentials in `live_config.env`
 
 ### **Quick Test**
 ```bash
@@ -78,6 +99,18 @@ POST /api/ollama/process       - Process JSON with AI (ULTRA-FAST THREADING)
 POST /api/ollama/conversation  - Multi-model AI conversations
 GET  /api/available-files      - List available JSON files
 ```
+
+### **Live Mode Features**
+- **Multi-Stream Market Data** - Options, Crypto, News, and Stocks streaming from Alpaca API (Rust-based)
+- **Real-Time Data Types**:
+  - 🔐 **Crypto**: BTC/USD, ETH/USD live pricing and volume
+  - 📈 **Stocks**: AAPL and other stock symbols with real-time trades
+  - 📊 **Options**: SPY options with Greeks, implied volatility, and pricing
+  - 📰 **News**: Market-moving news with sentiment analysis
+- **Automatic File Updates** - Live data written to `live_data/` directory with stream-specific files
+- **Production Ready** - Auto-start, monitoring, and logging
+- **Market Analysis** - AI-powered insights on live trading data
+- **High Performance** - Built with Rust and Tokio for maximum efficiency
 
 ## 🧪 Testing
 

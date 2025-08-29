@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-08-29T00:00:00Z",
+  "symbol": "SPY",
+  "price": 0.0,
+  "volume": 0.0,
+  "high": null,
+  "low": null,
+  "open": null,
+  "source": "alpaca_news",
+  "exchange": "alpaca",
+  "change_24h": null,
+  "change_percent": null,
+  "market_cap": null,
+  "circulating_supply": null,
+  "options_data": null,
+  "news_data": {
+    "headline": "Federal Reserve Signals Potential Rate Cut in September",
+    "summary": "Federal Reserve officials indicated a possible interest rate reduction in September, citing improved inflation data and economic stability.",
+    "url": "https://example.com/fed-rate-cut-september-2025",
+    "author": "Wall Street Journal",
+    "source": "Wall Street Journal",
+    "sentiment": 0.6,
+    "symbols": ["SPY", "QQQ", "IWM", "AAPL", "MSFT"],
+    "category": "Federal Reserve"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-08-29T00:00:00Z",
+  "symbol": "AAPL",
+  "price": 0.0,
+  "volume": 0.0,
+  "high": null,
+  "low": null,
+  "open": null,
+  "source": "alpaca_news",
+  "exchange": "alpaca",
+  "change_24h": null,
+  "change_percent": null,
+  "market_cap": null,
+  "circulating_supply": null,
+  "options_data": null,
+  "news_data": {
+    "headline": "Apple Reports Strong Q3 Earnings, iPhone Sales Surge",
+    "summary": "Apple Inc. reported better-than-expected third-quarter earnings, driven by strong iPhone sales and services revenue growth.",
+    "url": "https://example.com/apple-earnings-q3-2025",
+    "author": "Financial Times",
+    "source": "Financial Times",
+    "sentiment": 0.8,
+    "symbols": ["AAPL", "SPY", "QQQ"],
+    "category": "Earnings"
+  }
+}
