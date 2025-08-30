@@ -6,9 +6,13 @@
 echo "🚀 Trading Bot API Key Setup"
 echo "=============================="
 
-# Check if config.env exists
-if [ ! -f "config.env" ]; then
-    echo "❌ config.env not found. Please run this script from the project directory."
+# Check if config.env exists - detect if running from scripts/ or root directory
+if [ -f "../config.env" ]; then
+    CONFIG_FILE="../config.env"
+elif [ -f "config.env" ]; then
+    CONFIG_FILE="config.env"
+else
+    echo "❌ config.env not found. Please run from project root or scripts directory."
     exit 1
 fi
 
@@ -16,7 +20,7 @@ fi
 add_api_key() {
     local key_name=$1
     local env_var=$2
-    local current_value=$(grep "^${env_var}=" config.env | cut -d'=' -f2)
+    local current_value=$(grep "^${env_var}=" "$CONFIG_FILE" | cut -d'=' -f2)
     
     echo ""
     echo "🔑 Setting up ${key_name}..."
@@ -36,10 +40,10 @@ add_api_key() {
         # Replace the line in config.env
         if [[ "$OSTYPE" == "darwin"* ]]; then
             # macOS
-            sed -i '' "s/^${env_var}=.*/${env_var}=${api_key}/" config.env
+            sed -i '' "s/^${env_var}=.*/${env_var}=${api_key}/" "$CONFIG_FILE"
         else
             # Linux
-            sed -i "s/^${env_var}=.*/${env_var}=${api_key}/" config.env
+            sed -i "s/^${env_var}=.*/${env_var}=${api_key}/" "$CONFIG_FILE"
         fi
         echo "✅ ${key_name} updated successfully!"
     else
@@ -74,7 +78,7 @@ add_multiple_keys() {
             read -p "Enter API key value: " key_value
             if [ -n "$key_value" ]; then
                 # Add to config.env
-                echo "${key_name^^}=${key_value}" >> config.env
+                echo "${key_name^^}=${key_value}" >> "$CONFIG_FILE"
                 echo "✅ Added ${key_name} successfully!"
             fi
         done
@@ -88,8 +92,8 @@ validate_config() {
     echo "==========================="
     
     # Check required fields
-    local alpaca_key=$(grep "^ALPACA_API_KEY=" config.env | cut -d'=' -f2)
-    local alpaca_secret=$(grep "^ALPACA_SECRET_KEY=" config.env | cut -d'=' -f2)
+    local alpaca_key=$(grep "^ALPACA_API_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
+    local alpaca_secret=$(grep "^ALPACA_SECRET_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
     
     if [ "$alpaca_key" = "your_alpaca_api_key_here" ] || [ -z "$alpaca_key" ]; then
         echo "❌ ALPACA_API_KEY not set"
@@ -113,8 +117,8 @@ show_config() {
     echo "========================"
     
     # Show API keys (masked)
-    local alpaca_key=$(grep "^ALPACA_API_KEY=" config.env | cut -d'=' -f2)
-    local alpaca_secret=$(grep "^ALPACA_SECRET_KEY=" config.env | cut -d'=' -f2)
+    local alpaca_key=$(grep "^ALPACA_API_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
+    local alpaca_secret=$(grep "^ALPACA_SECRET_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
     
     if [ "$alpaca_key" != "your_alpaca_api_key_here" ] && [ -n "$alpaca_key" ]; then
         echo "ALPACA_API_KEY: ${alpaca_key:0:8}...${alpaca_key: -4}"
@@ -131,7 +135,7 @@ show_config() {
     # Show other configuration
     echo ""
     echo "Other Settings:"
-    grep -E "^(STREAM_TYPES|TRADING_SYMBOLS|UPDATE_INTERVAL_MS|MARKET_DATA_DIR|API_PORT)=" config.env
+    grep -E "^(STREAM_TYPES|TRADING_SYMBOLS|UPDATE_INTERVAL_MS|MARKET_DATA_DIR|API_PORT)=" "$CONFIG_FILE"
 }
 
 # Main menu
