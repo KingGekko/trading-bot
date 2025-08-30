@@ -8,11 +8,9 @@
 //! - WebSocket streaming capabilities
 
 pub mod types;
-pub mod streamer;
+pub mod unified_websocket;
+pub mod account_verifier;
 
 // Re-export main types for easy access
-pub use types::{
-    MarketData, Symbol, DataSource, MarketDataUpdate,
-    UpdateType, MarketDataStats, MarketDataFilter, MarketDataAggregate, AggregationPeriod,
-};
-pub use streamer::{AlpacaStreamer, AlpacaConfig, load_alpaca_config};
+pub use unified_websocket::{UnifiedAlpacaWebSocket, StreamType, load_unified_websocket_config};
+pub use account_verifier::{AccountVerifier, AccountVerification, AccountType};

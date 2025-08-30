@@ -144,6 +144,19 @@ async fn main() -> Result<()> {
                 .value_name("PORT")
                 .help("Port for the API server (default: 8080)")
                 .default_value("8080"),
+        )
+        .arg(
+            Arg::new("websocket")
+                .long("websocket")
+                .help("Start WebSocket-based market data streaming")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("stream-types")
+                .long("stream-types")
+                .value_name("TYPES")
+                .help("Comma-separated stream types: stocks,crypto,options,news (default: all)")
+                .default_value("stocks,crypto,options,news"),
         );
 
     let matches = app.get_matches();
@@ -611,6 +624,81 @@ async fn main() -> Result<()> {
                 return Err(anyhow::anyhow!("API server error: {}", e));
             }
         }
+    } else if matches.get_flag("websocket") {
+        // WebSocket streaming mode
+        println!("🚀 STARTING WEBSOCKET MARKET DATA STREAMING");
+        println!("{}", "=".repeat(50));
+        
+        // Parse stream types
+        let stream_types_str = matches.get_one::<String>("stream-types").unwrap();
+        let stream_types: Vec<market_data::StreamType> = stream_types_str
+            .split(',')
+                            .filter_map(|s| {
+                match s.trim().to_lowercase().as_str() {
+                    "stocks" | "crypto" | "options" | "news" => Some(market_data::StreamType::MarketData),
+                    "trade_updates" => Some(market_data::StreamType::TradeUpdates),
+                    "account_updates" => Some(market_data::StreamType::AccountUpdates),
+                    "order_updates" => Some(market_data::StreamType::OrderUpdates),
+                    _ => None,
+                }
+            })
+            .collect();
+        
+        if stream_types.is_empty() {
+            eprintln!("❌ No valid stream types specified. Use: stocks,crypto,options,news");
+            return Err(anyhow::anyhow!("Invalid stream types"));
+        }
+        
+        println!("📡 Stream Types: {}", stream_types.iter().map(|t| format!("{:?}", t)).collect::<Vec<_>>().join(", "));
+        println!("🌐 WebSocket URL: Will be determined based on feed type");
+        println!("📁 Data Directory: live_data/");
+        println!("");
+        println!("💡 This will connect to Alpaca WebSocket streams for real-time data");
+        println!("   Make sure ALPACA_API_KEY and ALPACA_SECRET_KEY are set in your environment");
+        println!("");
+        println!("🚀 Starting WebSocket streaming...");
+        
+        // Load WebSocket configuration
+        let (market_data_config, trading_config) = match market_data::load_unified_websocket_config() {
+            Ok(configs) => {
+                println!("✅ Unified WebSocket configuration loaded successfully");
+                configs
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to load unified WebSocket configuration: {}", e);
+                return Err(anyhow::anyhow!("Unified WebSocket config error: {}", e));
+            }
+        };
+        
+        // Create data directory
+        let data_dir = std::path::PathBuf::from("live_data");
+        std::fs::create_dir_all(&data_dir)?;
+        
+        // Create and start unified WebSocket streamer
+        let streamer = match market_data::UnifiedAlpacaWebSocket::new(
+            market_data_config, 
+            trading_config, 
+            data_dir, 
+            stream_types
+        ) {
+            Ok(streamer) => {
+                println!("✅ Unified WebSocket streamer created successfully");
+                streamer
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to create unified WebSocket streamer: {}", e);
+                return Err(anyhow::anyhow!("Unified WebSocket streamer error: {}", e));
+            }
+        };
+        
+        // Start streaming
+        match streamer.start_streaming().await {
+            Ok(_) => println!("✅ WebSocket streaming completed successfully"),
+            Err(e) => {
+                eprintln!("❌ WebSocket streaming failed: {}", e);
+                return Err(anyhow::anyhow!("WebSocket streaming error: {}", e));
+            }
+        }
     } else {
         println!("Trading Bot started. Use --help for usage information.");
         println!("Available modes:");
@@ -623,6 +711,8 @@ async fn main() -> Result<()> {
         println!("  -m, --model \"name\"    Override auto-detection with specific model");
         println!("  --api                 Start JSON streaming API server");
         println!("  --api-port PORT       Custom port for API server (default: 8080)");
+        println!("  --websocket           Start WebSocket-based market data streaming");
+        println!("  --stream-types TYPES  Comma-separated stream types (default: stocks,crypto,options,news)");
         println!();
         println!("💡 Streaming is now the default for all modes for enhanced responsiveness!");
         println!("🤖 Model auto-detection is enabled by default for optimal performance!");
@@ -638,6 +728,15 @@ async fn main() -> Result<()> {
         println!("   • File change monitoring");
         println!("   • RESTful API endpoints");
         println!("   • Ollama AI integration for JSON analysis");
+        println!();
+        println!("📡 WebSocket Streaming Features:");
+        println!("   • Real-time Alpaca market data via WebSocket");
+        println!("   • Support for Stocks, Crypto, Options, and News streams");
+        println!("   • Automatic reconnection and error handling");
+        println!("   • Live data persistence to JSON files");
+        println!("   • Ultra-threading architecture for concurrent streams");
+        println!("   • Unified streaming for market data, trade updates, and order updates");
+        println!("   • Sub-100ms latency for real-time trading decisions");
     }
 
     Ok(())

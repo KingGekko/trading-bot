@@ -53,7 +53,7 @@ cd trading-bot
 #### **🧪 Test Mode (Development)**
 ```bash
 # Start in test mode for development and testing
-./start_test_mode.sh
+./scripts.sh start-test
 
 # Or manually start
 cargo run -- --api
@@ -62,10 +62,10 @@ cargo run -- --api
 #### **🚀 Live Mode (Production)**
 ```bash
 # Start in live mode with real market data
-./start_live_mode.sh
+./scripts.sh start
 
 # Stop live mode
-./stop_live_mode.sh
+./scripts.sh stop
 ```
 
 **Note**: Live mode requires Alpaca API credentials in `live_config.env`
@@ -73,10 +73,33 @@ cargo run -- --api
 ### **Quick Test**
 ```bash
 # Test the JSON streaming system
-./test_real_streaming.sh
+./scripts.sh test
 
 # Run all tests
-./run_tests.sh
+./scripts/run_all_tests.sh
+
+# Quick commands
+./scripts.sh start    # Start live mode
+./scripts.sh stop     # Stop bot
+./scripts.sh status   # Show status
+```
+
+## 📁 Script Organization
+
+All scripts are now organized in the `scripts/` folder for better maintainability:
+
+- **`./scripts.sh`** - Main launcher script with quick commands
+- **`./scripts/trading_bot_control.sh`** - Unified bot control (start/stop/status)
+- **`./scripts/run_all_tests.sh`** - Comprehensive test suite
+- **`./scripts/README.md`** - Complete script documentation
+
+### **Quick Commands**
+```bash
+./scripts.sh start    # Start live mode
+./scripts.sh stop     # Stop bot
+./scripts.sh status   # Show status
+./scripts.sh test     # Run all tests
+./scripts.sh help     # Show all available scripts
 ```
 
 ## 🏗️ Architecture
