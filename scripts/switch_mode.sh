@@ -12,8 +12,15 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Configuration file
-CONFIG_FILE="../config.env"
+# Configuration file - detect if running from scripts/ or root directory
+if [ -f "../config.env" ]; then
+    CONFIG_FILE="../config.env"
+elif [ -f "config.env" ]; then
+    CONFIG_FILE="config.env"
+else
+    echo -e "${RED}❌ config.env not found. Please run from project root or scripts directory.${NC}"
+    exit 1
+fi
 
 # Function to show current mode
 show_current_mode() {
