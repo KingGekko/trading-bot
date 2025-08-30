@@ -36,10 +36,52 @@ check_prerequisites() {
     # Market data streaming is now handled by Rust
     echo -e "${GREEN}✅ Market data streaming integrated into Rust trading bot${NC}"
     
-    # Check if Rust is available
+    # Check if Rust is available (try multiple locations)
+    RUST_FOUND=false
+    
+    # Try standard PATH first
+    if command -v cargo >/dev/null 2>&1; then
+        RUST_FOUND=true
+        echo -e "${GREEN}✅ Rust/Cargo found in PATH${NC}"
+    # Try common Rust installation locations
+    elif [ -f "$HOME/.cargo/bin/cargo" ]; then
+        export PATH="$HOME/.cargo/bin:$PATH"
+        RUST_FOUND=true
+        echo -e "${GREEN}✅ Rust/Cargo found in ~/.cargo/bin${NC}"
+    elif [ -f "/root/.cargo/bin/cargo" ]; then
+        export PATH="/root/.cargo/bin:$PATH"
+        RUST_FOUND=true
+        echo -e "${GREEN}✅ Rust/Cargo found in /root/.cargo/bin${NC}"
+    elif [ -f "/usr/local/cargo/bin/cargo" ]; then
+        export PATH="/usr/local/cargo/bin:$PATH"
+        RUST_FOUND=true
+        echo -e "${GREEN}✅ Rust/Cargo found in /usr/local/cargo/bin${NC}"
+    elif [ -f "/opt/rust/bin/cargo" ]; then
+        export PATH="/opt/rust/bin:$PATH"
+        RUST_FOUND=true
+        echo -e "${GREEN}✅ Rust/Cargo found in /opt/rust/bin${NC}"
+    fi
+    
+    if [ "$RUST_FOUND" = false ]; then
+        echo -e "${RED}❌ Rust/Cargo not found in standard locations${NC}"
+        echo "Checking for Rust installation..."
+        
+        # Try to find Rust anywhere in the system
+        RUST_LOCATION=$(find / -name "cargo" -type f 2>/dev/null | head -1)
+        if [ -n "$RUST_LOCATION" ]; then
+            export PATH="$(dirname "$RUST_LOCATION"):$PATH"
+            RUST_FOUND=true
+            echo -e "${GREEN}✅ Rust/Cargo found at: $RUST_LOCATION${NC}"
+        else
+            echo -e "${RED}❌ Rust/Cargo not found anywhere in the system${NC}"
+            echo "Please install Rust toolchain or check installation"
+            exit 1
+        fi
+    fi
+    
+    # Verify cargo is now accessible
     if ! command -v cargo >/dev/null 2>&1; then
-        echo -e "${RED}❌ Rust/Cargo not found${NC}"
-        echo "Please install Rust toolchain"
+        echo -e "${RED}❌ Cargo still not accessible after PATH update${NC}"
         exit 1
     fi
     
