@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-CONFIG_FILE="../live_config.env"
+CONFIG_FILE="../config.env"
 LIVE_DATA_DIR="../live_data"
 LOG_DIR="../logs"
 PID_FILE="../live_mode.pid"

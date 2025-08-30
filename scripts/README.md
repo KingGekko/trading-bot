@@ -23,7 +23,7 @@ This directory contains all the scripts for managing and testing the trading bot
 
 ### `start_live_mode.sh` - Live Mode Startup
 **Purpose**: Starts the trading bot in live mode with real market data streaming
-**Dependencies**: `live_config.env`, Rust toolchain, Ollama
+**Dependencies**: `config.env`, Rust toolchain, Ollama
 
 ### `start_test_mode.sh` - Test Mode Startup  
 **Purpose**: Starts the trading bot in test mode for development and testing
@@ -136,7 +136,7 @@ scripts/
 
 ### Required Files
 - `../config.env` - Development configuration
-- `../live_config.env` - Live mode configuration
+- `../config.env` - Unified configuration (test/live modes)
 - `../live_data/` - Market data directory
 
 ### Required Services

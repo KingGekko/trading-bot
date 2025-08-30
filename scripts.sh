@@ -35,9 +35,10 @@ show_scripts() {
     echo ""
     
     echo -e "${GREEN}🔧 Utilities:${NC}"
-    echo "  ./scripts/setup_api_keys.sh                - Setup API keys"
-    echo "  ./scripts/monitor_streams.sh               - Monitor streams"
-    echo "  ./scripts/deploy_trading_bot.sh            - Deploy bot"
+echo "  ./scripts/setup_api_keys.sh                - Setup API keys"
+echo "  ./scripts/monitor_streams.sh               - Monitor streams"
+echo "  ./scripts/deploy_trading_bot.sh            - Deploy bot"
+echo "  ./scripts/switch_mode.sh                   - Switch test/live modes"
     echo ""
     
     echo -e "${GREEN}🛠️  Maintenance:${NC}"
@@ -51,6 +52,7 @@ show_scripts() {
     echo "  ./scripts.sh stop                          - Stop bot"
     echo "  ./scripts.sh status                        - Show status"
     echo "  ./scripts.sh test                          - Run all tests"
+    echo "  ./scripts.sh mode [test|live]             - Switch modes"
     echo "  ./scripts.sh help                          - Show this help"
     echo ""
 }
@@ -84,6 +86,11 @@ case "${1:-help}" in
     test)
         run_tests
         ;;
+    mode)
+        echo -e "${BLUE}🔄 Running: Mode Switcher${NC}"
+        echo ""
+        ./scripts/switch_mode.sh "${2:-status}"
+        ;;
     help|--help|-h)
         show_scripts
         ;;
@@ -93,6 +100,7 @@ case "${1:-help}" in
         echo "  ./scripts.sh stop                          - Stop bot"
         echo "  ./scripts.sh status                        - Show status"
         echo "  ./scripts.sh test                          - Run all tests"
+        echo "  ./scripts.sh mode [test|live]             - Switch modes"
         echo "  ./scripts.sh help                          - Show this help"
         echo ""
         echo -e "${BLUE}📁 For more options, see: ./scripts/README.md${NC}"

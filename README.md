@@ -68,7 +68,7 @@ cargo run -- --api
 ./scripts.sh stop
 ```
 
-**Note**: Live mode requires Alpaca API credentials in `live_config.env`
+**Note**: Live mode requires Alpaca API credentials in `config.env`
 
 ### **Quick Test**
 ```bash
