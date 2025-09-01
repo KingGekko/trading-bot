@@ -302,8 +302,9 @@ pub async fn ollama_process_json(
     let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
     
     // Use provided model or default from config
-    let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
-    log::info!("🧠 API received model: {:?}, using model: {}", payload.model, model);
+    let received_model = payload.model.clone(); // Store original value
+    let model = received_model.as_ref().unwrap_or(&config.ollama_model).clone();
+    log::info!("🧠 API received model: {:?}, using model: {}", received_model, model);
     let model_clone = model.clone(); // Clone for closure
     let payload_prompt = payload.prompt.clone(); // Clone for closure
     let file_content_clone = file_content.clone(); // Clone for closure
