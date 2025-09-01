@@ -674,10 +674,10 @@ impl InteractiveSetup {
         println!("📈 Executing {} order: {} {} shares of {} at ${:.2}", 
                  action, quantity, symbol, symbol, price);
         
-        // Skip execution in paper trading mode for safety
+        // Execute real orders in paper trading mode
         if self.trading_mode == "paper" {
-            println!("📝 Paper trading mode - Simulating order execution");
-            return Ok(());
+            println!("📝 Paper trading mode - Executing real paper trading orders");
+            // Continue with order execution
         }
 
         // For live trading, execute real orders
