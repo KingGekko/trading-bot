@@ -364,10 +364,11 @@ impl InteractiveSetup {
         
         // Run in background
         match cmd.spawn() {
-            Ok(_child) => {
+            Ok(child) => {
                 // Wait a moment for server to start
                 sleep(Duration::from_secs(5)).await;
                 println!("   ✅ Portfolio analysis server started on port {}", api_port);
+                println!("   🔧 Server process ID: {}", child.id());
             }
             Err(e) => {
                 println!("⚠️  Failed to start portfolio analysis server: {}. Skipping.", e);
