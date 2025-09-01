@@ -17,7 +17,7 @@ pub mod trading_account;
 
 // Re-export main types for easy access
 pub use unified_websocket::{UnifiedAlpacaWebSocket, StreamType, load_unified_websocket_config};
-pub use account_verifier::AccountVerifier;
+// pub use account_verifier::AccountVerifier; // Unused
 pub use asset_universe::{AssetUniverseManager, Asset, Position};
 pub use market_regime::{MarketRegimeDetector, MarketRegimeAnalysis};
 pub use simulated_stream::SimulatedMarketStream;

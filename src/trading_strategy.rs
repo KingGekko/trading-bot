@@ -360,7 +360,7 @@ impl AdvancedTradingStrategy {
     fn create_options_data(
         &self,
         symbol: &str,
-        current_price: f64,
+        _current_price: f64,
         volatility: &f64,
     ) -> OptionsData {
         // Parse options symbol to extract strike and expiration
@@ -415,7 +415,7 @@ impl AdvancedTradingStrategy {
     fn calculate_expected_return(
         &self,
         data: &MarketDataPoint,
-        historical_data: &[MarketDataPoint],
+        _historical_data: &[MarketDataPoint],
     ) -> Result<f64> {
         // Simplified CAPM calculation
         let market_return = 0.10; // 10% market return
@@ -520,7 +520,7 @@ impl AdvancedTradingStrategy {
         let mut kelly_weights = HashMap::new();
         
         for (symbol, weight) in weights {
-            if let (Some(expected_return), Some(volatility)) = 
+            if let (Some(expected_return), Some(_volatility)) = 
                 (expected_returns.get(symbol), volatilities.get(symbol)) {
                 
                 // Kelly formula: f = (bp - q) / b
@@ -548,7 +548,7 @@ impl AdvancedTradingStrategy {
     pub fn calculate_risk_metrics(
         &self,
         allocations: &[PortfolioAllocation],
-        historical_data: &[MarketDataPoint],
+        _historical_data: &[MarketDataPoint],
     ) -> Result<RiskMetrics> {
         let mut portfolio_volatility = 0.0;
         let mut portfolio_return = 0.0;

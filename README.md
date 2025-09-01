@@ -1,227 +1,267 @@
-# 🚀 Trading Bot - AI-Powered JSON Streaming System
+# 🚀 Elite Trading Bot - AI-Powered Automated Trading System
 
-A high-performance Rust-based trading bot with Ollama AI integration, real-time JSON streaming, and comprehensive testing infrastructure.
+A sophisticated Rust-based trading bot with AI-enhanced decision making, real-time market data processing, and comprehensive portfolio management.
 
-## ✨ Features
+## ✨ Key Features
 
-### 🤖 **AI Integration**
-- **Ollama AI Processing** - Multiple AI models (Gemma, Llama, Phi, TinyLlama)
-- **Ultra-Fast Threading** - Optimized performance with parallel processing
-- **Multi-Model Conversations** - AI models can interact with each other
-- **Real-Time Analysis** - Live trading data analysis and insights
+### 🤖 **AI-Enhanced Trading**
+- **Elite Quantitative Trading Analyst** - Custom AI prompt for profit multiplication
+- **Multi-Model AI Analysis** - Single or multi-model AI decision engines
+- **Mathematical + AI Fusion** - Combines Modern Portfolio Theory with AI insights
+- **Real-Time Decision Making** - Continuous AI-powered trading recommendations
 
-### 📡 **JSON Streaming System**
-- **File Watching** - Real-time monitoring of JSON data files
-- **WebSocket Streaming** - Live data streaming to clients
-- **Change Detection** - Automatic detection of file modifications
-- **Event-Driven Updates** - Instant notifications of data changes
+### 📊 **Advanced Trading Strategy**
+- **Modern Portfolio Theory (MPT)** - Optimal portfolio allocation
+- **Kelly Criterion** - Optimal position sizing
+- **Capital Asset Pricing Model (CAPM)** - Expected return calculation
+- **Market Regime Analysis** - Bull/Bear/Sideways market detection
+- **Risk Management** - Sharpe Ratio, VaR, Maximum Drawdown protection
 
-### ⚡ **Performance Optimizations**
-- **Ultra-Fast Threading** - Maximum speed with parallel operations
-- **Multi-Threaded Processing** - Non-blocking, concurrent operations
-- **Streaming Optimization** - Real-time data processing
-- **Memory Management** - Efficient resource utilization
+### 🎯 **Interactive Setup Wizard**
+- **Trading Mode Selection** - Paper Trading vs Live Trading
+- **AI Model Selection** - Automatic Ollama model detection and selection
+- **Automatic Server Startup** - All services start automatically
+- **Continuous Trading Loop** - 30-second analysis cycles with real-time execution
 
-### 🧪 **Comprehensive Testing**
-- **Unit Tests** - Rust component testing
-- **Integration Tests** - API and system testing
-- **Performance Tests** - Load and benchmarking
-- **Deployment Tests** - Environment validation
-- **Manual Testing** - Step-by-step guides
+### 📡 **Real-Time Data Processing**
+- **Alpaca API Integration** - Live market data from Alpaca
+- **WebSocket Streaming** - Real-time data for live trading mode
+- **REST API Fallback** - Paper trading mode with REST API calls
+- **Portfolio Monitoring** - Real-time account and position tracking
+
+### 💾 **Data Management**
+- **Protocol Buffer Storage** - Efficient binary data storage
+- **JSON Export/Import** - Human-readable data formats
+- **Portfolio Analysis** - Comprehensive portfolio insights
+- **Historical Data** - Complete trading history and analysis
 
 ## 🚀 Quick Start
 
 ### **Prerequisites**
 - Rust 1.70+
 - Ollama (for AI processing)
-- Node.js + npm (for WebSocket testing)
+- Alpaca API credentials (for live trading)
 
 ### **Installation**
-   ```bash
+```bash
 # Clone the repository
 git clone https://github.com/KingGekko/trading-bot.git
 cd trading-bot
 
-# Install dependencies
-./setup/install.sh
+# Install dependencies (Windows)
+./install.ps1
 
-# Market data streaming is now integrated into Rust
+# Or manual installation
+cargo build --release
 ```
 
-### **Dual-Mode Operation**
-
-#### **🧪 Test Mode (Development)**
+### **Interactive Setup (Recommended)**
 ```bash
-# Start in test mode for development and testing
-./scripts.sh start-test
+# Start the interactive setup wizard
+./target/release/trading_bot.exe --interactive
 
-# Or manually start
-cargo run -- --api
+# Follow the prompts:
+# 1. Choose Paper Trading or Live Trading
+# 2. Select Single Model or Multi-Model AI
+# 3. Pick your preferred AI model
+# 4. Automatic server startup and trading begins
 ```
 
-#### **🚀 Live Mode (Production)**
+### **Manual Commands**
 ```bash
-# Start in live mode with real market data
-./scripts.sh start
+# Paper Trading Mode
+./target/release/trading_bot.exe --simulated
 
-# Stop live mode
-./scripts.sh stop
-```
+# Live Trading Mode (requires API keys)
+./target/release/trading_bot.exe --websocket
 
-**Note**: Live mode requires Alpaca API credentials in `config.env`
+# Enhanced Strategy Analysis
+./target/release/trading_bot.exe --enhanced-strategy
 
-### **Quick Test**
-```bash
-# Test the JSON streaming system
-./scripts.sh test
+# AI-Enhanced Decisions
+./target/release/trading_bot.exe --ai-decisions
 
-# Run all tests
-./scripts/run_all_tests.sh
+# Portfolio Analysis
+./target/release/trading_bot.exe --portfolio-analysis
 
-# Quick commands
-./scripts.sh start    # Start live mode
-./scripts.sh stop     # Stop bot
-./scripts.sh status   # Show status
-```
-
-## 📁 Script Organization
-
-All scripts are now organized in the `scripts/` folder for better maintainability:
-
-- **`./scripts.sh`** - Main launcher script with quick commands
-- **`./scripts/trading_bot_control.sh`** - Unified bot control (start/stop/status)
-- **`./scripts/run_all_tests.sh`** - Comprehensive test suite
-- **`./scripts/README.md`** - Complete script documentation
-
-### **Quick Commands**
-```bash
-./scripts.sh start    # Start live mode
-./scripts.sh stop     # Stop bot
-./scripts.sh status   # Show status
-./scripts.sh test     # Run all tests
-./scripts.sh help     # Show all available scripts
+# Market Regime Analysis
+./target/release/trading_bot.exe --market-regime
 ```
 
 ## 🏗️ Architecture
 
 ### **Core Components**
-- **API Server** - Axum-based REST API with WebSocket support
-- **JSON Stream Manager** - Real-time file monitoring and streaming
-- **Ollama Client** - AI model integration and processing
-- **Performance Engine** - Multi-threaded optimization system
+- **Interactive Setup** - Guided configuration wizard
+- **Market Data Engine** - Real-time data collection and processing
+- **Trading Strategy Engine** - Advanced mathematical trading algorithms
+- **AI Decision Engine** - AI-enhanced trading recommendations
+- **Order Execution System** - Automated trade execution
+- **Portfolio Management** - Real-time portfolio monitoring and analysis
 
-### **API Endpoints**
+### **Data Flow**
 ```
-GET  /health                    - Health check
-POST /api/watch                 - Start watching a JSON file
-GET  /api/watch/:file_path     - Stop watching a file
-GET  /api/files                - List watched files
-GET  /api/content/:file_path   - Get file content
-GET  /api/stream/:file_path    - WebSocket stream for real-time updates
-POST /api/ollama/process       - Process JSON with AI (ULTRA-FAST THREADING)
-POST /api/ollama/conversation  - Multi-model AI conversations
-GET  /api/available-files      - List available JSON files
+Market Data → Strategy Analysis → AI Enhancement → Order Execution → Portfolio Update
+     ↓              ↓                    ↓              ↓              ↓
+Alpaca API → Mathematical Models → AI Insights → Alpaca Orders → Real-time Tracking
 ```
 
-### **Live Mode Features**
-- **Multi-Stream Market Data** - Options, Crypto, News, and Stocks streaming from Alpaca API (Rust-based)
-- **Real-Time Data Types**:
-  - 🔐 **Crypto**: BTC/USD, ETH/USD live pricing and volume
-  - 📈 **Stocks**: AAPL and other stock symbols with real-time trades
-  - 📊 **Options**: SPY options with Greeks, implied volatility, and pricing
-  - 📰 **News**: Market-moving news with sentiment analysis
-- **Automatic File Updates** - Live data written to `live_data/` directory with stream-specific files
-- **Production Ready** - Auto-start, monitoring, and logging
-- **Market Analysis** - AI-powered insights on live trading data
-- **High Performance** - Built with Rust and Tokio for maximum efficiency
-
-## 🧪 Testing
-
-### **Test Categories**
+### **File Structure**
 ```
-tests/
-├── unit/           # Rust unit tests
-├── integration/    # API integration tests
-├── performance/    # Load and benchmarking
-├── deployment/     # Environment validation
-└── manual/         # Manual testing guides
+src/
+├── interactive_setup.rs    # Interactive setup wizard
+├── main.rs                 # Main entry point
+├── market_data/           # Market data handling
+│   ├── unified_websocket.rs
+│   ├── trading_account.rs
+│   ├── asset_universe.rs
+│   └── market_regime.rs
+├── trading_strategy/      # Trading algorithms
+│   ├── enhanced_decision_engine.rs
+│   └── ai_decision_engine.rs
+├── order_execution/       # Order execution system
+├── ollama/               # AI model integration
+├── api/                  # JSON streaming API
+└── protobuf/             # Data storage
 ```
 
-### **Run Tests**
+## 🎯 Trading Modes
+
+### **Paper Trading Mode**
+- **Safe Testing** - Virtual money, no real financial risk
+- **REST API Data** - Uses Alpaca REST API for market data
+- **Full Strategy Testing** - Complete trading strategy validation
+- **Performance Analysis** - Track virtual portfolio performance
+
+### **Live Trading Mode**
+- **Real Money Trading** - Actual financial transactions
+- **WebSocket Streaming** - Real-time market data streaming
+- **High Performance** - Ultra-low latency execution
+- **Risk Management** - Built-in stop-loss and profit targets
+
+## 🤖 AI Integration
+
+### **Elite Trading Analyst Prompt**
+```
+"You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication:"
+```
+
+### **AI Features**
+- **Market Regime Assessment** - AI-powered market condition analysis
+- **Decision Validation** - AI validation of mathematical trading decisions
+- **Risk Assessment** - AI-enhanced risk analysis
+- **Opportunity Identification** - AI discovery of missed trading opportunities
+- **Portfolio Optimization** - AI recommendations for portfolio rebalancing
+
+### **Supported AI Models**
+- **TinyLlama** - Fast, lightweight analysis
+- **Llama2** - Comprehensive market analysis
+- **Gemma** - Advanced quantitative analysis
+- **Phi** - Specialized financial analysis
+
+## 📊 Portfolio Management
+
+### **Real-Time Monitoring**
+- **Portfolio Value** - Live portfolio valuation
+- **Cash Balance** - Available trading capital
+- **Position Tracking** - Current holdings and performance
+- **Risk Metrics** - Real-time risk assessment
+
+### **Data Storage**
+- **Protocol Buffers** - Efficient binary storage
+- **JSON Export** - Human-readable data export
+- **Historical Analysis** - Complete trading history
+- **Performance Tracking** - Detailed performance metrics
+
+## 🔧 Configuration
+
+### **Environment Setup**
 ```bash
-# All tests
-./run_tests.sh
+# Copy configuration template
+cp config.env.example config.env
 
-# Specific categories
-./tests/unit/run_unit_tests.sh
-./tests/integration/run_integration_tests.sh
-./tests/performance/run_performance_tests.sh
-./tests/deployment/run_deployment_tests.sh
+# Configure Alpaca API keys
+ALPACA_API_KEY=your_api_key
+ALPACA_SECRET_KEY=your_secret_key
+ALPACA_BASE_URL=https://paper-api.alpaca.markets  # Paper trading
+# ALPACA_BASE_URL=https://api.alpaca.markets      # Live trading
+
+# Configure Ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=tinyllama
 ```
+
+### **Trading Configuration**
+- **Risk-Free Rate** - Treasury yield for CAPM calculations
+- **Profit Target** - 5% profit target per position
+- **Stop Loss** - Portfolio protection at starting value
+- **Position Sizing** - Kelly Criterion-based sizing
+
+## 🧪 Testing & Validation
+
+### **Strategy Testing**
+```bash
+# Test enhanced strategy
+./target/release/trading_bot.exe --enhanced-strategy
+
+# Test AI decisions
+./target/release/trading_bot.exe --ai-decisions
+
+# Test market regime analysis
+./target/release/trading_bot.exe --market-regime
+```
+
+### **Portfolio Analysis**
+```bash
+# Generate portfolio analysis
+./target/release/trading_bot.exe --portfolio-analysis
+
+# View stored data
+./target/release/trading_bot.exe --view-protobuf
+
+# Export data
+./target/release/trading_bot.exe --export-protobuf
+```
+
+## 📈 Performance Metrics
+
+### **Trading Performance**
+- **Sharpe Ratio** - Risk-adjusted returns
+- **Maximum Drawdown** - Maximum portfolio decline
+- **Value at Risk (VaR)** - Potential loss estimation
+- **Expected Shortfall** - Tail risk assessment
+
+### **System Performance**
+- **Analysis Speed** - 30-second trading cycles
+- **AI Response Time** - 8-12 seconds for comprehensive analysis
+- **Data Processing** - Real-time market data processing
+- **Order Execution** - Sub-second order placement
 
 ## 🚀 Deployment
 
 ### **Local Development**
 ```bash
-cargo run -- --api
+# Build and run
+cargo build --release
+./target/release/trading_bot.exe --interactive
 ```
 
 ### **Production Deployment**
 ```bash
-# Automated deployment
-./deploy_trading_bot.sh
+# Windows PowerShell
+./install.ps1
 
-# Docker deployment
-docker build -t trading-bot .
-docker run -p 8080:8080 trading-bot
-```
-
-### **Cloud Deployment**
-```bash
-# Cloud-init template
-cloud-init-template.yml
-
-# Automated setup
+# Linux/macOS
 ./setup/install.sh
 ```
 
-## 🔧 Configuration
-
-### **Environment Variables**
+### **Docker Deployment**
 ```bash
-# Copy and customize
-cp config.env.example config.env
+# Build Docker image
+docker build -t elite-trading-bot .
 
-# Key settings
-OLLAMA_BASE_URL=http://localhost:11434
-API_PORT=8080
-LOG_LEVEL=info
+# Run container
+docker run -p 8080:8080 elite-trading-bot
 ```
-
-### **AI Model Configuration**
-```bash
-# Available models
-ollama list
-
-# Pull specific models
-ollama pull gemma3:27b
-ollama pull llama2:latest
-ollama pull tinyllama:latest
-```
-
-## 📊 Performance
-
-### **Optimization Modes**
-- **Ultra-Fast** - Maximum speed, direct async processing
-- **Threaded** - Non-blocking, parallel operations
-- **Ultra-Threaded** - Maximum threading, parallel operations
-- **Default** - Balanced performance and quality
-
-### **Benchmarks**
-- **File Processing** - <100ms for typical JSON files
-- **AI Response** - 8-12s for comprehensive analysis
-- **Streaming Latency** - <50ms for real-time updates
-- **Concurrent Users** - 100+ simultaneous connections
 
 ## 🐛 Troubleshooting
 
@@ -230,33 +270,32 @@ ollama pull tinyllama:latest
 # Ollama not running
 ollama serve
 
-# Port conflicts
-cargo run -- --api --port 8081
+# API keys not configured
+# Check config.env file
 
 # Model not found
-ollama pull <model_name>
+ollama pull tinyllama
 
-# Permission issues
-sudo chown -R $USER:$USER /opt/trading-bot
+# Permission issues (Linux/macOS)
+sudo chown -R $USER:$USER .
 ```
 
 ### **Debug Mode**
 ```bash
 # Enable debug logging
-RUST_LOG=debug cargo run -- --api
-
-# Verbose testing
-./test_real_streaming.sh --verbose
+RUST_LOG=debug ./target/release/trading_bot.exe --interactive
 ```
 
 ## 📚 Documentation
 
-- **DEV_DIARY.md** - Complete development history and commit log
-- **API_README.md** - Detailed API documentation
-- **DEPLOYMENT_README.md** - Deployment guides and troubleshooting
-- **ULTRA_FAST_DEFAULT.md** - Performance optimization details
-- **THREADING_OPTIMIZATION.md** - Multi-threading implementation
-- **MULTI_MODEL_CONVERSATIONS.md** - AI conversation system
+- **DEV_DIARY.md** - Complete development history and features
+- **API_README.md** - API documentation and endpoints
+- **DEPLOYMENT_README.md** - Deployment guides
+- **MONITOR_README.md** - Portfolio monitoring setup
+
+## ⚠️ Risk Disclaimer
+
+**This software is for educational and research purposes only. Trading involves substantial risk of loss and is not suitable for all investors. Past performance is not indicative of future results. Always consult with a qualified financial advisor before making investment decisions.**
 
 ## 🤝 Contributing
 
@@ -278,4 +317,6 @@ MIT License - see LICENSE file for details
 
 ---
 
-**Built with Rust, Axum, Tokio, and Ollama** 🦀⚡🤖
+**Built with Rust, AI, and Advanced Mathematics** 🦀🤖📊
+
+*Elite Trading Bot - Transcending in Profit Multiplication*

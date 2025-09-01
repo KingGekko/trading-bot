@@ -104,7 +104,7 @@ Format your response as structured analysis with clear sections focused on profi
         &self,
         mathematical_decisions: Vec<crate::trading_strategy::enhanced_decision_engine::TradingDecision>,
         ai_response: &str,
-        market_data: &HashMap<String, MarketDataPoint>,
+        _market_data: &HashMap<String, MarketDataPoint>,
     ) -> Result<Vec<AITradingDecision>> {
         let mut ai_enhanced_decisions = Vec::new();
 

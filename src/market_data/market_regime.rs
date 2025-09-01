@@ -450,7 +450,7 @@ impl MarketRegimeDetector {
     fn classify_market_regime(
         &self,
         indicators: &RegimeIndicators,
-        volatility_regime: &VolatilityRegime,
+        _volatility_regime: &VolatilityRegime,
         correlation_regime: &CorrelationRegime,
         trend_strength: f64,
     ) -> Result<(MarketRegime, f64)> {

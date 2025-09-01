@@ -349,7 +349,7 @@ impl OrderExecutor {
     async fn store_execution_signals(&self, results: &[OrderExecutionResult]) -> Result<()> {
         for result in results {
             if result.success {
-                if let Some(order_id) = &result.order_id {
+                if let Some(_order_id) = &result.order_id {
                     self.protobuf_storage.append_execution_signal(
                         "order_executed",
                         "STRATEGY", // Will be more specific in real implementation

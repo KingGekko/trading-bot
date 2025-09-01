@@ -249,7 +249,7 @@ impl SimulatedMarketStream {
 
     /// Generate crypto market data
     fn generate_crypto_data(symbol: &str) -> MarketData {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let base_price = match symbol {
             "BTC/USD" => 45000.0,
             "ETH/USD" => 2800.0,
@@ -257,16 +257,16 @@ impl SimulatedMarketStream {
         };
         
         // Generate realistic price movements (±2% range)
-        let price_change = base_price * rng.gen_range(-0.02..0.02);
+        let price_change = base_price * rng.random_range(-0.02..0.02);
         let current_price = base_price + price_change;
         
         MarketData {
             timestamp: Utc::now(),
             symbol: symbol.to_string(),
             price: current_price,
-            volume: rng.gen_range(800.0..2000.0),
-            high: Some(current_price * rng.gen_range(1.0..1.01)),
-            low: Some(current_price * rng.gen_range(0.99..1.0)),
+            volume: rng.random_range(800.0..2000.0),
+            high: Some(current_price * rng.random_range(1.0..1.01)),
+            low: Some(current_price * rng.random_range(0.99..1.0)),
             open: Some(base_price),
             source: "simulated_crypto_feed".to_string(),
             exchange: "simulated".to_string(),
@@ -281,7 +281,7 @@ impl SimulatedMarketStream {
 
     /// Generate stock market data
     fn generate_stock_data(symbol: &str) -> MarketData {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let base_price = match symbol {
             "AAPL" => 175.0,
             "SPY" => 450.0,
@@ -289,16 +289,16 @@ impl SimulatedMarketStream {
             _ => 100.0,
         };
         
-        let price_change = base_price * rng.gen_range(-0.015..0.015);
+        let price_change = base_price * rng.random_range(-0.015..0.015);
         let current_price = base_price + price_change;
         
         MarketData {
             timestamp: Utc::now(),
             symbol: symbol.to_string(),
             price: current_price,
-            volume: rng.gen_range(100000.0..500000.0),
-            high: Some(current_price * rng.gen_range(1.0..1.008)),
-            low: Some(current_price * rng.gen_range(0.992..1.0)),
+            volume: rng.random_range(100000.0..500000.0),
+            high: Some(current_price * rng.random_range(1.0..1.008)),
+            low: Some(current_price * rng.random_range(0.992..1.0)),
             open: Some(base_price),
             source: "simulated_stock_feed".to_string(),
             exchange: "simulated".to_string(),
@@ -313,22 +313,22 @@ impl SimulatedMarketStream {
 
     /// Generate option market data
     fn generate_option_data(symbol: &str) -> MarketData {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let underlying_price = 450.0; // SPY price
-        let strike = underlying_price * rng.gen_range(0.95..1.05);
-        let option_price = rng.gen_range(5.0..25.0);
+        let strike = underlying_price * rng.random_range(0.95..1.05);
+        let option_price = rng.random_range(5.0..25.0);
         
         let options_data = OptionsData {
             strike,
-            expiration: Utc::now() + chrono::Duration::days(rng.gen_range(30..90)),
+            expiration: Utc::now() + chrono::Duration::days(rng.random_range(30..90)),
             option_type: if symbol.contains("C") { "call".to_string() } else { "put".to_string() },
             underlying: "SPY".to_string(),
-            implied_volatility: Some(rng.gen_range(0.15..0.45)),
-            delta: Some(rng.gen_range(-1.0..1.0)),
-            gamma: Some(rng.gen_range(0.0..0.1)),
-            theta: Some(rng.gen_range(-0.05..0.0)),
-            vega: Some(rng.gen_range(0.0..0.2)),
-            open_interest: Some(rng.gen_range(100..10000)),
+            implied_volatility: Some(rng.random_range(0.15..0.45)),
+            delta: Some(rng.random_range(-1.0..1.0)),
+            gamma: Some(rng.random_range(0.0..0.1)),
+            theta: Some(rng.random_range(-0.05..0.0)),
+            vega: Some(rng.random_range(0.0..0.2)),
+            open_interest: Some(rng.random_range(100..10000)),
             bid: Some(option_price * 0.98),
             ask: Some(option_price * 1.02),
         };
@@ -337,14 +337,14 @@ impl SimulatedMarketStream {
             timestamp: Utc::now(),
             symbol: symbol.to_string(),
             price: option_price,
-            volume: rng.gen_range(50.0..500.0),
-            high: Some(option_price * rng.gen_range(1.0..1.05)),
-            low: Some(option_price * rng.gen_range(0.95..1.0)),
+            volume: rng.random_range(50.0..500.0),
+            high: Some(option_price * rng.random_range(1.0..1.05)),
+            low: Some(option_price * rng.random_range(0.95..1.0)),
             open: Some(option_price),
             source: "simulated_options_feed".to_string(),
             exchange: "simulated".to_string(),
-            change_24h: Some(rng.gen_range(-2.0..2.0)),
-            change_percent: Some(rng.gen_range(-5.0..5.0)),
+            change_24h: Some(rng.random_range(-2.0..2.0)),
+            change_percent: Some(rng.random_range(-5.0..5.0)),
             market_cap: None,
             circulating_supply: None,
             options_data: Some(options_data),
@@ -354,7 +354,7 @@ impl SimulatedMarketStream {
 
     /// Generate news data
     fn generate_news_data(symbol: &str) -> MarketData {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let headlines = vec![
             "Market volatility increases as Fed meeting approaches",
             "Tech stocks show strong momentum in pre-market trading",
@@ -364,7 +364,7 @@ impl SimulatedMarketStream {
             "Global markets react to central bank policy changes",
         ];
         
-        let headline = headlines[rng.gen_range(0..headlines.len())].to_string();
+        let headline = headlines[rng.random_range(0..headlines.len())].to_string();
         
         let news_data = NewsData {
             headline,
@@ -372,7 +372,7 @@ impl SimulatedMarketStream {
             url: Some("https://example.com/simulated-news".to_string()),
             author: Some("Test System".to_string()),
             source: "simulated_news".to_string(),
-            sentiment: Some(rng.gen_range(-0.5..0.5)),
+            sentiment: Some(rng.random_range(-0.5..0.5)),
             symbols: vec!["SPY".to_string(), "AAPL".to_string(), "BTC/USD".to_string()],
             category: Some("market_analysis".to_string()),
         };

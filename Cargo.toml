@@ -14,7 +14,7 @@ categories = ["command-line-utilities", "api-bindings", "data-structures"]
 tokio = { version = "1.0", features = ["full"] }
 
 # HTTP client with streaming support
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.12", features = ["json"] }
 
 # High-performance async utilities
 tokio-util = { version = "0.7", features = ["codec", "io"] }
@@ -26,7 +26,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # Random number generation for simulations
-rand = "0.8"
+rand = "0.9"
 
 # Error handling
 anyhow = "1.0"
@@ -37,14 +37,14 @@ clap = { version = "4.0", features = ["derive"] }
 
 # Date and time handling
 chrono = { version = "0.4", features = ["serde"] }
-chrono-tz = "0.8"
+chrono-tz = "0.10"
 
 # URL handling
 url = "2.0"
 
 # Logging
 log = "0.4"
-env_logger = "0.10"
+env_logger = "0.11"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
@@ -95,7 +95,7 @@ config = "0.15"
 toml = "0.9"
 
 # Tonic for gRPC
-tonic = "0.12"
+tonic = "0.14"
 
 
 # Development tools (optional)
@@ -116,7 +116,7 @@ assert_fs = "1.1"
 
 [build-dependencies]
 prost-build = "0.14"
-tonic-build = "0.12"
+tonic-build = "0.14"
 
 
 [features]

@@ -581,8 +581,8 @@ impl UnifiedAlpacaWebSocket {
     /// Handle market data WebSocket stream (Streaming Mode - requires live account)
     async fn handle_market_data_stream(
         &self,
-        mut ws_stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
-        config: &MarketDataWebSocketConfig,
+        _ws_stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
+        _config: &MarketDataWebSocketConfig,
     ) -> Result<()> {
         info!("🔌 Connected to Alpaca market data WebSocket (Streaming Mode)");
         warn!("⚠️ Streaming mode requires a live account with streaming permissions");

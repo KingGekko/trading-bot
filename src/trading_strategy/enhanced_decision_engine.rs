@@ -159,7 +159,7 @@ impl EnhancedDecisionEngine {
     /// Calculate enhanced expected return using multiple factors
     fn calculate_enhanced_expected_return(
         &self,
-        data: &MarketDataPoint,
+        _data: &MarketDataPoint,
         momentum: f64,
         volatility: f64,
         volume_ratio: f64,
@@ -191,8 +191,8 @@ impl EnhancedDecisionEngine {
     /// Determine optimal action based on comprehensive analysis
     fn determine_optimal_action(
         &self,
-        symbol: &str,
-        data: &MarketDataPoint,
+        _symbol: &str,
+        _data: &MarketDataPoint,
         momentum: f64,
         volatility: f64,
         expected_return: f64,
