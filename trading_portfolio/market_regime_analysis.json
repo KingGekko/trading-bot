@@ -1,0 +1,52 @@
+{
+  "current_regime": "LowVolatility",
+  "confidence_score": 0.6,
+  "volatility_regime": {
+    "regime_type": "Low",
+    "vix_equivalent": 9.019287767956625,
+    "volatility_percentile": 0.25,
+    "volatility_trend": "Decreasing"
+  },
+  "trend_strength": 0.563705485497289,
+  "correlation_regime": {
+    "average_correlation": 0.6,
+    "correlation_trend": "Stable",
+    "diversification_benefit": 0.4,
+    "sector_correlation": {
+      "Financial": 0.6,
+      "Energy": 0.4,
+      "Technology": 0.7,
+      "Healthcare": 0.5
+    }
+  },
+  "sector_analysis": {
+    "leading_sectors": [
+      "Technology"
+    ],
+    "lagging_sectors": [
+      "Technology"
+    ],
+    "sector_rotation": "Cyclical",
+    "sector_momentum": {
+      "Technology": 0.5062272366612904
+    },
+    "sector_volatility": {
+      "Technology": 3.012454473322581
+    }
+  },
+  "regime_duration": 5,
+  "regime_probability": 0.2,
+  "regime_indicators": {
+    "sp500_trend": 0.12741097099457804,
+    "vix_level": 9.019287767956625,
+    "treasury_yield": 4.0,
+    "dollar_strength": 0.5,
+    "commodity_trend": 0.0,
+    "bond_equity_correlation": -0.3,
+    "market_breadth": 1.0,
+    "momentum_score": 1.0,
+    "volatility_score": 0.26693118534399335,
+    "correlation_score": 0.6
+  },
+  "timestamp": "2025-09-01T12:13:20.048263600Z"
+}

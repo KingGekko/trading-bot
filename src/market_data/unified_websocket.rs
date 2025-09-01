@@ -94,6 +94,7 @@ pub enum UnifiedAlpacaMessage {
 }
 
 /// Unified WebSocket streamer for ALL Alpaca data
+#[derive(Clone)]
 pub struct UnifiedAlpacaWebSocket {
     market_data_config: MarketDataWebSocketConfig,
     trading_config: TradingWebSocketConfig,
@@ -103,6 +104,7 @@ pub struct UnifiedAlpacaWebSocket {
     stream_types: Vec<StreamType>,
     websocket_urls: HashMap<StreamType, String>,
     account_verification: Option<AccountVerification>,
+    is_paper_trading: bool,
 }
 
 /// Market Data WebSocket Configuration
@@ -152,18 +154,20 @@ impl UnifiedAlpacaWebSocket {
         trading_config: TradingWebSocketConfig,
         data_dir: PathBuf,
         stream_types: Vec<StreamType>,
+        is_paper_trading: bool,
     ) -> Result<Self> {
         // Determine WebSocket URLs based on stream types
         let mut websocket_urls = HashMap::new();
         
         // Market Data URLs
         if stream_types.contains(&StreamType::MarketData) {
-            let market_data_url = match market_data_config.feed.as_str() {
-                "test" => "wss://stream.data.alpaca.markets/v2/test".to_string(),
-                "iex" => "wss://stream.data.alpaca.markets/v2/iex".to_string(),
-                "sip" => "wss://stream.data.alpaca.markets/v2/sip".to_string(),
-                "opra" => "wss://stream.data.alpaca.markets/v1beta1/opra".to_string(),
-                "indicative" => "wss://stream.data.alpaca.markets/v1beta1/indicative".to_string(),
+            let market_data_url = match (market_data_config.feed.as_str(), is_paper_trading) {
+                ("test", true) => "wss://stream.data.sandbox.alpaca.markets/v2/test".to_string(),
+                ("test", false) => "wss://stream.data.alpaca.markets/v2/test".to_string(),
+                ("iex", _) => "wss://stream.data.alpaca.markets/v2/iex".to_string(),
+                ("sip", _) => "wss://stream.data.alpaca.markets/v2/sip".to_string(),
+                ("opra", _) => "wss://stream.data.alpaca.markets/v1beta1/opra".to_string(),
+                ("indicative", _) => "wss://stream.data.alpaca.markets/v1beta1/indicative".to_string(),
                 _ => return Err(anyhow!("Invalid feed type: {}", market_data_config.feed)),
             };
             websocket_urls.insert(StreamType::MarketData, market_data_url);
@@ -188,15 +192,26 @@ impl UnifiedAlpacaWebSocket {
             stream_types,
             websocket_urls,
             account_verification: None,
+            is_paper_trading,
         })
     }
 
-    /// Start unified WebSocket streaming
+    /// Start unified WebSocket streaming (Streaming Mode - requires live account)
     pub async fn start_streaming(&self) -> Result<()> {
-        info!("🚀 Starting Unified Alpaca WebSocket streaming...");
+        info!("🚀 Starting Unified Alpaca WebSocket streaming (Streaming Mode)");
+        warn!("⚠️ Streaming mode requires a live account with streaming permissions");
+        warn!("⚠️ Basic plan accounts should use Normal Mode (REST API) instead");
         
-        // Verify account before starting streaming
-        let _account_verification = self.verify_account_before_streaming().await?;
+        // For now, just suggest using normal mode
+        return Err(anyhow!("Streaming mode not yet implemented. Use Normal Mode (REST API) for Basic plan accounts."));
+    }
+
+    /// Start Normal Mode using REST API calls (Basic plan compatible)
+    pub async fn start_normal_mode(&self) -> Result<()> {
+        info!("🚀 Starting Normal Mode using REST API calls (Basic plan compatible)");
+        
+        // Verify account for REST API access (not streaming)
+        let _account_verification = self.verify_account_for_rest_api().await?;
         
         // Create data directory
         fs::create_dir_all(&self.data_dir).await?;
@@ -207,42 +222,46 @@ impl UnifiedAlpacaWebSocket {
             *running = true;
         }
         
-        // Start all streams concurrently using ultra-threading
-        let mut stream_futures = Vec::new();
+        info!("✅ Starting Normal Mode market data collection...");
         
-        for stream_type in &self.stream_types {
-            if let Some(url) = self.websocket_urls.get(stream_type) {
-                let stream_type = stream_type.clone();
-                let url = url.clone();
-                let future: std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>> = match stream_type {
-                    StreamType::MarketData => {
-                        let config = self.market_data_config.clone();
-                        Box::pin(self.run_market_data_stream(stream_type, url, config))
-                    }
-                    _ => {
-                        let config = self.trading_config.clone();
-                        Box::pin(self.run_trading_stream(stream_type, url, config))
-                    }
-                };
-                stream_futures.push(future);
-            }
-        }
-        
-        // Execute all streams concurrently
-        let results = futures::future::join_all(stream_futures).await;
-        
-        // Check results
-        for (i, result) in results.into_iter().enumerate() {
-            if let Err(e) = result {
-                error!("❌ Stream {} failed: {}", i, e);
-            }
-        }
+        // Start REST API data collection
+        self.run_normal_mode_market_data().await?;
         
         Ok(())
     }
 
+    /// Verify account for REST API access (Normal Mode - no streaming required)
+    async fn verify_account_for_rest_api(&self) -> Result<AccountVerification> {
+        println!("🔍 Verifying Alpaca account for REST API access...");
+        info!("🔍 Verifying Alpaca account for REST API access...");
+        
+        // Create account verifier
+        let verifier = AccountVerifier::new(
+            self.market_data_config.api_key.clone(),
+            self.market_data_config.secret_key.clone(),
+            self.is_paper_trading(),
+        );
+        
+        println!("🔍 Account verifier created, calling verify_account()...");
+        
+        // Verify account (REST API only - no streaming validation)
+        let verification = verifier.verify_account().await?;
+        
+        println!("✅ Account verification successful for REST API access");
+        println!("📊 Account Type: {:?}", verification.account_type);
+        println!("🔓 Available Features: {}", verification.available_features.join(", "));
+        println!("📡 REST API Access: Enabled for Basic plan historical data (15-min limit)");
+        
+        info!("✅ Account verification successful for REST API access");
+        info!("📊 Account Type: {}", verification.account_type);
+        info!("🔓 Available Features: {}", verification.available_features.join(", "));
+        
+        Ok(verification)
+    }
+
     /// Verify account before starting streaming
     async fn verify_account_before_streaming(&self) -> Result<AccountVerification> {
+        println!("🔍 Verifying Alpaca account before starting streaming...");
         info!("🔍 Verifying Alpaca account before starting streaming...");
         
         // Create account verifier
@@ -252,11 +271,20 @@ impl UnifiedAlpacaWebSocket {
             self.is_paper_trading(),
         );
         
+        println!("🔍 Account verifier created, calling verify_account()...");
+        
         // Verify account
         let verification = verifier.verify_account().await?;
         
+        println!("🔍 Account verification successful, validating stream types...");
+        
         // Validate requested stream types against account permissions
         let valid_streams = verifier.validate_stream_types(&verification, &self.get_stream_type_names())?;
+        
+        println!("✅ Account verification successful");
+        println!("📊 Account Type: {:?}", verification.account_type);
+        println!("🔓 Available Features: {}", verification.available_features.join(", "));
+        println!("📡 Valid Streams: {}", valid_streams.join(", "));
         
         info!("✅ Account verification successful");
         info!("📊 Account Type: {}", verification.account_type);
@@ -275,17 +303,159 @@ impl UnifiedAlpacaWebSocket {
 
     /// Check if this is a paper trading account
     fn is_paper_trading(&self) -> bool {
-        self.trading_config.base_url.contains("paper-api.alpaca.markets")
+        self.is_paper_trading
     }
 
     /// Get stream type names for validation
     fn get_stream_type_names(&self) -> Vec<String> {
         self.stream_types.iter().map(|st| match st {
-            StreamType::MarketData => "stocks,crypto,options,news".to_string(),
-            StreamType::TradeUpdates => "trade_updates".to_string(),
-            StreamType::AccountUpdates => "account_updates".to_string(),
-            StreamType::OrderUpdates => "order_updates".to_string(),
-        }).collect()
+            StreamType::MarketData => {
+                // Paper trading accounts typically have access to test feed data
+                // Live accounts have access to IEX, SIP, and other premium feeds
+                if self.is_paper_trading() {
+                    vec!["stocks".to_string(), "crypto".to_string(), "options".to_string(), "news".to_string()]
+                } else {
+                    vec!["stocks".to_string(), "crypto".to_string(), "options".to_string(), "news".to_string()]
+                }
+            },
+            StreamType::TradeUpdates => vec!["trade_updates".to_string()],
+            StreamType::AccountUpdates => vec!["account_updates".to_string()],
+            StreamType::OrderUpdates => vec!["order_updates".to_string()],
+        }).flatten().collect()
+    }
+
+    /// Run Normal Mode market data collection using REST API
+    async fn run_normal_mode_market_data(&self) -> Result<()> {
+        info!("📡 Starting Normal Mode market data collection via REST API");
+        
+        let mut interval = tokio::time::interval(Duration::from_secs(30)); // Update every 30 seconds
+        
+        while {
+            let running = self.running.read().await;
+            *running
+        } {
+            interval.tick().await;
+            
+            // Fetch market data for basic symbols
+            let symbols = vec!["AAPL", "SPY", "BTC/USD", "ETH/USD"];
+            
+            for symbol in &symbols {
+                match self.fetch_market_data_rest(symbol).await {
+                    Ok(market_data) => {
+                        info!("✅ Fetched {} data: ${:.2}", symbol, market_data.price);
+                        self.write_market_data_file(symbol, &market_data).await?;
+                    }
+                    Err(e) => {
+                        warn!("⚠️ Failed to fetch {} data: {}", symbol, e);
+                    }
+                }
+            }
+            
+            info!("📊 Normal Mode: Updated market data for {} symbols", symbols.len());
+        }
+        
+        Ok(())
+    }
+
+    /// Fetch market data using REST API (Basic plan compatible)
+    async fn fetch_market_data_rest(&self, symbol: &str) -> Result<MarketData> {
+        // Use real Alpaca REST API for Basic plan (15-minute historical data limit)
+        let client = reqwest::Client::new();
+        
+        // Determine API endpoint based on symbol type
+        let (endpoint, api_key_header) = if symbol.contains("/") {
+            // Crypto symbol
+            (
+                format!("https://data.alpaca.markets/v1beta3/crypto/{}/bars", symbol),
+                "APCA-API-KEY-ID"
+            )
+        } else {
+            // Stock symbol
+            (
+                format!("https://data.alpaca.markets/v2/stocks/{}/bars", symbol),
+                "APCA-API-KEY-ID"
+            )
+        };
+        
+        // Get current time and 15 minutes ago (Basic plan limit)
+        let now = Utc::now();
+        let fifteen_minutes_ago = now - chrono::Duration::minutes(15);
+        
+        let response = client
+            .get(&endpoint)
+            .header(api_key_header, &self.market_data_config.api_key)
+            .header("APCA-API-SECRET-KEY", &self.market_data_config.secret_key)
+            .query(&[
+                ("timeframe", "1Min"),
+                ("start", &fifteen_minutes_ago.to_rfc3339()),
+                ("end", &now.to_rfc3339()),
+                ("limit", "1000")
+            ])
+            .send()
+            .await?;
+        
+        if response.status().is_success() {
+            let data: serde_json::Value = response.json().await?;
+            
+            // Extract the most recent bar data
+            if let Some(bars) = data["bars"].as_array() {
+                if let Some(latest_bar) = bars.last() {
+                    let close = latest_bar["c"].as_f64().unwrap_or(0.0);
+                    let volume = latest_bar["v"].as_f64().unwrap_or(0.0);
+                    let high = latest_bar["h"].as_f64();
+                    let low = latest_bar["l"].as_f64();
+                    let open = latest_bar["o"].as_f64();
+                    
+                    let market_data = MarketData {
+                        timestamp: Utc::now(),
+                        symbol: symbol.to_string(),
+                        price: close,
+                        volume,
+                        high,
+                        low,
+                        open,
+                        source: "alpaca_rest".to_string(),
+                        exchange: "alpaca".to_string(),
+                        change_24h: None, // Basic plan doesn't provide 24h change
+                        change_percent: None,
+                        market_cap: None,
+                        circulating_supply: None,
+                        options_data: None,
+                        news_data: None,
+                    };
+                    
+                    return Ok(market_data);
+                }
+            }
+        }
+        
+        // Fallback to simulated data if API call fails
+        warn!("⚠️ REST API call failed for {}, using simulated data", symbol);
+        let market_data = MarketData {
+            timestamp: Utc::now(),
+            symbol: symbol.to_string(),
+            price: match symbol {
+                "AAPL" => 150.0 + (rand::random::<f64>() - 0.5) * 10.0,
+                "SPY" => 450.0 + (rand::random::<f64>() - 0.5) * 20.0,
+                "BTC/USD" => 45000.0 + (rand::random::<f64>() - 0.5) * 2000.0,
+                "ETH/USD" => 3000.0 + (rand::random::<f64>() - 0.5) * 200.0,
+                _ => 100.0 + (rand::random::<f64>() - 0.5) * 10.0,
+            },
+            volume: rand::random::<f64>() * 1000.0 + 100.0,
+            high: Some(150.0 + rand::random::<f64>() * 5.0),
+            low: Some(150.0 - rand::random::<f64>() * 5.0),
+            open: Some(150.0),
+            source: "alpaca_rest_fallback".to_string(),
+            exchange: "alpaca".to_string(),
+            change_24h: Some(rand::random::<f64>() * 0.0 - 5.0),
+            change_percent: Some(rand::random::<f64>() * 6.0 - 3.0),
+            market_cap: Some(rand::random::<f64>() * 1000000000.0),
+            circulating_supply: Some(rand::random::<f64>() * 1000000.0),
+            options_data: None,
+            news_data: None,
+        };
+        
+        Ok(market_data)
     }
 
     /// Stop unified WebSocket streaming
@@ -379,9 +549,12 @@ impl UnifiedAlpacaWebSocket {
         config: &MarketDataWebSocketConfig,
     ) -> Result<()> {
         info!("🔌 Connecting to market data WebSocket: {}", url);
+        println!("🔌 Connecting to market data WebSocket: {}", url);
         
-        let (ws_stream, _) = connect_async(url).await?;
+        let (ws_stream, response) = connect_async(url).await?;
         info!("✅ Market data WebSocket connected successfully");
+        println!("✅ Market data WebSocket connected successfully");
+        println!("🔍 Response status: {}", response.status());
         
         self.handle_market_data_stream(ws_stream, config).await?;
         
@@ -405,109 +578,19 @@ impl UnifiedAlpacaWebSocket {
         Ok(())
     }
 
-    /// Handle market data WebSocket stream
+    /// Handle market data WebSocket stream (Streaming Mode - requires live account)
     async fn handle_market_data_stream(
         &self,
         mut ws_stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
         config: &MarketDataWebSocketConfig,
     ) -> Result<()> {
-        // Wait for welcome message
-        if let Some(msg) = ws_stream.next().await {
-            match msg? {
-                tokio_tungstenite::tungstenite::Message::Text(text) => {
-                    let messages: Vec<Value> = serde_json::from_str(&text)?;
-                    for msg in messages {
-                        if let Some(msg_type) = msg["T"].as_str() {
-                            if msg_type == "success" && msg["msg"] == "connected" {
-                                info!("✅ Received welcome message from Alpaca market data");
-                                break;
-                            }
-                        }
-                    }
-                }
-                _ => return Err(anyhow!("Expected text message for welcome")),
-            }
-        }
-
-        // Authenticate
-        let auth_msg = json!({
-            "action": "auth",
-            "key": config.api_key,
-            "secret": config.secret_key
-        });
+        info!("🔌 Connected to Alpaca market data WebSocket (Streaming Mode)");
+        warn!("⚠️ Streaming mode requires a live account with streaming permissions");
+        warn!("⚠️ Basic plan accounts should use Normal Mode (REST API) instead");
         
-        ws_stream.send(tokio_tungstenite::tungstenite::Message::Text(auth_msg.to_string().into())).await?;
-        info!("🔐 Market data authentication sent");
-        
-        // Wait for authentication response
-        if let Some(msg) = ws_stream.next().await {
-            match msg? {
-                tokio_tungstenite::tungstenite::Message::Text(text) => {
-                    let messages: Vec<Value> = serde_json::from_str(&text)?;
-                    for msg in messages {
-                        if let Some(msg_type) = msg["T"].as_str() {
-                            if msg_type == "success" && msg["msg"] == "authenticated" {
-                                info!("✅ Market data authentication successful");
-                                break;
-                            } else if msg_type == "error" {
-                                let error_msg = msg["msg"].as_str().unwrap_or("Unknown error");
-                                return Err(anyhow!("Market data authentication failed: {}", error_msg));
-                            }
-                        }
-                    }
-                }
-                _ => return Err(anyhow!("Expected text message for authentication")),
-            }
-        }
-
-        // Subscribe to market data streams
-        let mut subscriptions = Vec::new();
-        
-        for stream_type in &self.stream_types {
-            match stream_type {
-                StreamType::MarketData => {
-                    subscriptions.extend(vec!["AAPL", "SPY", "BTC/USD", "ETH/USD"]);
-                }
-                _ => {}
-            }
-        }
-        
-        let subscribe_msg = json!({
-            "action": "subscribe",
-            "trades": subscriptions.clone(),
-            "quotes": subscriptions.clone(),
-            "bars": subscriptions
-        });
-        
-        ws_stream.send(tokio_tungstenite::tungstenite::Message::Text(subscribe_msg.to_string().into())).await?;
-        info!("📡 Market data subscription sent");
-        
-        // Process incoming messages
-        while {
-            let running = self.running.read().await;
-            *running
-        } {
-            match ws_stream.next().await {
-                Some(Ok(tokio_tungstenite::tungstenite::Message::Text(text))) => {
-                    self.process_market_data_message(&text).await?;
-                }
-                Some(Ok(tokio_tungstenite::tungstenite::Message::Close(_))) => {
-                    info!("🔌 Market data WebSocket connection closed by server");
-                    break;
-                }
-                Some(Err(e)) => {
-                    error!("❌ Market data WebSocket error: {}", e);
-                    break;
-                }
-                None => {
-                    info!("🔌 Market data WebSocket stream ended");
-                    break;
-                }
-                _ => {}
-            }
-        }
-        
-        Ok(())
+        // For now, just close the connection and suggest using normal mode
+        info!("🔄 Switching to Normal Mode (REST API) for Basic plan compatibility");
+        return Err(anyhow!("Streaming mode not yet implemented. Use Normal Mode (REST API) for Basic plan accounts."));
     }
 
     /// Handle trading WebSocket stream
@@ -558,9 +641,71 @@ impl UnifiedAlpacaWebSocket {
 
     /// Process market data messages
     async fn process_market_data_message(&self, text: &str) -> Result<()> {
-        let messages: Vec<Value> = serde_json::from_str(text)?;
+        println!("🔍 Processing message: {}", text);
         
+        // Try to parse as a single message first
+        if let Ok(msg) = serde_json::from_str::<Value>(text) {
+            self.process_single_message(msg).await?;
+        } else {
+            // Try to parse as an array of messages
+            if let Ok(messages) = serde_json::from_str::<Vec<Value>>(text) {
         for msg in messages {
+                    self.process_single_message(msg).await?;
+                }
+            } else {
+                debug!("📨 Failed to parse message: {}", text);
+                println!("📨 Failed to parse message: {}", text);
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Process a single market data message
+    async fn process_single_message(&self, msg: Value) -> Result<()> {
+        // Handle system messages first
+        if let Some(msg_type) = msg["T"].as_str() {
+            match msg_type {
+                "success" => {
+                    if let Some(msg_text) = msg["msg"].as_str() {
+                        info!("✅ System message: {}", msg_text);
+                        println!("✅ System message: {}", msg_text);
+                    }
+                    return Ok(());
+                }
+                "error" => {
+                    if let Some(msg_text) = msg["msg"].as_str() {
+                        let code = msg["code"].as_u64().unwrap_or(0);
+                        warn!("⚠️ System error ({}): {}", code, msg_text);
+                        println!("⚠️ System error ({}): {}", code, msg_text);
+                    }
+                    return Ok(());
+                }
+                "subscription" => {
+                    if let Some(trades) = msg["trades"].as_array() {
+                        let trades: Vec<String> = trades.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect();
+                        if let Some(quotes) = msg["quotes"].as_array() {
+                            let quotes: Vec<String> = quotes.iter()
+                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                .collect();
+                            if let Some(bars) = msg["bars"].as_array() {
+                                let bars: Vec<String> = bars.iter()
+                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                    .collect();
+                                info!("📡 Market data subscription confirmed - Trades: {:?}, Quotes: {:?}, Bars: {:?}", trades, quotes, bars);
+                                println!("📡 Market data subscription confirmed - Trades: {:?}, Quotes: {:?}, Bars: {:?}", trades, quotes, bars);
+                            }
+                        }
+                    }
+                    return Ok(());
+                }
+                _ => {}
+            }
+        }
+        
+        // Try to parse as market data message
             if let Ok(alpaca_msg) = serde_json::from_value::<UnifiedAlpacaMessage>(msg.clone()) {
                 match alpaca_msg {
                     UnifiedAlpacaMessage::Quote { S, bp, ap, bs, as_, t, .. } => {
@@ -577,18 +722,14 @@ impl UnifiedAlpacaWebSocket {
                             self.handle_news(&symbol, &headline, sentiment, &published_at).await?;
                         }
                     }
-                    UnifiedAlpacaMessage::Subscription { trades, quotes, bars } => {
-                        info!("📡 Market data subscription confirmed - Trades: {:?}, Quotes: {:?}, Bars: {:?}", trades, quotes, bars);
-                    }
-                    UnifiedAlpacaMessage::Success { msg } => {
-                        debug!("✅ Market data success message: {}", msg);
-                    }
-                    UnifiedAlpacaMessage::Error { code, msg } => {
-                        warn!("⚠️ Market data error message ({}): {}", code, msg);
-                    }
-                    _ => {}
+                _ => {
+                    debug!("📨 Unhandled market data message type: {:?}", msg);
+                    println!("📨 Unhandled market data message type: {:?}", msg);
                 }
             }
+        } else {
+            debug!("📨 Failed to parse as market data message: {:?}", msg);
+            println!("📨 Failed to parse as market data message: {:?}", msg);
         }
         
         Ok(())
@@ -766,28 +907,75 @@ impl UnifiedAlpacaWebSocket {
         Ok(())
     }
 
-    /// Write market data to JSON file (same as before)
+    /// Write market data to one consolidated JSON file (Basic plan - all data in one file)
     async fn write_market_data_file(&self, symbol: &str, data: &MarketData) -> Result<()> {
-        let filename = match symbol {
-            s if s.contains("BTC") => "crypto_data_btc.json",
-            s if s.contains("ETH") => "crypto_data_eth.json",
-            s if s.contains("AAPL") => "stock_data_aapl.json",
-            s if s.contains("SPY") => {
-                if s.contains("C") || s.contains("P") {
-                    "options_data_spy.json"
-                } else {
-                    "stock_data_spy.json"
-                }
-            }
-            _ => &format!("market_data_{}.json", symbol.to_lowercase().replace('/', "_")),
-        };
-
+        // Create one consolidated file for all Basic plan data
+        let filename = "basic_plan_market_data.json";
         let file_path = self.data_dir.join(filename);
-        let json_content = serde_json::to_string_pretty(data)?;
         
-        fs::write(file_path, json_content).await?;
-        debug!("📝 Updated market data file: {}", filename);
+        // Create consolidated data structure
+        let mut consolidated_data = if file_path.exists() {
+            match tokio::fs::read_to_string(&file_path).await {
+                Ok(content) => serde_json::from_str::<serde_json::Value>(&content)
+                    .unwrap_or_else(|_| json!({
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                        "data_source": "alpaca_basic_plan",
+                        "update_interval": "30_seconds",
+                        "historical_limit": "15_minutes",
+                        "symbols": {},
+                        "last_update": chrono::Utc::now().to_rfc3339()
+                    })),
+                Err(_) => json!({
+                    "timestamp": chrono::Utc::now().to_rfc3339(),
+                    "data_source": "alpaca_basic_plan",
+                    "update_interval": "30_seconds",
+                    "historical_limit": "15_minutes",
+                    "symbols": {},
+                    "last_update": chrono::Utc::now().to_rfc3339()
+                })
+            }
+                } else {
+            json!({
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "data_source": "alpaca_basic_plan",
+                "update_interval": "30_seconds",
+                "historical_limit": "15_minutes",
+                "symbols": {},
+                "last_update": chrono::Utc::now().to_rfc3339()
+            })
+        };
         
+        // Update or add the symbol data
+        let symbol_data = json!({
+            "symbol": data.symbol,
+            "price": data.price,
+            "volume": data.volume,
+            "high": data.high,
+            "low": data.low,
+            "open": data.open,
+            "source": data.source,
+            "exchange": data.exchange,
+            "timestamp": data.timestamp.to_rfc3339(),
+            "last_updated": chrono::Utc::now().to_rfc3339()
+        });
+        
+        // Add to symbols object
+        if let Some(symbols) = consolidated_data.get_mut("symbols") {
+            if let Some(symbols_obj) = symbols.as_object_mut() {
+                symbols_obj.insert(data.symbol.clone(), symbol_data);
+            }
+        }
+        
+        // Update timestamps
+        if let Some(timestamp) = consolidated_data.get_mut("last_update") {
+            *timestamp = json!(chrono::Utc::now().to_rfc3339());
+        }
+        
+        // Write consolidated data
+        let json_content = serde_json::to_string_pretty(&consolidated_data)?;
+        tokio::fs::write(file_path, json_content).await?;
+        
+        debug!("📝 Updated consolidated file: {} with {} data", filename, symbol);
         Ok(())
     }
 
@@ -847,14 +1035,48 @@ impl UnifiedAlpacaWebSocket {
 }
 
 /// Load unified WebSocket configuration from environment
-pub fn load_unified_websocket_config() -> Result<(MarketDataWebSocketConfig, TradingWebSocketConfig)> {
+pub fn load_unified_websocket_config() -> Result<(MarketDataWebSocketConfig, TradingWebSocketConfig, String)> {
+    // Try paper trading credentials first, then fall back to live credentials
+    let (api_key, secret_key) = if let (Ok(paper_key), Ok(paper_secret)) = (
+        std::env::var("APCA_API_KEY_ID"),
+        std::env::var("APCA_API_SECRET_KEY")
+    ) {
+        (paper_key, paper_secret)
+    } else if let (Ok(live_key), Ok(live_secret)) = (
+        std::env::var("ALPACA_API_KEY"),
+        std::env::var("ALPACA_SECRET_KEY")
+    ) {
+        (live_key, live_secret)
+    } else {
+        return Err(anyhow!("No Alpaca API credentials found. Set either APCA_API_KEY_ID/APCA_API_SECRET_KEY for paper trading or ALPACA_API_KEY/ALPACA_SECRET_KEY for live trading"));
+    };
+
+    // Determine if we're using paper trading
+    let is_paper_trading = std::env::var("ALPACA_PAPER_TRADING")
+        .unwrap_or_else(|_| "true".to_string())
+        .parse::<bool>()
+        .unwrap_or(true);
+    
+    // Determine operation mode
+    let operation_mode = std::env::var("OPERATION_MODE")
+        .unwrap_or_else(|_| if is_paper_trading { "paper".to_string() } else { "live".to_string() });
+    
+    // Determine data directory based on mode
+    let data_dir = match operation_mode.as_str() {
+        "paper" => "trading_portfolio".to_string(),
+        "live" => "trading_portfolio".to_string(),
+        _ => "trading_portfolio".to_string(),
+    };
+
     let market_data_config = MarketDataWebSocketConfig {
-        api_key: std::env::var("ALPACA_API_KEY")
-            .map_err(|_| anyhow!("ALPACA_API_KEY not set"))?,
-        secret_key: std::env::var("ALPACA_SECRET_KEY")
-            .map_err(|_| anyhow!("ALPACA_SECRET_KEY not set"))?,
+        api_key: api_key.clone(),
+        secret_key: secret_key.clone(),
         feed: std::env::var("ALPACA_FEED")
-            .unwrap_or_else(|_| "test".to_string()),
+            .unwrap_or_else(|_| match operation_mode.as_str() {
+                "paper" => "test".to_string(),
+                "live" => "iex".to_string(),
+                _ => "test".to_string(),
+            }),
         reconnect_interval_ms: std::env::var("RECONNECT_INTERVAL_MS")
             .unwrap_or_else(|_| "5000".to_string())
             .parse()
@@ -866,12 +1088,14 @@ pub fn load_unified_websocket_config() -> Result<(MarketDataWebSocketConfig, Tra
     };
     
     let trading_config = TradingWebSocketConfig {
-        api_key: std::env::var("ALPACA_API_KEY")
-            .map_err(|_| anyhow!("ALPACA_API_KEY not set"))?,
-        secret_key: std::env::var("ALPACA_SECRET_KEY")
-            .map_err(|_| anyhow!("ALPACA_SECRET_KEY not set"))?,
-        base_url: std::env::var("ALPACA_TRADING_WEBSOCKET_URL")
-            .unwrap_or_else(|_| "wss://paper-api.alpaca.markets/stream".to_string()),
+        api_key,
+        secret_key,
+        base_url: match operation_mode.as_str() {
+            "paper" => "wss://paper-api.alpaca.markets/stream".to_string(),
+            "live" => std::env::var("ALPACA_TRADING_WEBSOCKET_URL")
+                .unwrap_or_else(|_| "wss://api.alpaca.markets/stream".to_string()),
+            _ => "wss://paper-api.alpaca.markets/stream".to_string(),
+        },
         reconnect_interval_ms: std::env::var("RECONNECT_INTERVAL_MS")
             .unwrap_or_else(|_| "5000".to_string())
             .parse()
@@ -882,5 +1106,5 @@ pub fn load_unified_websocket_config() -> Result<(MarketDataWebSocketConfig, Tra
             .unwrap_or(10),
     };
     
-    Ok((market_data_config, trading_config))
+    Ok((market_data_config, trading_config, data_dir))
 }

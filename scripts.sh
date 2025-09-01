@@ -30,7 +30,7 @@ show_scripts() {
     
     echo -e "${GREEN}🚀 Operations:${NC}"
     echo "  ./scripts/start_live_mode.sh               - Start live mode"
-    echo "  ./scripts/start_test_mode.sh               - Start test mode"
+    echo "  ./scripts/start_paper_mode.sh               - Start paper trading mode"
     echo "  ./scripts/stop_live_mode.sh                - Stop bot"
     echo ""
     
@@ -38,7 +38,7 @@ show_scripts() {
 echo "  ./scripts/setup_api_keys.sh                - Setup API keys"
 echo "  ./scripts/monitor_streams.sh               - Monitor streams"
 echo "  ./scripts/deploy_trading_bot.sh            - Deploy bot"
-echo "  ./scripts/switch_mode.sh                   - Switch test/live modes"
+    echo "  ./scripts/switch_mode.sh                   - Switch paper/live modes"
     echo ""
     
     echo -e "${GREEN}🛠️  Maintenance:${NC}"
@@ -52,7 +52,9 @@ echo "  ./scripts/switch_mode.sh                   - Switch test/live modes"
     echo "  ./scripts.sh stop                          - Stop bot"
     echo "  ./scripts.sh status                        - Show status"
     echo "  ./scripts.sh test                          - Run all tests"
-    echo "  ./scripts.sh mode [test|live]             - Switch modes"
+    echo "  ./scripts.sh mode [paper|live]             - Switch modes"
+    echo "  ./scripts.sh stream [start|stop|status]   - Control simulated stream"
+    echo "  ./scripts.sh watch                         - Interactive stream viewer"
     echo "  ./scripts.sh help                          - Show this help"
     echo ""
 }
@@ -91,6 +93,27 @@ case "${1:-help}" in
         echo ""
         ./scripts/switch_mode.sh "${2:-status}"
         ;;
+    stream)
+        echo -e "${BLUE}📊 Running: Simulated Stream Controller${NC}"
+        case "${2:-start}" in
+            "start")
+                ./scripts/start_simulated_stream.sh start
+                ;;
+            "stop")
+                ./scripts/stop_simulated_stream.sh stop
+                ;;
+            "status")
+                ./scripts/start_simulated_stream.sh status
+                ;;
+            *)
+                echo -e "${YELLOW}Usage: ./scripts.sh stream [start|stop|status]${NC}"
+                ;;
+        esac
+        ;;
+    "watch")
+        echo -e "${BLUE}📊 Running: Stream Viewer${NC}"
+        ./scripts/watch_stream.sh
+        ;;
     help|--help|-h)
         show_scripts
         ;;
@@ -101,6 +124,8 @@ case "${1:-help}" in
         echo "  ./scripts.sh status                        - Show status"
         echo "  ./scripts.sh test                          - Run all tests"
         echo "  ./scripts.sh mode [test|live]             - Switch modes"
+        echo "  ./scripts.sh stream [start|stop|status]   - Control simulated stream"
+        echo "  ./scripts.sh watch                         - Interactive stream viewer"
         echo "  ./scripts.sh help                          - Show this help"
         echo ""
         echo -e "${BLUE}📁 For more options, see: ./scripts/README.md${NC}"

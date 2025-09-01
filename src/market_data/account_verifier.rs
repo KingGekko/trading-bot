@@ -223,8 +223,16 @@ impl AccountVerifier {
 
     /// Determine account type based on account information
     fn determine_account_type(&self, account: &AlpacaAccount) -> Result<AccountType> {
+        info!("🔍 Determining account type...");
+        info!("   Options approved level: {:?}", account.options_approved_level);
+        info!("   Options trading level: {:?}", account.options_trading_level);
+        info!("   Crypto status: {:?}", account.crypto_status);
+        info!("   Shorting enabled: {}", account.shorting_enabled);
+        info!("   Pattern day trader: {}", account.pattern_day_trader);
+        
         // Check account_type field first (if available)
         if let Some(account_type_str) = &account.account_type {
+            info!("   Account type from API: {}", account_type_str);
             match account_type_str.to_lowercase().as_str() {
                 "basic" => return Ok(AccountType::Basic),
                 "full" => return Ok(AccountType::Full),
@@ -236,12 +244,12 @@ impl AccountVerifier {
 
         // Fallback: determine by features and permissions
         if account.options_approved_level.is_some() && account.options_trading_level.is_some() {
-            if account.shorting_enabled && account.pattern_day_trader {
-                Ok(AccountType::Full)
-            } else {
-                Ok(AccountType::Basic)
-            }
+            info!("   ✅ Account has options approval - classifying as Full");
+            // If you have options approval, you're at least a Full account
+            // Pattern day trader status is separate from account tier
+            Ok(AccountType::Full)
         } else if account.crypto_status.is_some() {
+            info!("   ✅ Account has crypto access - classifying as Basic");
             Ok(AccountType::Basic)
         } else {
             // Default to Basic if we can't determine
@@ -270,12 +278,12 @@ impl AccountVerifier {
             AccountType::Basic => TradingPermissions {
                 can_trade_stocks: true,
                 can_trade_crypto: account.crypto_status.is_some(),
-                can_trade_options: false,
+                can_trade_options: account.options_approved_level.is_some(), // Enable if approved
                 can_trade_forex: false,
                 can_trade_futures: false,
-                can_short: false,
-                can_margin: false,
-                can_day_trade: false,
+                can_short: account.shorting_enabled, // Enable if available
+                can_margin: account.multiplier.parse::<i32>().unwrap_or(1) > 1, // Enable if multiplier > 1
+                can_day_trade: account.pattern_day_trader,
                 can_after_hours: false,
                 can_pre_market: false,
             },
@@ -322,13 +330,13 @@ impl AccountVerifier {
     fn determine_data_access(&self, account_type: &AccountType) -> DataAccess {
         match account_type {
             AccountType::Basic => DataAccess {
-                market_data_feed: "iex".to_string(),
+                market_data_feed: "test".to_string(), // Use test feed for paper trading
                 real_time_quotes: true,
                 real_time_trades: true,
                 real_time_bars: true,
                 options_data: false,
                 crypto_data: true,
-                news_data: false,
+                news_data: true, // Enable news data for paper trading
                 fundamental_data: false,
                 historical_data: true,
             },
@@ -449,36 +457,90 @@ impl AccountVerifier {
         verification: &AccountVerification, 
         requested_streams: &[String]
     ) -> Result<Vec<String>> {
+        println!("🔍 Validating stream types...");
+        println!("   Requested streams: {:?}", requested_streams);
+        println!("   Account type: {:?}", verification.account_type);
+        println!("   Trading permissions: can_trade_crypto={}, can_trade_options={}, can_short={}, can_margin={}", 
+               verification.trading_permissions.can_trade_crypto,
+               verification.trading_permissions.can_trade_options,
+               verification.trading_permissions.can_short,
+               verification.trading_permissions.can_margin);
+        println!("   Data access: crypto_data={}, options_data={}, news_data={}", 
+               verification.data_access.crypto_data,
+               verification.data_access.options_data,
+               verification.data_access.news_data);
+        
+        info!("🔍 Validating stream types...");
+        info!("   Requested streams: {:?}", requested_streams);
+        info!("   Account type: {:?}", verification.account_type);
+        info!("   Trading permissions: can_trade_crypto={}, can_trade_options={}, can_short={}, can_margin={}", 
+               verification.trading_permissions.can_trade_crypto,
+               verification.trading_permissions.can_trade_options,
+               verification.trading_permissions.can_short,
+               verification.trading_permissions.can_margin);
+        info!("   Data access: crypto_data={}, options_data={}, news_data={}", 
+               verification.data_access.crypto_data,
+               verification.data_access.options_data,
+               verification.data_access.news_data);
+        
         let mut valid_streams = Vec::new();
         let mut invalid_streams = Vec::new();
 
         for stream in requested_streams {
             match stream.to_lowercase().as_str() {
-                "stocks" => valid_streams.push(stream.clone()),
+                "stocks" => {
+                    println!("   ✅ Stocks stream: Always available");
+                    info!("   ✅ Stocks stream: Always available");
+                    valid_streams.push(stream.clone());
+                }
                 "crypto" => {
                     if verification.trading_permissions.can_trade_crypto {
+                        println!("   ✅ Crypto stream: Available");
+                        info!("   ✅ Crypto stream: Available");
                         valid_streams.push(stream.clone());
                     } else {
+                        println!("   ❌ Crypto stream: Not available (requires crypto-enabled account)");
+                        info!("   ❌ Crypto stream: Not available (requires crypto-enabled account)");
                         invalid_streams.push(format!("{} (requires crypto-enabled account)", stream));
                     }
                 }
                 "options" => {
                     if verification.trading_permissions.can_trade_options {
+                        println!("   ✅ Options stream: Available");
+                        info!("   ✅ Options stream: Available");
                         valid_streams.push(stream.clone());
                     } else {
+                        println!("   ❌ Options stream: Not available (requires options-enabled account)");
+                        info!("   ❌ Options stream: Not available (requires options-enabled account)");
                         invalid_streams.push(format!("{} (requires options-enabled account)", stream));
                     }
                 }
                 "news" => {
                     if verification.data_access.news_data {
+                        println!("   ✅ News stream: Available");
+                        info!("   ✅ News stream: Available");
                         valid_streams.push(stream.clone());
                     } else {
+                        println!("   ❌ News stream: Not available (requires news data access)");
+                        info!("   ❌ News stream: Not available (requires news data access)");
                         invalid_streams.push(format!("{} (requires news data access)", stream));
                     }
                 }
-                "trade_updates" => valid_streams.push(stream.clone()),
-                "account_updates" => valid_streams.push(stream.clone()),
-                "order_updates" => valid_streams.push(stream.clone()),
+                "trade_updates" => {
+                    println!("   ✅ Trade updates stream: Always available");
+                    info!("   ✅ Trade updates stream: Always available");
+                    valid_streams.push(stream.clone());
+                }
+                "account_updates" => {
+                    println!("   ✅ Account updates stream: Always available");
+                    info!("   ✅ Account updates stream: Always available");
+                    valid_streams.push(stream.clone());
+                }
+                "order_updates" => {
+                    println!("   ✅ Order updates stream: Always available");
+                    info!("   ✅ Order updates stream: Always available");
+                    valid_streams.push(stream.clone());
+                }
                 _ => {
                     warn!("⚠️ Unknown stream type: {}", stream);
                     invalid_streams.push(format!("{} (unknown stream type)", stream));
@@ -489,6 +551,9 @@ impl AccountVerifier {
         if !invalid_streams.is_empty() {
             warn!("⚠️ Some requested streams are not available: {}", invalid_streams.join(", "));
         }
+
+        println!("   Final valid streams: {:?}", valid_streams);
+        info!("   Final valid streams: {:?}", valid_streams);
 
         if valid_streams.is_empty() {
             return Err(anyhow!("No valid streams available for this account type"));

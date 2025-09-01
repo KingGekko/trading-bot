@@ -1,0 +1,125 @@
+{
+  "account_info": {
+    "buying_power": 0.0,
+    "cash": 100000.0,
+    "current_portfolio_value": 100000.0,
+    "daytrade_count": 0,
+    "equity": 100000.0,
+    "portfolio_protection_level": 100000.0,
+    "profit_target_percentage": 5.0,
+    "starting_portfolio_value": 100000.0
+  },
+  "asset_universe_summary": {
+    "marginable_assets": 5,
+    "shortable_assets": 5,
+    "total_assets": 5,
+    "tradable_assets": 5
+  },
+  "options_strategy": {
+    "enabled": true,
+    "max_allocation": 30.0,
+    "options_positions": []
+  },
+  "portfolio_protection": {
+    "current_value": 100000.0,
+    "enabled": true,
+    "protection_level": 100000.0,
+    "protection_triggered": false,
+    "risk_reduction_factor": 1.0
+  },
+  "portfolio_summary": {
+    "asset_universe_size": 5,
+    "current_positions_count": 5,
+    "expected_portfolio_return": 7.174161457962804,
+    "max_drawdown": 0.7041967414043655,
+    "options_allocation_percentage": -0.0,
+    "portfolio_protection_active": false,
+    "portfolio_sharpe_ratio": 81.38818073682603,
+    "portfolio_volatility": 0.35209837070218275,
+    "risk_level": "HIGH",
+    "total_allocation": 24.999999999999996,
+    "value_at_risk_95": 0.5792018198050907
+  },
+  "position_analysis": {},
+  "profit_targets": {
+    "enabled": true,
+    "take_profit_levels": [
+      {
+        "entry_price": 45562.81227630166,
+        "profit_percentage": 5.0,
+        "symbol": "BTC/USD",
+        "target_price": 47840.95289011674
+      },
+      {
+        "entry_price": 2914.943679304507,
+        "profit_percentage": 5.0,
+        "symbol": "ETH/USD",
+        "target_price": 3060.6908632697323
+      },
+      {
+        "entry_price": 450.9643883978312,
+        "profit_percentage": 5.0,
+        "symbol": "SPY",
+        "target_price": 473.5126078177228
+      },
+      {
+        "entry_price": 150.62272366612905,
+        "profit_percentage": 5.0,
+        "symbol": "AAPL",
+        "target_price": 158.15385984943552
+      }
+    ],
+    "target_percentage": 5.0
+  },
+  "recommendations": [
+    {
+      "action": "SKIP",
+      "asset_type": "Crypto",
+      "available_capital": 0.0,
+      "options_data": null,
+      "reason": "Insufficient buying power",
+      "required_capital": 23524.05078415682,
+      "symbol": "BTC/USD"
+    },
+    {
+      "action": "SKIP",
+      "asset_type": "Crypto",
+      "available_capital": 0.0,
+      "options_data": null,
+      "reason": "Insufficient buying power",
+      "required_capital": 1475.9492158431776,
+      "symbol": "ETH/USD"
+    },
+    {
+      "action": "SKIP",
+      "asset_type": "Stock",
+      "available_capital": 0.0,
+      "options_data": null,
+      "reason": "Risk too high",
+      "required_capital": 0.0,
+      "symbol": "SPY"
+    },
+    {
+      "action": "SKIP",
+      "asset_type": "Stock",
+      "available_capital": 0.0,
+      "options_data": null,
+      "reason": "Risk too high",
+      "required_capital": 0.0,
+      "symbol": "AAPL"
+    }
+  ],
+  "risk_metrics": {
+    "asset_universe_size": 5,
+    "current_positions_count": 0,
+    "expected_shortfall": 0.7253226436464965,
+    "max_drawdown": 0.7041967414043655,
+    "portfolio_sharpe_ratio": 81.38818073682603,
+    "portfolio_sortino_ratio": 101.73522592103254,
+    "portfolio_volatility": 0.35209837070218275,
+    "risk_level": "HIGH",
+    "value_at_risk_95": 0.5792018198050907
+  },
+  "strategy": "Enhanced Mathematical Portfolio Optimization with Portfolio Protection",
+  "timestamp": "2025-09-01T13:16:01.100699900+00:00"
+}

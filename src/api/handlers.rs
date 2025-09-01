@@ -308,9 +308,16 @@ pub async fn ollama_process_json(
     
     // Create optimized prompt in separate thread
     let prompt_future = spawn_blocking(move || {
+        // Use custom prompt or default Elite trading analyst prompt
+        let base_prompt = if payload_prompt.trim().is_empty() {
+            "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication:"
+        } else {
+            &payload_prompt
+        };
+        
         format!(
-            "Analyze this JSON data: {}\n\nData: {}",
-            payload_prompt,
+            "{}\n\nData: {}",
+            base_prompt,
             serde_json::to_string_pretty(&file_content_clone).unwrap_or_else(|_| format!("{:?}", file_content_clone))
         )
     });
@@ -526,9 +533,15 @@ pub async fn ollama_process_ultra_fast(
     let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
     
     // Create optimized prompt
+    let base_prompt = if payload.prompt.trim().is_empty() {
+        "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication:"
+    } else {
+        &payload.prompt
+    };
+    
     let enhanced_prompt = format!(
-        "Analyze this JSON data: {}\n\nData: {}",
-        payload.prompt,
+        "{}\n\nData: {}",
+        base_prompt,
         serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
     );
     
@@ -650,9 +663,15 @@ pub async fn ollama_process_ultra_threaded(
     // Spawn prompt preparation in a separate thread
     let prompt_future = spawn_blocking(move || {
         // This runs in a separate thread for string processing
+        let base_prompt = if payload_prompt.trim().is_empty() {
+            "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication:"
+        } else {
+            &payload_prompt
+        };
+        
         format!(
-            "Analyze this JSON data: {}\n\nData: {}",
-            payload_prompt,
+            "{}\n\nData: {}",
+            base_prompt,
             serde_json::to_string_pretty(&file_content_clone).unwrap_or_else(|_| format!("{:?}", file_content_clone))
         )
     });
@@ -793,9 +812,15 @@ pub async fn multi_model_conversation(
     
     // Initialize conversation context
     let mut conversation_history = Vec::new();
+    let base_prompt = if payload.initial_prompt.trim().is_empty() {
+        "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication:"
+    } else {
+        &payload.initial_prompt
+    };
+    
     let mut current_context = format!(
-        "Analyze this JSON data: {}\n\nData: {}\n\n",
-        payload.initial_prompt,
+        "{}\n\nData: {}\n\n",
+        base_prompt,
         serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
     );
     

@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-08-30T20:28:04.924644200+00:00",
+  "stream_type": "crypto",
+  "symbols": [
+    "BTC/USD",
+    "ETH/USD"
+  ],
+  "data": [
+    {
+      "timestamp": "2025-08-30T20:28:04.924641600Z",
+      "symbol": "BTC/USD",
+      "price": 44321.20635955091,
+      "volume": 1637.957518966974,
+      "high": 44371.37511866988,
+      "low": 44177.07488056565,
+      "open": 45000.0,
+      "source": "simulated_crypto_feed",
+      "exchange": "simulated",
+      "change_24h": -678.7936404490887,
+      "change_percent": -1.508430312109086,
+      "market_cap": 850000000000.0,
+      "circulating_supply": 18890000.0,
+      "options_data": null,
+      "news_data": null
+    },
+    {
+      "timestamp": "2025-08-30T20:28:04.924643400Z",
+      "symbol": "ETH/USD",
+      "price": 2762.1354076777634,
+      "volume": 905.0452354385789,
+      "high": 2766.0460397084557,
+      "low": 2736.2674083440975,
+      "open": 2800.0,
+      "source": "simulated_crypto_feed",
+      "exchange": "simulated",
+      "change_24h": -37.86459232223649,
+      "change_percent": -1.3523068686513031,
+      "market_cap": 350000000000.0,
+      "circulating_supply": 120000000.0,
+      "options_data": null,
+      "news_data": null
+    }
+  ],
+  "last_update": "2025-08-30T20:28:04.924646100+00:00"
+}

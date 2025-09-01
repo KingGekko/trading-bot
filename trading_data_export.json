@@ -1,0 +1,84 @@
+{
+  "api_keys": [
+    {
+      "api_key": "test_api_key_123",
+      "created_at": "2025-09-01 02:16:39 UTC",
+      "environment": "paper",
+      "id": 1,
+      "is_active": true,
+      "provider": "alpaca"
+    }
+  ],
+  "assets": [
+    {
+      "asset_class": "stock",
+      "created_at": "2025-09-01 02:16:39 UTC",
+      "exchange": "NASDAQ",
+      "id": 1,
+      "is_tradable": true,
+      "last_price": 150.0,
+      "name": "Apple Inc.",
+      "symbol": "AAPL"
+    }
+  ],
+  "execution_signals": [
+    {
+      "asset_symbol": "AAPL",
+      "created_at": "2025-09-01 02:16:39 UTC",
+      "id": 1,
+      "is_triggered": false,
+      "signal_type": "buy",
+      "strength": 0.8
+    }
+  ],
+  "last_updated": "2025-09-01 02:16:39 UTC",
+  "market_regime_analyses": [
+    {
+      "analysis_time": "2025-09-01 02:16:39 UTC",
+      "confidence_level": 0.85,
+      "id": 1,
+      "market_regime": "bull_market"
+    }
+  ],
+  "ollama_receipts": [
+    {
+      "created_at": "2025-09-01 02:16:39 UTC",
+      "id": 1,
+      "model": "llama3.2",
+      "prompt": "Analyze AAPL stock",
+      "response": "AAPL shows strong fundamentals",
+      "success": true
+    }
+  ],
+  "portfolio_snapshots": [
+    {
+      "cash_balance": 50000.0,
+      "id": 1,
+      "portfolio_value": 100000.0,
+      "snapshot_time": "2025-09-01 02:16:39 UTC",
+      "total_value": 100000.0
+    }
+  ],
+  "strategy_recommendations": [
+    {
+      "action": "buy",
+      "asset_symbol": "AAPL",
+      "confidence_score": 0.8,
+      "created_at": "2025-09-01 02:16:39 UTC",
+      "id": 1,
+      "target_price": 160.0
+    }
+  ],
+  "trades": [
+    {
+      "asset_symbol": "AAPL",
+      "id": 1,
+      "price": 150.0,
+      "quantity": 10.0,
+      "side": "buy",
+      "total_value": 1500.0,
+      "trade_time": "2025-09-01 02:16:39 UTC"
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -1,0 +1,71 @@
+{
+  "timestamp": "2025-08-30T20:28:04.924634200+00:00",
+  "stream_type": "options",
+  "symbols": [
+    "SPY240920C00500000",
+    "SPY240920P00500000"
+  ],
+  "data": [
+    {
+      "timestamp": "2025-08-30T20:28:04.924607100Z",
+      "symbol": "SPY240920C00500000",
+      "price": 10.59646767694053,
+      "volume": 71.43479755920501,
+      "high": 10.863976969535775,
+      "low": 10.147276448286357,
+      "open": 10.59646767694053,
+      "source": "simulated_options_feed",
+      "exchange": "simulated",
+      "change_24h": -1.7711009601680576,
+      "change_percent": -2.81562234487994,
+      "market_cap": null,
+      "circulating_supply": null,
+      "options_data": {
+        "strike": 433.0593078278053,
+        "expiration": "2025-11-19T20:28:04.924603200Z",
+        "option_type": "call",
+        "underlying": "SPY",
+        "implied_volatility": 0.30662627623406424,
+        "delta": 0.37158913217937606,
+        "gamma": 0.060557341944920046,
+        "theta": -0.043187723340302867,
+        "vega": 0.014216635791413836,
+        "open_interest": 7404,
+        "bid": 10.38453832340172,
+        "ask": 10.808397030479341
+      },
+      "news_data": null
+    },
+    {
+      "timestamp": "2025-08-30T20:28:04.924633Z",
+      "symbol": "SPY240920P00500000",
+      "price": 6.905977270409549,
+      "volume": 205.0046951455485,
+      "high": 7.097454571415294,
+      "low": 6.879382151733836,
+      "open": 6.905977270409549,
+      "source": "simulated_options_feed",
+      "exchange": "simulated",
+      "change_24h": 0.6720602360664047,
+      "change_percent": 0.21581699341142802,
+      "market_cap": null,
+      "circulating_supply": null,
+      "options_data": {
+        "strike": 471.5077170859001,
+        "expiration": "2025-11-03T20:28:04.924631700Z",
+        "option_type": "put",
+        "underlying": "SPY",
+        "implied_volatility": 0.40223065388402424,
+        "delta": 0.39341506409200333,
+        "gamma": 0.02949235206545029,
+        "theta": -0.01998228932316222,
+        "vega": 0.1289978781325139,
+        "open_interest": 6289,
+        "bid": 6.767857725001358,
+        "ask": 7.04409681581774
+      },
+      "news_data": null
+    }
+  ],
+  "last_update": "2025-08-30T20:28:04.924636700+00:00"
+}

@@ -91,23 +91,32 @@ validate_config() {
     echo "🔍 Validating Configuration"
     echo "==========================="
     
-    # Check required fields
-    local alpaca_key=$(grep "^ALPACA_API_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
-    local alpaca_secret=$(grep "^ALPACA_SECRET_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
+    # Check for either paper trading or live trading credentials
+    local paper_key=$(grep "^APCA_API_KEY_ID=" "$CONFIG_FILE" | cut -d'=' -f2)
+    local paper_secret=$(grep "^APCA_API_SECRET_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
+    local live_key=$(grep "^ALPACA_API_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
+    local live_secret=$(grep "^ALPACA_SECRET_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
     
-    if [ "$alpaca_key" = "your_alpaca_api_key_here" ] || [ -z "$alpaca_key" ]; then
-        echo "❌ ALPACA_API_KEY not set"
-        return 1
+    # Check if paper trading credentials are set
+    if [ "$paper_key" != "your_paper_api_key_here" ] && [ -n "$paper_key" ] && 
+       [ "$paper_secret" != "your_paper_secret_key_here" ] && [ -n "$paper_secret" ]; then
+        echo "✅ Paper Trading credentials configured"
+        echo "📝 Mode: Paper Trading (TEST)"
+        return 0
     fi
     
-    if [ "$alpaca_secret" = "your_alpaca_secret_key_here" ] || [ -z "$alpaca_secret" ]; then
-        echo "❌ ALPACA_SECRET_KEY not set"
-        return 1
+    # Check if live trading credentials are set
+    if [ "$live_key" != "your_live_api_key_here" ] && [ -n "$live_key" ] && 
+       [ "$live_secret" != "your_live_secret_key_here" ] && [ -n "$live_secret" ]; then
+        echo "✅ Live Trading credentials configured"
+        echo "⚠️  Mode: Live Trading (REAL MONEY)"
+        return 0
     fi
     
-    echo "✅ All required API keys are configured!"
-    echo "✅ Configuration is ready to use!"
-    return 0
+    echo "❌ No valid API credentials found"
+    echo "   Set either APCA_API_KEY_ID/APCA_API_SECRET_KEY for paper trading"
+    echo "   or ALPACA_API_KEY/ALPACA_SECRET_KEY for live trading"
+    return 1
 }
 
 # Function to show current configuration
@@ -116,26 +125,45 @@ show_config() {
     echo "📋 Current Configuration"
     echo "========================"
     
-    # Show API keys (masked)
-    local alpaca_key=$(grep "^ALPACA_API_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
-    local alpaca_secret=$(grep "^ALPACA_SECRET_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
+    # Show Paper Trading credentials (masked)
+    local paper_key=$(grep "^APCA_API_KEY_ID=" "$CONFIG_FILE" | cut -d'=' -f2)
+    local paper_secret=$(grep "^APCA_API_SECRET_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
     
-    if [ "$alpaca_key" != "your_alpaca_api_key_here" ] && [ -n "$alpaca_key" ]; then
-        echo "ALPACA_API_KEY: ${alpaca_key:0:8}...${alpaca_key: -4}"
+    echo "📝 Paper Trading Credentials:"
+    if [ "$paper_key" != "your_paper_api_key_here" ] && [ -n "$paper_key" ]; then
+        echo "  APCA_API_KEY_ID: ${paper_key:0:8}...${paper_key: -4}"
     else
-        echo "ALPACA_API_KEY: Not set"
+        echo "  APCA_API_KEY_ID: Not set"
     fi
     
-    if [ "$alpaca_secret" != "your_alpaca_secret_key_here" ] && [ -n "$alpaca_secret" ]; then
-        echo "ALPACA_SECRET_KEY: ${alpaca_secret:0:8}...${alpaca_secret: -4}"
+    if [ "$paper_secret" != "your_paper_secret_key_here" ] && [ -n "$paper_secret" ]; then
+        echo "  APCA_API_SECRET_KEY: ${paper_secret:0:8}...${paper_key: -4}"
     else
-        echo "ALPACA_SECRET_KEY: Not set"
+        echo "  APCA_API_SECRET_KEY: Not set"
+    fi
+    
+    # Show Live Trading credentials (masked)
+    local live_key=$(grep "^ALPACA_API_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
+    local live_secret=$(grep "^ALPACA_SECRET_KEY=" "$CONFIG_FILE" | cut -d'=' -f2)
+    
+    echo ""
+    echo "💰 Live Trading Credentials:"
+    if [ "$live_key" != "your_live_api_key_here" ] && [ -n "$live_key" ]; then
+        echo "  ALPACA_API_KEY: ${live_key:0:8}...${live_key: -4}"
+    else
+        echo "  ALPACA_API_KEY: Not set"
+    fi
+    
+    if [ "$live_secret" != "your_live_secret_key_here" ] && [ -n "$live_secret" ]; then
+        echo "  ALPACA_SECRET_KEY: ${live_secret:0:8}...${live_secret: -4}"
+    else
+        echo "  ALPACA_SECRET_KEY: Not set"
     fi
     
     # Show other configuration
     echo ""
     echo "Other Settings:"
-    grep -E "^(STREAM_TYPES|TRADING_SYMBOLS|UPDATE_INTERVAL_MS|MARKET_DATA_DIR|API_PORT)=" "$CONFIG_FILE"
+    grep -E "^(STREAM_TYPES|TRADING_SYMBOLS|UPDATE_INTERVAL_MS|MARKET_DATA_DIR|API_PORT|ALPACA_PAPER_TRADING)=" "$CONFIG_FILE"
 }
 
 # Main menu
@@ -151,10 +179,12 @@ while true; do
     echo ""
     read -p "Choose an option (1-5): " choice
     
-    case $choice in
+            case $choice in
         1)
-            add_api_key "Alpaca API Key" "ALPACA_API_KEY"
-            add_api_key "Alpaca Secret Key" "ALPACA_SECRET_KEY"
+            echo ""
+            echo "📝 Setting up Paper Trading credentials (recommended for testing)..."
+            add_api_key "Alpaca Paper Trading API Key ID" "APCA-API-KEY-ID"
+            add_api_key "Alpaca Paper Trading Secret Key" "APCA-API-SECRET-KEY"
             ;;
         2)
             add_multiple_keys

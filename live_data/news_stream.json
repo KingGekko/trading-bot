@@ -1,0 +1,71 @@
+{
+  "timestamp": "2025-08-30T20:28:04.924661200+00:00",
+  "stream_type": "news",
+  "symbols": [
+    "MARKET_NEWS",
+    "ECONOMIC_CALENDAR"
+  ],
+  "data": [
+    {
+      "timestamp": "2025-08-30T20:28:04.924655200Z",
+      "symbol": "MARKET_NEWS",
+      "price": 0.0,
+      "volume": 0.0,
+      "high": null,
+      "low": null,
+      "open": null,
+      "source": "simulated_news_feed",
+      "exchange": "simulated",
+      "change_24h": null,
+      "change_percent": null,
+      "market_cap": null,
+      "circulating_supply": null,
+      "options_data": null,
+      "news_data": {
+        "headline": "Tech stocks show strong momentum in pre-market trading",
+        "summary": "Simulated news data for paper trading purposes",
+        "url": "https://example.com/simulated-news",
+        "author": "Test System",
+        "source": "simulated_news",
+        "sentiment": 0.11313163213652855,
+        "symbols": [
+          "SPY",
+          "AAPL",
+          "BTC/USD"
+        ],
+        "category": "market_analysis"
+      }
+    },
+    {
+      "timestamp": "2025-08-30T20:28:04.924660400Z",
+      "symbol": "ECONOMIC_CALENDAR",
+      "price": 0.0,
+      "volume": 0.0,
+      "high": null,
+      "low": null,
+      "open": null,
+      "source": "simulated_news_feed",
+      "exchange": "simulated",
+      "change_24h": null,
+      "change_percent": null,
+      "market_cap": null,
+      "circulating_supply": null,
+      "options_data": null,
+      "news_data": {
+        "headline": "Options trading volume spikes ahead of earnings season",
+        "summary": "Simulated news data for paper trading purposes",
+        "url": "https://example.com/simulated-news",
+        "author": "Test System",
+        "source": "simulated_news",
+        "sentiment": -0.4930934574231274,
+        "symbols": [
+          "SPY",
+          "AAPL",
+          "BTC/USD"
+        ],
+        "category": "market_analysis"
+      }
+    }
+  ],
+  "last_update": "2025-08-30T20:28:04.924663+00:00"
+}

@@ -40,14 +40,14 @@ show_current_mode() {
     fi
 }
 
-# Function to switch to test mode
-switch_to_test() {
-    echo -e "${BLUE}🧪 Switching to TEST mode...${NC}"
+# Function to switch to paper trading mode
+switch_to_paper() {
+    echo -e "${BLUE}🧪 Switching to PAPER TRADING mode...${NC}"
     
     # Update operation mode
-    sed -i 's/^OPERATION_MODE=.*/OPERATION_MODE=test/' "$CONFIG_FILE"
+    sed -i 's/^OPERATION_MODE=.*/OPERATION_MODE=paper/' "$CONFIG_FILE"
     
-    # Update feed to test
+    # Update feed to test (paper trading uses test feed)
     sed -i 's/^ALPACA_FEED=.*/ALPACA_FEED=test/' "$CONFIG_FILE"
     
     # Update market data WebSocket URL
@@ -56,10 +56,11 @@ switch_to_test() {
     # Enable paper trading
     sed -i 's/^ALPACA_PAPER_TRADING=.*/ALPACA_PAPER_TRADING=true/' "$CONFIG_FILE"
     
-    echo -e "${GREEN}✅ Switched to TEST mode${NC}"
-    echo "  - Using test feed (free, no real money)"
+    echo -e "${GREEN}✅ Switched to PAPER TRADING mode${NC}"
+    echo "  - Using paper trading feed (no real money)"
     echo "  - Paper trading enabled"
     echo "  - Safe for development and testing"
+    echo "  - Uses APCA-API-KEY-ID and APCA-API-SECRET-KEY"
     echo ""
 }
 
@@ -101,22 +102,22 @@ show_usage() {
     echo "Usage: $0 [COMMAND]"
     echo ""
     echo "Commands:"
-    echo "  test          - Switch to test mode (safe for development)"
-    echo "  live          - Switch to live mode (real trading)"
+echo "  paper         - Switch to paper trading mode (safe for development)"
+echo "  live          - Switch to live trading mode (real trading)"
     echo "  status        - Show current mode configuration"
     echo "  help          - Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0 test       # Switch to test mode"
-    echo "  $0 live       # Switch to live mode"
+echo "  $0 paper      # Switch to paper trading mode"
+echo "  $0 live       # Switch to live trading mode"
     echo "  $0 status     # Show current configuration"
     echo ""
 }
 
 # Main script logic
 case "${1:-help}" in
-    test)
-        switch_to_test
+    paper)
+        switch_to_paper
         show_current_mode
         ;;
     live)

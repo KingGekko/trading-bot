@@ -1,0 +1,63 @@
+{
+  "timestamp": "2025-08-30T20:28:04.924572800+00:00",
+  "stream_type": "stocks",
+  "symbols": [
+    "AAPL",
+    "SPY",
+    "TSLA"
+  ],
+  "data": [
+    {
+      "timestamp": "2025-08-30T20:28:04.924558800Z",
+      "symbol": "AAPL",
+      "price": 175.66701677276993,
+      "volume": 380463.91210259945,
+      "high": 176.73763206740435,
+      "low": 174.66702776396133,
+      "open": 175.0,
+      "source": "simulated_stock_feed",
+      "exchange": "simulated",
+      "change_24h": 0.6670167727699201,
+      "change_percent": 0.3811524415828115,
+      "market_cap": null,
+      "circulating_supply": null,
+      "options_data": null,
+      "news_data": null
+    },
+    {
+      "timestamp": "2025-08-30T20:28:04.924570500Z",
+      "symbol": "SPY",
+      "price": 454.45952095653155,
+      "volume": 196434.90127542417,
+      "high": 456.98861084985396,
+      "low": 453.10038073757386,
+      "open": 450.0,
+      "source": "simulated_stock_feed",
+      "exchange": "simulated",
+      "change_24h": 4.459520956531545,
+      "change_percent": 0.9910046570070099,
+      "market_cap": null,
+      "circulating_supply": null,
+      "options_data": null,
+      "news_data": null
+    },
+    {
+      "timestamp": "2025-08-30T20:28:04.924571900Z",
+      "symbol": "TSLA",
+      "price": 248.31445575361383,
+      "volume": 235053.03544759765,
+      "high": 250.03509701108987,
+      "low": 246.9302104640368,
+      "open": 250.0,
+      "source": "simulated_stock_feed",
+      "exchange": "simulated",
+      "change_24h": -1.6855442463861625,
+      "change_percent": -0.674217698554465,
+      "market_cap": null,
+      "circulating_supply": null,
+      "options_data": null,
+      "news_data": null
+    }
+  ],
+  "last_update": "2025-08-30T20:28:04.924588400+00:00"
+}
