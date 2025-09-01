@@ -303,6 +303,7 @@ pub async fn ollama_process_json(
     
     // Use provided model or default from config
     let model = payload.model.unwrap_or_else(|| config.ollama_model.clone());
+    log::info!("🧠 API received model: {:?}, using model: {}", payload.model, model);
     let model_clone = model.clone(); // Clone for closure
     let payload_prompt = payload.prompt.clone(); // Clone for closure
     let file_content_clone = file_content.clone(); // Clone for closure

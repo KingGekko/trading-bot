@@ -119,6 +119,7 @@ impl OllamaClient {
             options: OllamaClient::create_ultra_fast_options(),
         };
         
+        println!("🧠 Using model: {}", model);
         let generate_url = format!("{}/api/generate", self.base_url);
         println!("🔗 Attempting to connect to: {}", generate_url);
         
