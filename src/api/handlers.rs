@@ -311,54 +311,67 @@ pub async fn ollama_process_json(
     
     // Create optimized prompt in separate thread
     let prompt_future = spawn_blocking(move || {
+        // Create a simplified summary of the portfolio data
+        let portfolio_summary = if let Ok(portfolio_data) = serde_json::from_str::<serde_json::Value>(&file_content_clone) {
+            // Extract key information for AI analysis
+            let summary = serde_json::json!({
+                "portfolio_value": portfolio_data["portfolio_summary"]["portfolio_value"],
+                "cash": portfolio_data["portfolio_summary"]["cash"],
+                "equity": portfolio_data["portfolio_summary"]["equity"],
+                "current_positions": portfolio_data["portfolio_summary"]["current_positions"],
+                "total_assets": portfolio_data["portfolio_summary"]["total_assets"],
+                "market_data": {
+                    "symbols": ["AAPL", "SPY", "TSLA", "MSFT", "GOOGL"],
+                    "current_prices": {
+                        "AAPL": portfolio_data["market_data"]["symbols"]["AAPL"]["price"],
+                        "SPY": portfolio_data["market_data"]["symbols"]["SPY"]["price"],
+                        "TSLA": portfolio_data["market_data"]["symbols"]["TSLA"]["price"],
+                        "MSFT": portfolio_data["market_data"]["symbols"]["MSFT"]["price"],
+                        "GOOGL": portfolio_data["market_data"]["symbols"]["GOOGL"]["price"]
+                    }
+                },
+                "market_regime": portfolio_data["market_regime_analysis"]["current_regime"],
+                "risk_level": portfolio_data["strategy_recommendations"]["risk_metrics"]["risk_level"]
+            });
+            serde_json::to_string_pretty(&summary).unwrap_or_else(|_| format!("{:?}", summary))
+        } else {
+            format!("{:?}", file_content_clone)
+        };
+        
         // Use custom prompt or default Elite trading analyst prompt
         let base_prompt = if payload_prompt.trim().is_empty() {
-            "You are an Elite quantitative trading analyst specializing in algorithmic trading and portfolio optimization. 
+            "You are an Elite quantitative trading analyst. Analyze this simplified portfolio data and provide specific trading recommendations:
 
-ANALYZE THE FOLLOWING TRADING PORTFOLIO DATA AND PROVIDE SPECIFIC TRADING RECOMMENDATIONS:
+1. PORTFOLIO STATUS: Current value, cash, positions
+2. MARKET OPPORTUNITIES: Buy/sell recommendations for the 5 main symbols
+3. RISK ASSESSMENT: Current risk level and management suggestions
+4. TRADING ACTIONS: Specific recommendations with entry/exit prices
 
-1. PORTFOLIO ANALYSIS: Evaluate current positions, cash allocation, and risk metrics
-2. MARKET OPPORTUNITIES: Identify specific buy/sell opportunities based on current market data
-3. RISK ASSESSMENT: Analyze portfolio risk levels and suggest risk management strategies
-4. TRADING ACTIONS: Provide specific recommendations with:
-   - Buy/Sell/Hold decisions
-   - Target entry/exit prices
-   - Position sizes (as % of portfolio)
-   - Stop loss levels
-   - Time horizon for each trade
-
-5. PORTFOLIO OPTIMIZATION: Suggest portfolio rebalancing based on Modern Portfolio Theory
-
-FOCUS ON ACTIONABLE TRADING DECISIONS, NOT GENERAL MARKET COMMENTARY."
+Keep your response concise and actionable."
         } else {
             &payload_prompt
         };
         
         format!(
-            "{}\n\nData: {}",
+            "{}\n\nPortfolio Summary: {}",
             base_prompt,
-            serde_json::to_string_pretty(&file_content_clone).unwrap_or_else(|_| format!("{:?}", file_content_clone))
+            portfolio_summary
         )
     });
     
     let enhanced_prompt: String = prompt_future.await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let prompt_prep_time = start_time.elapsed() - file_read_time;
     
-    // Process with Ollama using ultra-fast threading
+    // Process with Ollama using direct async call
     let ollama_start = Instant::now();
     let timeout_duration = Duration::from_secs(config.max_timeout_seconds); // Use configurable timeout
     log::info!("🕒 Using timeout duration: {} seconds (from config.max_timeout_seconds: {})", timeout_duration.as_secs(), config.max_timeout_seconds);
     
-    let ollama_future = spawn_blocking(move || {
-        // This runs in a separate thread for the blocking Ollama call
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            ollama_client.generate_optimized(&model_clone, &enhanced_prompt).await
-        })
-    });
+    // Direct async call without nested runtime
+    let ollama_future = ollama_client.generate_optimized(&model_clone, &enhanced_prompt);
     
     match timeout(timeout_duration, ollama_future).await {
-        Ok(Ok(Ok(response))) => {
+        Ok(Ok(response)) => {
             let ollama_time = ollama_start.elapsed();
             let total_time = start_time.elapsed();
             
@@ -373,7 +386,7 @@ FOCUS ON ACTIONABLE TRADING DECISIONS, NOT GENERAL MARKET COMMENTARY."
             }
             
             // Log performance metrics
-            log::info!("Ultra-fast threading (default) completed - File: {}ms, Prompt: {}ms, Ollama: {}ms, Total: {}ms", 
+            log::info!("Direct async call completed - File: {}ms, Prompt: {}ms, Ollama: {}ms, Total: {}ms", 
                 file_read_time.as_millis(), 
                 prompt_prep_time.as_millis(), 
                 ollama_time.as_millis(), 
@@ -387,10 +400,10 @@ FOCUS ON ACTIONABLE TRADING DECISIONS, NOT GENERAL MARKET COMMENTARY."
                 "model": model,
                 "ollama_response": response,
                 "json_data_processed": file_content,
-                "processing_method": "ultra_fast_threading_default",
+                "processing_method": "direct_async_call",
                 "timeout_seconds": config.max_timeout_seconds,
-                "performance_mode": "maximum_speed_threading",
-                "threading_strategy": "parallel_file_config_prompt_ollama",
+                "performance_mode": "simplified_async",
+                "threading_strategy": "direct_ollama_call",
                 "performance_metrics": {
                     "file_read_ms": file_read_time.as_millis(),
                     "prompt_prep_ms": prompt_prep_time.as_millis(),

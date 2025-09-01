@@ -9,11 +9,11 @@ use tokio::sync::Semaphore;
 use crate::ollama::ollama_receipt::OllamaReceipt;
 
 // Connection pool configuration
-const MAX_CONCURRENT_REQUESTS: usize = 10;
-const CONNECTION_TIMEOUT: u64 = 15;  // Increased from 5 to 15 seconds
-const REQUEST_TIMEOUT: u64 = 120;  // Increased from 30 to 120 seconds
-const KEEP_ALIVE_DURATION: u64 = 60;
-const MAX_IDLE_PER_HOST: usize = 20;
+const MAX_CONCURRENT_REQUESTS: usize = 5;  // Reduced to prevent overload
+const CONNECTION_TIMEOUT: u64 = 30;  // Increased for better reliability
+const REQUEST_TIMEOUT: u64 = 300;  // Increased to match config timeout
+const KEEP_ALIVE_DURATION: u64 = 120;  // Increased for better connection reuse
+const MAX_IDLE_PER_HOST: usize = 10;  // Reduced to prevent memory issues
 
 #[derive(Debug, Serialize)]
 struct GenerateRequest {
@@ -120,6 +120,7 @@ impl OllamaClient {
         };
         
         println!("🧠 Using model: {}", model);
+        println!("📝 Prompt length: {} characters", prompt.len());
         let generate_url = format!("{}/api/generate", self.base_url);
         println!("🔗 Attempting to connect to: {}", generate_url);
         
@@ -174,14 +175,14 @@ impl OllamaClient {
     fn create_default_options() -> GenerateOptions {
         GenerateOptions {
             // DEFAULT MODE: Like ollama run (compatible with all models)
-            num_predict: 128,          // Shorter responses for compatibility
+            num_predict: 256,          // Increased for better responses
             temperature: 0.7,          // Standard temperature
             top_k: 40,                // Standard sampling
             top_p: 0.9,               // Standard nucleus sampling
             
             // Standard settings
-            num_ctx: 2048,            // Standard context window
-            num_batch: 512,           // Standard batch size
+            num_ctx: 4096,            // Increased context window
+            num_batch: 256,           // Reduced batch size for better compatibility
             num_thread: -1,           // Use all CPU cores
             repeat_penalty: 1.1,      // Standard repetition penalty
             
