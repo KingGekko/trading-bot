@@ -272,6 +272,10 @@ impl InteractiveSetup {
         println!("🤖 Starting portfolio analysis server...");
         self.start_portfolio_analysis_server().await?;
         
+        // Wait for API server to be ready
+        println!("⏳ Waiting for API server to be ready...");
+        self.wait_for_api_server().await?;
+        
         // Start streaming (only for live mode)
         if self.trading_mode == "live" {
             println!("📡 Starting live data streaming...");
@@ -348,6 +352,45 @@ impl InteractiveSetup {
             }
         }
         
+        Ok(())
+    }
+    
+    /// Wait for API server to be ready
+    async fn wait_for_api_server(&self) -> Result<()> {
+        let api_port = std::env::var("API_PORT")
+            .unwrap_or_else(|_| "8080".to_string())
+            .parse::<u16>()
+            .unwrap_or(8080);
+        
+        let client = reqwest::Client::new();
+        let max_attempts = 30; // 30 seconds max wait
+        let mut attempts = 0;
+        
+        while attempts < max_attempts {
+            match client.get(format!("http://localhost:{}/health", api_port))
+                .timeout(Duration::from_secs(2))
+                .send()
+                .await {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        println!("   ✅ API server is ready on port {}", api_port);
+                        return Ok(());
+                    }
+                }
+                Err(_) => {
+                    // Server not ready yet
+                }
+            }
+            
+            attempts += 1;
+            if attempts % 5 == 0 {
+                println!("   ⏳ Still waiting for API server... (attempt {}/{})", attempts, max_attempts);
+            }
+            sleep(Duration::from_secs(1)).await;
+        }
+        
+        println!("⚠️  API server did not start within {} seconds", max_attempts);
+        println!("   The setup will continue, but AI analysis may not work.");
         Ok(())
     }
 
@@ -479,8 +522,8 @@ impl InteractiveSetup {
             Ok(resp) => resp,
             Err(e) => {
                 println!("⚠️  Failed to connect to API server on port {}: {}", api_port, e);
-                println!("   The portfolio analysis server may not be running.");
-                println!("   Skipping AI analysis for now.");
+                println!("   This is normal during startup. The server may still be starting.");
+                println!("   Skipping AI analysis for this iteration.");
                 return Ok(());
             }
         };
@@ -528,8 +571,8 @@ impl InteractiveSetup {
             Ok(resp) => resp,
             Err(e) => {
                 println!("⚠️  Failed to connect to API server on port {}: {}", api_port, e);
-                println!("   The portfolio analysis server may not be running.");
-                println!("   Skipping multi-model analysis for now.");
+                println!("   This is normal during startup. The server may still be starting.");
+                println!("   Skipping multi-model analysis for this iteration.");
                 return Ok(());
             }
         };
