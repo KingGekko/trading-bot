@@ -1056,11 +1056,17 @@ async fn main() -> Result<()> {
         let portfolio_content = tokio::fs::read_to_string(&portfolio_file).await?;
         println!("✅ Loaded portfolio data from: {}", portfolio_file.display());
 
+        // Get API port from environment or use default
+        let api_port = std::env::var("API_PORT")
+            .unwrap_or_else(|_| "8080".to_string())
+            .parse::<u16>()
+            .unwrap_or(8080);
+
         // Start JSON streaming API server for portfolio analysis
         println!("\n🌐 Starting JSON Streaming API Server for Portfolio Analysis");
         println!("Model: {}", config.ollama_model);
         println!("Base URL: {}", config.ollama_base_url);
-        println!("API Port: 8082");
+        println!("API Port: {}", api_port);
         println!("{}", "=".repeat(50));
 
         // Create a temporary portfolio analysis file for the API to stream
@@ -1075,12 +1081,6 @@ async fn main() -> Result<()> {
         
         tokio::fs::write(&analysis_file, serde_json::to_string_pretty(&analysis_data)?).await?;
         println!("✅ Created portfolio analysis file: {}", analysis_file.display());
-
-        // Start the API server
-        let api_port = std::env::var("API_PORT")
-            .unwrap_or_else(|_| "8080".to_string())
-            .parse::<u16>()
-            .unwrap_or(8080);
             
         println!("\n🚀 Starting API server on http://localhost:{}", api_port);
         println!("📊 Portfolio analysis will be available at:");
