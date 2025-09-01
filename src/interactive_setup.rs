@@ -26,6 +26,28 @@ impl InteractiveSetup {
         }
     }
     
+    /// Get the correct binary path with fallback options
+    fn get_binary_path_with_fallback(&self) -> String {
+        let paths = vec![
+            "./target/release/trading_bot",
+            "./target/debug/trading_bot", 
+            "../target/release/trading_bot",
+            "../target/debug/trading_bot",
+            "trading_bot",
+            "/opt/trading-bot/target/release/trading_bot",
+            "/opt/trading-bot/target/debug/trading_bot"
+        ];
+        
+        for path in paths {
+            if std::path::Path::new(path).exists() {
+                return path.to_string();
+            }
+        }
+        
+        // Return default if none found
+        "./target/release/trading_bot".to_string()
+    }
+    
     pub fn new() -> Self {
         Self {
             trading_mode: String::new(),
@@ -292,16 +314,16 @@ impl InteractiveSetup {
     /// Start market data collection
     async fn start_market_data_collection(&self) -> Result<()> {
         // Run enhanced strategy to collect initial data
-        let binary_name = self.get_binary_path();
+        let binary_name = self.get_binary_path_with_fallback();
         
         // Check if binary exists
-        if !std::path::Path::new(binary_name).exists() {
+        if !std::path::Path::new(&binary_name).exists() {
             println!("⚠️  Binary not found: {}. Skipping market data collection.", binary_name);
             println!("   This is normal if running from a different directory.");
             return Ok(());
         }
         
-        let mut cmd = Command::new(binary_name);
+        let mut cmd = Command::new(&binary_name);
         cmd.arg("--enhanced-strategy");
         
         let output = cmd.output()?;
@@ -320,10 +342,10 @@ impl InteractiveSetup {
     /// Start portfolio analysis server
     async fn start_portfolio_analysis_server(&self) -> Result<()> {
         // Start the portfolio analysis server in background
-        let binary_name = self.get_binary_path();
+        let binary_name = self.get_binary_path_with_fallback();
         
         // Check if binary exists
-        if !std::path::Path::new(binary_name).exists() {
+        if !std::path::Path::new(&binary_name).exists() {
             println!("⚠️  Binary not found: {}. Skipping portfolio analysis server.", binary_name);
             println!("   This is normal if running from a different directory.");
             return Ok(());
@@ -335,7 +357,7 @@ impl InteractiveSetup {
             .parse::<u16>()
             .unwrap_or(8080);
         
-        let mut cmd = Command::new(binary_name);
+        let mut cmd = Command::new(&binary_name);
         cmd.arg("--portfolio-analysis");
         cmd.arg("--api-port");
         cmd.arg(&api_port.to_string());
@@ -397,16 +419,16 @@ impl InteractiveSetup {
     /// Start streaming (live mode only)
     async fn start_streaming(&self) -> Result<()> {
         // Start streaming for live trading
-        let binary_name = self.get_binary_path();
+        let binary_name = self.get_binary_path_with_fallback();
         
         // Check if binary exists
-        if !std::path::Path::new(binary_name).exists() {
+        if !std::path::Path::new(&binary_name).exists() {
             println!("⚠️  Binary not found: {}. Skipping live streaming.", binary_name);
             println!("   This is normal if running from a different directory.");
             return Ok(());
         }
         
-        let mut cmd = Command::new(binary_name);
+        let mut cmd = Command::new(&binary_name);
         cmd.arg("--websocket");
         
         // Run in background
