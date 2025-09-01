@@ -385,7 +385,7 @@ impl InteractiveSetup {
             .unwrap_or(8080);
         
         let client = reqwest::Client::new();
-        let max_attempts = 30; // 30 seconds max wait
+        let max_attempts = 60; // 60 seconds max wait
         let mut attempts = 0;
         
         while attempts < max_attempts {

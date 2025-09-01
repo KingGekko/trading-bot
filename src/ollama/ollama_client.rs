@@ -116,7 +116,7 @@ impl OllamaClient {
             model: model.to_string(),
             prompt: prompt.to_string(),
             stream: false,
-            options: OllamaClient::create_ultra_fast_options(),
+            options: OllamaClient::create_default_options(),
         };
         
         println!("🧠 Using model: {}", model);
@@ -165,6 +165,28 @@ impl OllamaClient {
             
             // Disable advanced features for speed
             mirostat: 0,               // Disable for speed
+            mirostat_eta: 0.0,        
+            mirostat_tau: 0.0,
+        }
+    }
+    
+    // Default options (like ollama run)
+    fn create_default_options() -> GenerateOptions {
+        GenerateOptions {
+            // DEFAULT MODE: Like ollama run (compatible with all models)
+            num_predict: 128,          // Shorter responses for compatibility
+            temperature: 0.7,          // Standard temperature
+            top_k: 40,                // Standard sampling
+            top_p: 0.9,               // Standard nucleus sampling
+            
+            // Standard settings
+            num_ctx: 2048,            // Standard context window
+            num_batch: 512,           // Standard batch size
+            num_thread: -1,           // Use all CPU cores
+            repeat_penalty: 1.1,      // Standard repetition penalty
+            
+            // Standard features
+            mirostat: 0,              // Disabled by default
             mirostat_eta: 0.0,        
             mirostat_tau: 0.0,
         }
