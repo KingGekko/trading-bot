@@ -16,6 +16,15 @@ pub struct InteractiveSetup {
 }
 
 impl InteractiveSetup {
+    /// Get the correct binary path for the current platform
+    fn get_binary_path(&self) -> &'static str {
+        if cfg!(target_os = "windows") {
+            "./target/release/trading_bot.exe"
+        } else {
+            "./target/release/trading_bot"
+        }
+    }
+    
     pub fn new() -> Self {
         Self {
             trading_mode: String::new(),
@@ -275,12 +284,25 @@ impl InteractiveSetup {
     /// Start market data collection
     async fn start_market_data_collection(&self) -> Result<()> {
         // Run enhanced strategy to collect initial data
-        let mut cmd = Command::new("./target/release/trading_bot.exe");
+        let binary_name = self.get_binary_path();
+        
+        // Check if binary exists
+        if !std::path::Path::new(binary_name).exists() {
+            println!("⚠️  Binary not found: {}. Skipping market data collection.", binary_name);
+            println!("   This is normal if running from a different directory.");
+            return Ok(());
+        }
+        
+        let mut cmd = Command::new(binary_name);
         cmd.arg("--enhanced-strategy");
         
         let output = cmd.output()?;
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to start market data collection"));
+            let error_output = String::from_utf8_lossy(&output.stderr);
+            println!("⚠️  Market data collection output: {}", String::from_utf8_lossy(&output.stdout));
+            println!("⚠️  Market data collection errors: {}", error_output);
+            println!("⚠️  Skipping market data collection due to errors.");
+            return Ok(()); // Don't fail the setup, just skip this step
         }
         
         println!("   ✅ Market data collection started");
@@ -290,32 +312,60 @@ impl InteractiveSetup {
     /// Start portfolio analysis server
     async fn start_portfolio_analysis_server(&self) -> Result<()> {
         // Start the portfolio analysis server in background
-        let mut cmd = Command::new("./target/release/trading_bot.exe");
+        let binary_name = self.get_binary_path();
+        
+        // Check if binary exists
+        if !std::path::Path::new(binary_name).exists() {
+            println!("⚠️  Binary not found: {}. Skipping portfolio analysis server.", binary_name);
+            println!("   This is normal if running from a different directory.");
+            return Ok(());
+        }
+        
+        let mut cmd = Command::new(binary_name);
         cmd.arg("--portfolio-analysis");
         
         // Run in background
-        let _child = cmd.spawn()?;
+        match cmd.spawn() {
+            Ok(_child) => {
+                // Wait a moment for server to start
+                sleep(Duration::from_secs(3)).await;
+                println!("   ✅ Portfolio analysis server started on port 8082");
+            }
+            Err(e) => {
+                println!("⚠️  Failed to start portfolio analysis server: {}. Skipping.", e);
+            }
+        }
         
-        // Wait a moment for server to start
-        sleep(Duration::from_secs(3)).await;
-        
-        println!("   ✅ Portfolio analysis server started on port 8082");
         Ok(())
     }
 
     /// Start streaming (live mode only)
     async fn start_streaming(&self) -> Result<()> {
         // Start streaming for live trading
-        let mut cmd = Command::new("./target/release/trading_bot.exe");
+        let binary_name = self.get_binary_path();
+        
+        // Check if binary exists
+        if !std::path::Path::new(binary_name).exists() {
+            println!("⚠️  Binary not found: {}. Skipping live streaming.", binary_name);
+            println!("   This is normal if running from a different directory.");
+            return Ok(());
+        }
+        
+        let mut cmd = Command::new(binary_name);
         cmd.arg("--websocket");
         
         // Run in background
-        let _child = cmd.spawn()?;
+        match cmd.spawn() {
+            Ok(_child) => {
+                // Wait a moment for streaming to start
+                sleep(Duration::from_secs(3)).await;
+                println!("   ✅ Live data streaming started");
+            }
+            Err(e) => {
+                println!("⚠️  Failed to start live streaming: {}. Skipping.", e);
+            }
+        }
         
-        // Wait a moment for streaming to start
-        sleep(Duration::from_secs(3)).await;
-        
-        println!("   ✅ Live data streaming started");
         Ok(())
     }
 
