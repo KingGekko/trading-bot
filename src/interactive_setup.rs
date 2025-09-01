@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::io::{self, Write};
 use std::process::Command;
 use tokio::time::{sleep, Duration};
-use tokio::fs;
+
 use chrono;
 use crate::ollama::Config;
 
@@ -999,7 +999,7 @@ impl InteractiveSetup {
                     "sector": "Broad Market",
                     "price": 450.96,
                     "volume": 742.85,
-                    "market_cap": 450000000000,
+                    "market_cap": 450000000000i64,
                     "tradable": true,
                     "marginable": true,
                     "shortable": true
@@ -1011,7 +1011,7 @@ impl InteractiveSetup {
                     "sector": "Technology",
                     "price": 380.25,
                     "volume": 1250.30,
-                    "market_cap": 200000000000,
+                    "market_cap": 200000000000i64,
                     "tradable": true,
                     "marginable": true,
                     "shortable": true
@@ -1023,7 +1023,7 @@ impl InteractiveSetup {
                     "sector": "Small Cap",
                     "price": 185.50,
                     "volume": 890.45,
-                    "market_cap": 50000000000,
+                    "market_cap": 50000000000i64,
                     "tradable": true,
                     "marginable": true,
                     "shortable": true
@@ -1035,7 +1035,7 @@ impl InteractiveSetup {
                     "sector": "Technology",
                     "price": 150.62,
                     "volume": 198.46,
-                    "market_cap": 2500000000000,
+                    "market_cap": 2500000000000i64,
                     "tradable": true,
                     "marginable": true,
                     "shortable": true
@@ -1047,7 +1047,7 @@ impl InteractiveSetup {
                     "sector": "Technology",
                     "price": 320.15,
                     "volume": 156.78,
-                    "market_cap": 2400000000000,
+                    "market_cap": 2400000000000i64,
                     "tradable": true,
                     "marginable": true,
                     "shortable": true

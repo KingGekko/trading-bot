@@ -22,7 +22,7 @@ pub enum UnifiedAlpacaMessage {
     // Market Data Messages
     #[serde(rename = "q")]
     Quote {
-        S: String,  // Symbol
+        s: String,  // Symbol
         bx: String, // Bid exchange
         bp: f64,    // Bid price
         bs: i64,    // Bid size
@@ -35,16 +35,16 @@ pub enum UnifiedAlpacaMessage {
     },
     #[serde(rename = "t")]
     Trade {
-        S: String,  // Symbol
+        s: String,  // Symbol
         x: String,  // Exchange
         p: f64,     // Price
-        s: i64,     // Size
+        sz: i64,    // Size
         c: Vec<String>, // Conditions
         t: String,  // Timestamp
     },
     #[serde(rename = "b")]
     Bar {
-        S: String,  // Symbol
+        s: String,  // Symbol
         o: f64,     // Open
         h: f64,     // High
         l: f64,     // Low
@@ -708,14 +708,14 @@ impl UnifiedAlpacaWebSocket {
         // Try to parse as market data message
             if let Ok(alpaca_msg) = serde_json::from_value::<UnifiedAlpacaMessage>(msg.clone()) {
                 match alpaca_msg {
-                    UnifiedAlpacaMessage::Quote { S, bp, ap, bs, as_, t, .. } => {
-                        self.handle_quote(&S, bp, ap, bs, as_, &t).await?;
+                    UnifiedAlpacaMessage::Quote { s, bp, ap, bs, as_, t, .. } => {
+                        self.handle_quote(&s, bp, ap, bs, as_, &t).await?;
                     }
-                    UnifiedAlpacaMessage::Trade { S, p, s, t, .. } => {
-                        self.handle_trade(&S, p, s, &t).await?;
+                    UnifiedAlpacaMessage::Trade { s, p, sz, t, .. } => {
+                        self.handle_trade(&s, p, sz, &t).await?;
                     }
-                    UnifiedAlpacaMessage::Bar { S, o, h, l, c, v, t, .. } => {
-                        self.handle_bar(&S, o, h, l, c, v, &t).await?;
+                    UnifiedAlpacaMessage::Bar { s, o, h, l, c, v, t, .. } => {
+                        self.handle_bar(&s, o, h, l, c, v, &t).await?;
                     }
                     UnifiedAlpacaMessage::News { symbols, headline, sentiment, published_at, .. } => {
                         for symbol in symbols {
