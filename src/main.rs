@@ -26,6 +26,109 @@ use protobuf::ProtobufStorage;
 use order_execution::OrderExecutor;
 use interactive_setup::InteractiveSetup;
 
+/// Ensure all required directories exist with proper permissions
+async fn ensure_required_directories() -> Result<()> {
+    let required_dirs = [
+        "ollama_logs",
+        "trading_portfolio", 
+        "live_data",
+        "sandbox_data",
+        "logs",
+    ];
+    
+    println!("🔧 Setting up required directories...");
+    
+    for dir in &required_dirs {
+        let path = Path::new(dir);
+        
+        // Create directory if it doesn't exist
+        if !path.exists() {
+            match tokio::fs::create_dir_all(path).await {
+                Ok(_) => println!("✅ Created directory: {}", dir),
+                Err(e) => {
+                    println!("⚠️  Failed to create directory {}: {}", dir, e);
+                    continue;
+                }
+            }
+        }
+        
+        // Set permissions on Unix systems
+        #[cfg(unix)]
+        {
+            if let Ok(metadata) = tokio::fs::metadata(path).await {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = metadata.permissions();
+                perms.set_mode(0o755);
+                if let Err(e) = tokio::fs::set_permissions(path, perms).await {
+                    println!("⚠️  Failed to set permissions on {}: {}", dir, e);
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Ensure config.env exists with default values
+async fn ensure_config_file() -> Result<()> {
+    let config_path = Path::new("config.env");
+    
+    if !config_path.exists() {
+        println!("📝 Creating default config.env file...");
+        
+        let default_config = r#"# ========================================
+# TRADING BOT UNIFIED CONFIGURATION
+# ========================================
+
+# ========================================
+# ALPACA API CONFIGURATION
+# ========================================
+
+# Your Alpaca API credentials
+APCA_API_KEY_ID=your_paper_trading_key
+APCA_API_SECRET_KEY=your_paper_trading_secret
+
+# Alpaca base URL (use paper trading for testing)
+ALPACA_BASE_URL=https://paper-api.alpaca.markets
+
+# ========================================
+# OLLAMA AI CONFIGURATION
+# ========================================
+
+# Ollama base URL
+OLLAMA_BASE_URL=http://localhost:11434
+
+# Default AI model to use
+DEFAULT_AI_MODEL=tinyllama
+
+# Maximum timeout for Ollama requests in seconds
+MAX_TIMEOUT_SECONDS=300
+
+# Analysis interval in seconds
+ANALYSIS_INTERVAL_SECONDS=30
+
+# ========================================
+# LOGGING CONFIGURATION
+# ========================================
+
+# Log level (debug, info, warn, error)
+LOG_LEVEL=info
+
+# Log directory
+LOG_DIRECTORY=ollama_logs
+"#;
+        
+        match tokio::fs::write(config_path, default_config).await {
+            Ok(_) => println!("✅ Created config.env with default values"),
+            Err(e) => println!("⚠️  Failed to create config.env: {}", e),
+        }
+    } else {
+        println!("✅ config.env already exists");
+    }
+    
+    Ok(())
+}
+
 /// Ensure log directory exists with proper permissions
 async fn ensure_log_directory(log_directory: &str) -> Result<()> {
     let path = Path::new(log_directory);
@@ -87,6 +190,15 @@ async fn ensure_log_directory(log_directory: &str) -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Setup required directories and config file
+    if let Err(e) = ensure_required_directories().await {
+        println!("⚠️  Warning: Failed to create some directories: {}", e);
+    }
+    
+    if let Err(e) = ensure_config_file().await {
+        println!("⚠️  Warning: Failed to create config file: {}", e);
+    }
+    
     // Load environment variables
     dotenv().ok();
     
@@ -257,6 +369,10 @@ async fn main() -> Result<()> {
 
     // Load configuration
     let mut config = Config::from_env()?;
+    
+    println!("🚀 Trading Bot initialized successfully!");
+    println!("📁 Working directory: {}", std::env::current_dir()?.display());
+    println!("🔧 Configuration loaded from: config.env");
     
     // Auto-detect Ollama model if set to "auto"
     if let Err(e) = config.auto_detect_model().await {

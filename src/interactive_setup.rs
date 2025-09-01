@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::io::{self, Write};
 use std::process::Command;
 use tokio::time::{sleep, Duration};
+use tokio::fs;
 use crate::ollama::Config;
 
 /// Interactive setup wizard for the trading bot
@@ -39,6 +40,22 @@ impl InteractiveSetup {
         println!("{}", "=".repeat(50));
         println!("Welcome to the Elite Trading Bot Setup Wizard");
         println!("This will configure your trading environment for maximum profit multiplication");
+        println!();
+        
+        // Ensure required directories exist
+        println!("🔧 Setting up required directories...");
+        let required_dirs = ["ollama_logs", "trading_portfolio", "live_data", "sandbox_data", "logs"];
+        for dir in &required_dirs {
+            if !std::path::Path::new(dir).exists() {
+                if let Err(e) = tokio::fs::create_dir_all(dir).await {
+                    println!("⚠️  Warning: Failed to create directory {}: {}", dir, e);
+                } else {
+                    println!("✅ Created directory: {}", dir);
+                }
+            } else {
+                println!("✅ Directory exists: {}", dir);
+            }
+        }
         println!();
 
         // Step 1: Trading Mode Selection
