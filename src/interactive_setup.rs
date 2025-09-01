@@ -321,15 +321,23 @@ impl InteractiveSetup {
             return Ok(());
         }
         
+        // Get API port from environment or use default
+        let api_port = std::env::var("API_PORT")
+            .unwrap_or_else(|_| "8080".to_string())
+            .parse::<u16>()
+            .unwrap_or(8080);
+        
         let mut cmd = Command::new(binary_name);
         cmd.arg("--portfolio-analysis");
+        cmd.arg("--api-port");
+        cmd.arg(&api_port.to_string());
         
         // Run in background
         match cmd.spawn() {
             Ok(_child) => {
                 // Wait a moment for server to start
-                sleep(Duration::from_secs(3)).await;
-                println!("   ✅ Portfolio analysis server started on port 8082");
+                sleep(Duration::from_secs(5)).await;
+                println!("   ✅ Portfolio analysis server started on port {}", api_port);
             }
             Err(e) => {
                 println!("⚠️  Failed to start portfolio analysis server: {}. Skipping.", e);
@@ -445,16 +453,33 @@ impl InteractiveSetup {
         // Use the JSON streaming API server to communicate with Ollama
         let client = reqwest::Client::new();
         
+        // Get API port from environment or use default
+        let api_port = std::env::var("API_PORT")
+            .unwrap_or_else(|_| "8080".to_string())
+            .parse::<u16>()
+            .unwrap_or(8080);
+            
         // Send portfolio analysis request to the API server
         let response = client
-            .post("http://localhost:8082/api/ollama/process")
+            .post(format!("http://localhost:{}/api/ollama/process", api_port))
             .json(&serde_json::json!({
                 "file_path": "trading_portfolio/trading_portfolio.json",
                 "model": self.selected_model,
                 "prompt": "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication. Generate specific trading recommendations with buy/sell actions, quantities, and prices."
             }))
+            .timeout(Duration::from_secs(60))
             .send()
-            .await?;
+            .await;
+            
+        let response = match response {
+            Ok(resp) => resp,
+            Err(e) => {
+                println!("⚠️  Failed to connect to API server on port {}: {}", api_port, e);
+                println!("   The portfolio analysis server may not be running.");
+                println!("   Skipping AI analysis for now.");
+                return Ok(());
+            }
+        };
         
         if response.status().is_success() {
             let result: Value = response.json().await?;
@@ -476,17 +501,34 @@ impl InteractiveSetup {
     async fn run_multi_model_analysis(&self) -> Result<()> {
         println!("🧠 Running multi-model AI analysis");
         
+        // Get API port from environment or use default
+        let api_port = std::env::var("API_PORT")
+            .unwrap_or_else(|_| "8080".to_string())
+            .parse::<u16>()
+            .unwrap_or(8080);
+            
         // Use portfolio analysis with multi-model conversation
         let client = reqwest::Client::new();
         let response = client
-            .post("http://localhost:8082/api/ollama/conversation")
+            .post(format!("http://localhost:{}/api/ollama/conversation", api_port))
             .json(&serde_json::json!({
                 "file_path": "trading_portfolio/trading_portfolio.json",
                 "initial_prompt": "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication. Generate specific trading recommendations with buy/sell actions, quantities, and prices.",
                 "models": self.models
             }))
+            .timeout(Duration::from_secs(60))
             .send()
-            .await?;
+            .await;
+            
+        let response = match response {
+            Ok(resp) => resp,
+            Err(e) => {
+                println!("⚠️  Failed to connect to API server on port {}: {}", api_port, e);
+                println!("   The portfolio analysis server may not be running.");
+                println!("   Skipping multi-model analysis for now.");
+                return Ok(());
+            }
+        };
         
         if response.status().is_success() {
             let result: Value = response.json().await?;

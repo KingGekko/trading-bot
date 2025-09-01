@@ -1077,7 +1077,12 @@ async fn main() -> Result<()> {
         println!("✅ Created portfolio analysis file: {}", analysis_file.display());
 
         // Start the API server
-        println!("\n🚀 Starting API server on http://localhost:8082");
+        let api_port = std::env::var("API_PORT")
+            .unwrap_or_else(|_| "8080".to_string())
+            .parse::<u16>()
+            .unwrap_or(8080);
+            
+        println!("\n🚀 Starting API server on http://localhost:{}", api_port);
         println!("📊 Portfolio analysis will be available at:");
         println!("   • GET /portfolio-analysis - Get current analysis");
         println!("   • GET /stream/portfolio-analysis - Stream real-time analysis");
@@ -1088,7 +1093,7 @@ async fn main() -> Result<()> {
         println!("{}", "=".repeat(50));
 
         // Start the API server (this will run indefinitely)
-        if let Err(e) = start_api_server(8082).await {
+        if let Err(e) = start_api_server(api_port).await {
             eprintln!("❌ API server error: {}", e);
             return Err(anyhow!("API server error: {}", e));
         }
