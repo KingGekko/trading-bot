@@ -413,12 +413,8 @@ Keep your response concise and actionable."
                 }
             })))
         }
-        Ok(Ok(Err(e))) => {
-            log::error!("Ollama processing failed: {}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
         Ok(Err(e)) => {
-            log::error!("Threading error: {}", e);
+            log::error!("Ollama processing failed: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
         Err(_) => {
