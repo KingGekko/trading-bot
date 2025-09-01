@@ -14,9 +14,16 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Result<Self> {
         // Try to load from config.env file first
-        if let Err(_) = dotenv::from_filename("config.env") {
+        if let Err(e) = dotenv::from_filename("config.env") {
+            println!("⚠️  Failed to load config.env: {}", e);
             // Fallback to .env if config.env doesn't exist
-            dotenv::dotenv().ok();
+            if let Err(e2) = dotenv::dotenv() {
+                println!("⚠️  Failed to load .env: {}", e2);
+            } else {
+                println!("✅ Loaded .env file");
+            }
+        } else {
+            println!("✅ Loaded config.env file");
         }
 
         // Required environment variables - no defaults for security
@@ -28,9 +35,14 @@ impl Config {
             .unwrap_or_else(|_| "auto".to_string());
 
         let max_timeout_seconds = env::var("MAX_TIMEOUT_SECONDS")
-            .unwrap_or_else(|_| "300".to_string())
+            .unwrap_or_else(|_| {
+                println!("⚠️  MAX_TIMEOUT_SECONDS not found in environment, using default: 300");
+                "300".to_string()
+            })
             .parse::<u64>()
             .map_err(|_| anyhow!("MAX_TIMEOUT_SECONDS must be a valid number"))?;
+        
+        println!("🔧 Loaded MAX_TIMEOUT_SECONDS: {}", max_timeout_seconds);
 
         let log_directory = env::var("LOG_DIRECTORY")
             .unwrap_or_else(|_| "ollama_logs".to_string());

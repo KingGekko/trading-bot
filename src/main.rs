@@ -97,13 +97,7 @@ async fn main() -> Result<()> {
         .version("0.1.0")
         .author("Your Name")
         .about("A Rust-based trading bot with Ollama integration")
-        .arg(
-            Arg::new("interactive")
-                .short('i')
-                .long("interactive")
-                .help("Run in interactive mode")
-                .action(clap::ArgAction::SetTrue),
-        )
+        // Interactive argument moved to the end to avoid conflicts
         .arg(
             Arg::new("prompt")
                 .short('p')
@@ -457,98 +451,18 @@ async fn main() -> Result<()> {
             Err(e) => eprintln!("Error: {}", e),
         }
     } else if matches.get_flag("interactive") {
-        // Interactive mode
-        println!("🤖 Trading Bot Interactive Mode (Streaming Enabled)");
-        println!("Detected Model: {} ({})", config.ollama_model, config.get_model_info());
-        println!("Commands:");
-        println!("  Type a message for streaming response (default)");
-        println!("  Type '/regular <message>' for non-streaming response");
-        println!("  Type 'quit' or 'exit' to stop");
+        // Redirect to Interactive Setup Wizard
+        println!("🚀 STARTING INTERACTIVE SETUP WIZARD");
         println!("{}", "=".repeat(50));
-        println!();
-
-        loop {
-            print!(">>> ");
-            io::stdout().flush()?;
-            
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
-            let input = input.trim();
-
-            if input == "quit" || input == "exit" {
-                println!("Goodbye!");
-                break;
-            }
-
-            if input.is_empty() {
-                continue;
-            }
-
-            // Check if it's a regular (non-streaming) command
-            if input.starts_with("/regular ") {
-                let prompt = &input[9..]; // Remove "/regular " prefix
-                
-                // Sanitize input for security
-                let sanitized_input = match config.sanitize_input(prompt) {
-                    Ok(sanitized) => sanitized,
-                    Err(e) => {
-                        eprintln!("Input validation error: {}", e);
-                        continue;
-                    }
-                };
-
-                println!("Sending to Ollama (regular mode)...");
-                match ollama_client.generate_with_timing(&config.ollama_model, &sanitized_input).await {
-                    Ok((response, receipt)) => {
-                        println!("Bot: {}", response);
-                        receipt.log_summary(&config.log_directory);
-                        println!();
-                    }
-                    Err(e) => {
-                        eprintln!("Error: {}", e);
-                        println!();
-                    }
-                }
-            } else {
-                // Default streaming mode
-                // Sanitize input for security
-                let sanitized_input = match config.sanitize_input(input) {
-                    Ok(sanitized) => sanitized,
-                    Err(e) => {
-                        eprintln!("Input validation error: {}", e);
-                        continue;
-                    }
-                };
-
-                println!("🌊 Streaming response...");
-                match ollama_client.generate_stream_with_timing(&config.ollama_model, &sanitized_input).await {
-                    Ok((chunks, receipt)) => {
-                        print!("Bot: ");
-                        io::stdout().flush().unwrap();
-                        
-                        let mut full_response = String::new();
-                        
-                        for chunk in chunks {
-                            print!("{}", chunk);
-                            io::stdout().flush().unwrap();
-                            full_response.push_str(&chunk);
-                            
-                            // Minimal delay for ultra-fast responses
-                            tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
-                        }
-                        
-                        println!(); // New line after streaming
-                        
-                        receipt.log_summary(&config.log_directory);
-                        println!();
-                    }
-                    Err(e) => {
-                        eprintln!("Stream error: {}", e);
-                        println!();
-                    }
-                }
-            }
+        
+        let mut setup = InteractiveSetup::new();
+        if let Err(e) = setup.run_setup().await {
+            eprintln!("❌ Setup failed: {}", e);
+            return Err(e);
         }
+        
+        println!("🎉 Interactive setup completed successfully!");
+        println!("Your Elite Trading Bot is now running automatically!");
     } else if matches.get_flag("api") {
         // API server mode
         let port: u16 = matches.get_one::<String>("api-port")
@@ -1639,19 +1553,7 @@ async fn main() -> Result<()> {
         println!("\n🎉 AI-enhanced decision engine analysis complete!");
         println!("💡 This system combines the best of mathematical analysis and AI insights");
         println!("🔧 Integrate with --execute-orders for live AI-powered trading");
-    } else if matches.get_flag("interactive") {
-        // Interactive Setup Wizard
-        println!("🚀 STARTING INTERACTIVE SETUP WIZARD");
-        println!("{}", "=".repeat(50));
-        
-        let mut setup = InteractiveSetup::new();
-        if let Err(e) = setup.run_setup().await {
-            eprintln!("❌ Setup failed: {}", e);
-            return Err(e);
-        }
-        
-        println!("🎉 Interactive setup completed successfully!");
-        println!("Your Elite Trading Bot is now running automatically!");
+    // Duplicate interactive setup removed - handled above
 
     } else {
         println!("Trading Bot started. Use --help for usage information.");

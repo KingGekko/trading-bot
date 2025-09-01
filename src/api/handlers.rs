@@ -298,6 +298,7 @@ pub async fn ollama_process_json(
     let file_read_time = start_time.elapsed();
     
     // Create optimized Ollama client
+    log::info!("🔧 Creating Ollama client with base_url: {} and timeout: {} seconds", config.ollama_base_url, config.max_timeout_seconds);
     let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
     
     // Use provided model or default from config
@@ -310,7 +311,23 @@ pub async fn ollama_process_json(
     let prompt_future = spawn_blocking(move || {
         // Use custom prompt or default Elite trading analyst prompt
         let base_prompt = if payload_prompt.trim().is_empty() {
-            "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication:"
+            "You are an Elite quantitative trading analyst specializing in algorithmic trading and portfolio optimization. 
+
+ANALYZE THE FOLLOWING TRADING PORTFOLIO DATA AND PROVIDE SPECIFIC TRADING RECOMMENDATIONS:
+
+1. PORTFOLIO ANALYSIS: Evaluate current positions, cash allocation, and risk metrics
+2. MARKET OPPORTUNITIES: Identify specific buy/sell opportunities based on current market data
+3. RISK ASSESSMENT: Analyze portfolio risk levels and suggest risk management strategies
+4. TRADING ACTIONS: Provide specific recommendations with:
+   - Buy/Sell/Hold decisions
+   - Target entry/exit prices
+   - Position sizes (as % of portfolio)
+   - Stop loss levels
+   - Time horizon for each trade
+
+5. PORTFOLIO OPTIMIZATION: Suggest portfolio rebalancing based on Modern Portfolio Theory
+
+FOCUS ON ACTIONABLE TRADING DECISIONS, NOT GENERAL MARKET COMMENTARY."
         } else {
             &payload_prompt
         };
@@ -327,7 +344,8 @@ pub async fn ollama_process_json(
     
     // Process with Ollama using ultra-fast threading
     let ollama_start = Instant::now();
-    let timeout_duration = Duration::from_secs(10); // 10 second timeout for ultra-fast mode
+    let timeout_duration = Duration::from_secs(config.max_timeout_seconds); // Use configurable timeout
+    log::info!("🕒 Using timeout duration: {} seconds (from config.max_timeout_seconds: {})", timeout_duration.as_secs(), config.max_timeout_seconds);
     
     let ollama_future = spawn_blocking(move || {
         // This runs in a separate thread for the blocking Ollama call
@@ -341,6 +359,16 @@ pub async fn ollama_process_json(
         Ok(Ok(Ok(response))) => {
             let ollama_time = ollama_start.elapsed();
             let total_time = start_time.elapsed();
+            
+            // Validate response quality
+            let response_trimmed = response.trim();
+            if response_trimmed.len() < 100 {
+                log::warn!("⚠️  Ollama response seems too short ({} chars). Consider using a larger model.", response_trimmed.len());
+            }
+            
+            if response_trimmed.contains("curl") || response_trimmed.contains("API") {
+                log::warn!("⚠️  Ollama response appears to be generic API advice rather than trading analysis.");
+            }
             
             // Log performance metrics
             log::info!("Ultra-fast threading (default) completed - File: {}ms, Prompt: {}ms, Ollama: {}ms, Total: {}ms", 
@@ -358,7 +386,7 @@ pub async fn ollama_process_json(
                 "ollama_response": response,
                 "json_data_processed": file_content,
                 "processing_method": "ultra_fast_threading_default",
-                "timeout_seconds": 10,
+                "timeout_seconds": config.max_timeout_seconds,
                 "performance_mode": "maximum_speed_threading",
                 "threading_strategy": "parallel_file_config_prompt_ollama",
                 "performance_metrics": {
@@ -379,7 +407,7 @@ pub async fn ollama_process_json(
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
         Err(_) => {
-            log::error!("Ollama request timed out after {} seconds", timeout_duration.as_secs());
+            log::error!("Ollama request timed out after {} seconds (configured timeout: {}s). Consider increasing MAX_TIMEOUT_SECONDS in config.env or checking Ollama server performance.", timeout_duration.as_secs(), config.max_timeout_seconds);
             Err(StatusCode::REQUEST_TIMEOUT)
         }
     }
@@ -435,7 +463,23 @@ pub async fn ollama_process_json_threaded(
     
     // Create a comprehensive prompt that includes the JSON data
     let enhanced_prompt = format!(
-        "Please analyze the following JSON data and respond to this prompt: {}\n\nJSON Data:\n{}",
+        "You are an Elite quantitative trading analyst. 
+
+ANALYZE THE FOLLOWING TRADING PORTFOLIO DATA AND PROVIDE SPECIFIC TRADING RECOMMENDATIONS:
+
+PROMPT: {}
+
+PORTFOLIO DATA:
+{}
+
+REQUIRED OUTPUT FORMAT:
+1. PORTFOLIO SUMMARY: Current positions, cash, risk metrics
+2. MARKET ANALYSIS: Current market conditions and opportunities
+3. TRADING RECOMMENDATIONS: Specific buy/sell actions with prices and quantities
+4. RISK MANAGEMENT: Stop losses and position sizing
+5. PORTFOLIO OPTIMIZATION: Rebalancing suggestions
+
+FOCUS ON ACTIONABLE TRADING DECISIONS.",
         payload.prompt,
         serde_json::to_string_pretty(&file_content).unwrap_or_else(|_| format!("{:?}", file_content))
     );
@@ -451,7 +495,7 @@ pub async fn ollama_process_json_threaded(
     });
     
     // Add timeout to prevent hanging
-    let timeout_duration = Duration::from_secs(30); // 30 second timeout
+    let timeout_duration = Duration::from_secs(config.max_timeout_seconds); // Use configurable timeout
     
     match timeout(timeout_duration, ollama_future).await {
         Ok(Ok(Ok(response))) => {
@@ -464,7 +508,7 @@ pub async fn ollama_process_json_threaded(
                 "ollama_response": response,
                 "json_data_processed": file_content,
                 "processing_method": "threaded_stream",
-                "timeout_seconds": 30
+                "timeout_seconds": config.max_timeout_seconds
             })))
         }
         Ok(Ok(Err(e))) => {
@@ -479,7 +523,7 @@ pub async fn ollama_process_json_threaded(
         }
         Err(_) => {
             // Timeout error
-            log::error!("Ollama request timed out after {} seconds", timeout_duration.as_secs());
+            log::error!("Ollama request timed out after {} seconds (configured timeout: {}s). Consider increasing MAX_TIMEOUT_SECONDS in config.env or checking Ollama server performance.", timeout_duration.as_secs(), config.max_timeout_seconds);
             Err(StatusCode::REQUEST_TIMEOUT)
         }
     }
@@ -534,7 +578,23 @@ pub async fn ollama_process_ultra_fast(
     
     // Create optimized prompt
     let base_prompt = if payload.prompt.trim().is_empty() {
-        "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication:"
+        "You are an Elite quantitative trading analyst specializing in algorithmic trading and portfolio optimization. 
+
+ANALYZE THE FOLLOWING TRADING PORTFOLIO DATA AND PROVIDE SPECIFIC TRADING RECOMMENDATIONS:
+
+1. PORTFOLIO ANALYSIS: Evaluate current positions, cash allocation, and risk metrics
+2. MARKET OPPORTUNITIES: Identify specific buy/sell opportunities based on current market data
+3. RISK ASSESSMENT: Analyze portfolio risk levels and suggest risk management strategies
+4. TRADING ACTIONS: Provide specific recommendations with:
+   - Buy/Sell/Hold decisions
+   - Target entry/exit prices
+   - Position sizes (as % of portfolio)
+   - Stop loss levels
+   - Time horizon for each trade
+
+5. PORTFOLIO OPTIMIZATION: Suggest portfolio rebalancing based on Modern Portfolio Theory
+
+FOCUS ON ACTIONABLE TRADING DECISIONS, NOT GENERAL MARKET COMMENTARY."
     } else {
         &payload.prompt
     };
@@ -548,7 +608,7 @@ pub async fn ollama_process_ultra_fast(
     let prompt_prep_time = start_time.elapsed() - file_read_time;
     
     // Process with ultra-fast timeout
-    let timeout_duration = Duration::from_secs(15); // 15 second timeout for ultra-fast mode
+    let timeout_duration = Duration::from_secs(config.max_timeout_seconds); // Use configurable timeout
     
     let ollama_start = Instant::now();
     match timeout(timeout_duration, ollama_client.generate_optimized(&model, &enhanced_prompt)).await {
@@ -572,7 +632,7 @@ pub async fn ollama_process_ultra_fast(
                 "ollama_response": response,
                 "json_data_processed": file_content,
                 "processing_method": "ultra_fast_direct",
-                "timeout_seconds": 15,
+                "timeout_seconds": config.max_timeout_seconds,
                 "performance_mode": "maximum_speed",
                 "performance_metrics": {
                     "file_read_ms": file_read_time.as_millis(),
@@ -587,7 +647,7 @@ pub async fn ollama_process_ultra_fast(
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
         Err(_) => {
-            log::error!("Ollama request timed out after {} seconds", timeout_duration.as_secs());
+            log::error!("Ollama request timed out after {} seconds (configured timeout: {}s). Consider increasing MAX_TIMEOUT_SECONDS in config.env or checking Ollama server performance.", timeout_duration.as_secs(), config.max_timeout_seconds);
             Err(StatusCode::REQUEST_TIMEOUT)
         }
     }
@@ -652,6 +712,7 @@ pub async fn ollama_process_ultra_threaded(
     let file_read_time = start_time.elapsed();
     
     // Create optimized Ollama client
+    log::info!("🔧 Creating Ollama client with base_url: {} and timeout: {} seconds", config.ollama_base_url, config.max_timeout_seconds);
     let ollama_client = OllamaClient::new(&config.ollama_base_url, config.max_timeout_seconds);
     
     // Use provided model or default from config
@@ -664,7 +725,23 @@ pub async fn ollama_process_ultra_threaded(
     let prompt_future = spawn_blocking(move || {
         // This runs in a separate thread for string processing
         let base_prompt = if payload_prompt.trim().is_empty() {
-            "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication:"
+            "You are an Elite quantitative trading analyst specializing in algorithmic trading and portfolio optimization. 
+
+ANALYZE THE FOLLOWING TRADING PORTFOLIO DATA AND PROVIDE SPECIFIC TRADING RECOMMENDATIONS:
+
+1. PORTFOLIO ANALYSIS: Evaluate current positions, cash allocation, and risk metrics
+2. MARKET OPPORTUNITIES: Identify specific buy/sell opportunities based on current market data
+3. RISK ASSESSMENT: Analyze portfolio risk levels and suggest risk management strategies
+4. TRADING ACTIONS: Provide specific recommendations with:
+   - Buy/Sell/Hold decisions
+   - Target entry/exit prices
+   - Position sizes (as % of portfolio)
+   - Stop loss levels
+   - Time horizon for each trade
+
+5. PORTFOLIO OPTIMIZATION: Suggest portfolio rebalancing based on Modern Portfolio Theory
+
+FOCUS ON ACTIONABLE TRADING DECISIONS, NOT GENERAL MARKET COMMENTARY."
         } else {
             &payload_prompt
         };
@@ -681,7 +758,7 @@ pub async fn ollama_process_ultra_threaded(
     
     // Spawn Ollama processing in a separate thread with timeout
     let ollama_start = Instant::now();
-    let timeout_duration = Duration::from_secs(10); // 10 second timeout for ultra-threaded mode
+    let timeout_duration = Duration::from_secs(config.max_timeout_seconds); // Use configurable timeout
     
     let ollama_future = spawn_blocking(move || {
         // This runs in a separate thread for the blocking Ollama call
@@ -712,7 +789,7 @@ pub async fn ollama_process_ultra_threaded(
                 "ollama_response": response,
                 "json_data_processed": file_content,
                 "processing_method": "ultra_threaded_optimized",
-                "timeout_seconds": 10,
+                "timeout_seconds": config.max_timeout_seconds,
                 "performance_mode": "maximum_threading",
                 "threading_strategy": "parallel_file_config_prompt_ollama",
                 "performance_metrics": {
@@ -733,7 +810,7 @@ pub async fn ollama_process_ultra_threaded(
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
         Err(_) => {
-            log::error!("Ollama request timed out after {} seconds", timeout_duration.as_secs());
+            log::error!("Ollama request timed out after {} seconds (configured timeout: {}s). Consider increasing MAX_TIMEOUT_SECONDS in config.env or checking Ollama server performance.", timeout_duration.as_secs(), config.max_timeout_seconds);
             Err(StatusCode::REQUEST_TIMEOUT)
         }
     }
@@ -885,7 +962,7 @@ pub async fn multi_model_conversation(
         
         // Wait for all models to respond in this round
         for (model_name, future, _model_index) in model_futures {
-            match timeout(Duration::from_secs(15), future).await {
+            match timeout(Duration::from_secs(config.max_timeout_seconds), future).await {
                 Ok(Ok(Ok(response))) => {
                     let model_response = ModelResponse {
                         model: model_name.clone(),
@@ -949,7 +1026,7 @@ pub async fn multi_model_conversation(
         })
     });
     
-    let summary = match timeout(Duration::from_secs(10), summary_future).await {
+    let summary = match timeout(Duration::from_secs(config.max_timeout_seconds), summary_future).await {
         Ok(Ok(Ok(summary))) => summary,
         _ => "Failed to generate summary".to_string(),
     };
@@ -1012,8 +1089,7 @@ pub async fn list_available_files() -> Json<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::http::StatusCode;
-    use serde_json::json;
+
 
     #[tokio::test]
     async fn test_health_check() {

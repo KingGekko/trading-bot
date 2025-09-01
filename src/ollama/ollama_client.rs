@@ -11,7 +11,7 @@ use crate::ollama::ollama_receipt::OllamaReceipt;
 // Connection pool configuration
 const MAX_CONCURRENT_REQUESTS: usize = 10;
 const CONNECTION_TIMEOUT: u64 = 15;  // Increased from 5 to 15 seconds
-const REQUEST_TIMEOUT: u64 = 30;
+const REQUEST_TIMEOUT: u64 = 120;  // Increased from 30 to 120 seconds
 const KEEP_ALIVE_DURATION: u64 = 60;
 const MAX_IDLE_PER_HOST: usize = 20;
 
@@ -66,6 +66,7 @@ pub struct OllamaClient {
 
 impl OllamaClient {
     pub fn new(base_url: &str, timeout_seconds: u64) -> Self {
+        println!("🔧 Creating Ollama client with timeout: {} seconds", timeout_seconds);
         let client = Client::builder()
             .timeout(Duration::from_secs(timeout_seconds))
             .pool_idle_timeout(Duration::from_secs(KEEP_ALIVE_DURATION))
@@ -140,8 +141,8 @@ impl OllamaClient {
                 Err(anyhow!("Request failed: {}", e))
             }
             Err(_) => {
-                println!("⏰ Request timeout after {} seconds", REQUEST_TIMEOUT);
-                Err(anyhow!("Request timeout after {} seconds", REQUEST_TIMEOUT))
+                println!("⏰ Request timeout after {} seconds (REQUEST_TIMEOUT: {}s). Consider increasing REQUEST_TIMEOUT or checking Ollama server performance.", REQUEST_TIMEOUT, REQUEST_TIMEOUT);
+                Err(anyhow!("Request timeout after {} seconds. Check Ollama server status and consider increasing timeout values.", REQUEST_TIMEOUT))
             }
         }
     }
@@ -149,20 +150,20 @@ impl OllamaClient {
     // Ultra-fast options for maximum performance (simplified for compatibility)
     fn create_ultra_fast_options() -> GenerateOptions {
         GenerateOptions {
-            // ULTRA-FAST MODE: Maximum speed (2-4s) - Simplified for compatibility
-            num_predict: 100,          // Shorter responses for speed
-            temperature: 0.1,          // Very focused responses
-            top_k: 10,                 // Minimal sampling space
-            top_p: 0.8,                // Aggressive nucleus sampling
+            // PERFORMANCE OPTIMIZED: Faster responses for trading analysis (5-15s)
+            num_predict: 300,          // Balanced response length
+            temperature: 0.2,          // More focused responses
+            top_k: 15,                 // Balanced sampling
+            top_p: 0.85,               // Efficient nucleus sampling
             
-            // Basic performance optimizations (compatible with all models)
+            // Performance optimizations for speed
             num_ctx: 1024,             // Smaller context for speed
-            num_batch: 16,             // Moderate batch size for compatibility
+            num_batch: 8,              // Smaller batch for faster processing
             num_thread: -1,            // Use all CPU cores
             repeat_penalty: 1.05,      // Minimal repetition penalty
             
-            // Disable advanced features for compatibility
-            mirostat: 0,               // Disable for speed and compatibility
+            // Disable advanced features for speed
+            mirostat: 0,               // Disable for speed
             mirostat_eta: 0.0,        
             mirostat_tau: 0.0,
         }

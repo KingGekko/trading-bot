@@ -25,7 +25,7 @@ impl InteractiveSetup {
                 Config {
                     ollama_base_url: "http://localhost:11434".to_string(),
                     ollama_model: "tinyllama".to_string(),
-                    max_timeout_seconds: 30,
+                    max_timeout_seconds: 120,  // Increased from 30 to match config.env
                     log_directory: "./logs".to_string(),
                     max_prompt_length: 4000,
                 }
@@ -336,6 +336,21 @@ impl InteractiveSetup {
             println!("🔄 Trading Iteration #{}", iteration);
             println!("{}", "-".repeat(20));
             
+            // Check if market is open (for live trading)
+            if self.trading_mode == "live" && !self.is_market_open().await? {
+                println!("⏰ Market is closed. Waiting for market to open...");
+                sleep(Duration::from_secs(300)).await; // Wait 5 minutes
+                continue;
+            }
+            
+            // Scan for tradeable assets
+            let tradeable_assets = self.scan_tradeable_assets().await?;
+            if tradeable_assets.is_empty() {
+                println!("⚠️ No tradeable assets found. Skipping iteration...");
+                sleep(Duration::from_secs(30)).await;
+                continue;
+            }
+            
             // Generate AI-enhanced decisions
             if self.model_mode == "single" {
                 self.run_single_model_analysis().await?;
@@ -360,15 +375,29 @@ impl InteractiveSetup {
     async fn run_single_model_analysis(&self) -> Result<()> {
         println!("🧠 Running AI analysis with model: {}", self.selected_model);
         
-        // Use the AI decisions command
-        let mut cmd = Command::new("./target/release/trading_bot.exe");
-        cmd.arg("--ai-decisions");
-        cmd.arg("--model");
-        cmd.arg(&self.selected_model);
+        // Use the JSON streaming API server to communicate with Ollama
+        let client = reqwest::Client::new();
         
-        let output = cmd.output()?;
-        if output.status.success() {
+        // Send portfolio analysis request to the API server
+        let response = client
+            .post("http://localhost:8082/api/ollama/process")
+            .json(&serde_json::json!({
+                "file_path": "trading_portfolio/trading_portfolio.json",
+                "model": self.selected_model,
+                "prompt": "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication. Generate specific trading recommendations with buy/sell actions, quantities, and prices."
+            }))
+            .send()
+            .await?;
+        
+        if response.status().is_success() {
+            let result: Value = response.json().await?;
+            
+            // Save the AI analysis result to the expected file
+            let ai_analysis_file = "trading_portfolio/ai_analysis_report.json";
+            tokio::fs::write(ai_analysis_file, serde_json::to_string_pretty(&result)?).await?;
+            
             println!("✅ AI analysis completed successfully");
+            println!("📊 Analysis saved to: {}", ai_analysis_file);
         } else {
             println!("⚠️ AI analysis completed with warnings");
         }
@@ -385,15 +414,22 @@ impl InteractiveSetup {
         let response = client
             .post("http://localhost:8082/api/ollama/conversation")
             .json(&serde_json::json!({
-                "file_path": "trading_portfolio/portfolio_analysis.json",
-                "initial_prompt": "",
+                "file_path": "trading_portfolio/trading_portfolio.json",
+                "initial_prompt": "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication. Generate specific trading recommendations with buy/sell actions, quantities, and prices.",
                 "models": self.models
             }))
             .send()
             .await?;
         
         if response.status().is_success() {
+            let result: Value = response.json().await?;
+            
+            // Save the AI analysis result to the expected file
+            let ai_analysis_file = "trading_portfolio/ai_analysis_report.json";
+            tokio::fs::write(ai_analysis_file, serde_json::to_string_pretty(&result)?).await?;
+            
             println!("✅ Multi-model analysis completed successfully");
+            println!("📊 Analysis saved to: {}", ai_analysis_file);
         } else {
             println!("⚠️ Multi-model analysis completed with warnings");
         }
@@ -405,17 +441,110 @@ impl InteractiveSetup {
     async fn execute_trades(&self) -> Result<()> {
         println!("🎯 Executing trades based on AI recommendations");
         
-        // Use test orders for safety (can be changed to real orders later)
-        let mut cmd = Command::new("./target/release/trading_bot.exe");
-        cmd.arg("--test-orders");
+        // Check if we have AI analysis results
+        let ai_analysis_file = "trading_portfolio/ai_analysis_report.json";
+        if !std::path::Path::new(ai_analysis_file).exists() {
+            println!("⚠️ No AI analysis found. Skipping trade execution.");
+            return Ok(());
+        }
+
+        // Read AI analysis results
+        let content = tokio::fs::read_to_string(ai_analysis_file).await?;
+        let analysis: Value = serde_json::from_str(&content)?;
         
-        let output = cmd.output()?;
-        if output.status.success() {
-            println!("✅ Trade execution analysis completed");
-        } else {
-            println!("⚠️ Trade execution analysis completed with warnings");
+        // Extract trading recommendations from AI enhanced decisions
+        if let Some(decisions) = analysis["ai_enhanced_decisions"].as_array() {
+            for decision in decisions {
+                if let Some(symbol) = decision["symbol"].as_str() {
+                    if let Some(action_obj) = decision["action"].as_object() {
+                        // Extract action type
+                        let action_type = if let Some(action_str) = action_obj["variant"].as_str() {
+                            match action_str {
+                                "OpenLong" => "buy",
+                                "OpenShort" => "sell",
+                                "CloseLong" => "sell",
+                                "CloseShort" => "buy",
+                                _ => "hold"
+                            }
+                        } else {
+                            "hold"
+                        };
+                        
+                        if action_type != "hold" {
+                            if let Some(position_size) = decision["position_size"].as_f64() {
+                                if let Some(current_price) = decision["current_price"].as_f64() {
+                                    // Calculate quantity based on position size and current price
+                                    let quantity = (position_size.abs() / current_price) as i32;
+                                    
+                                    // Execute the trade
+                                    self.execute_single_trade(symbol, action_type, quantity, current_price).await?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         
+        println!("✅ Trade execution completed");
+        Ok(())
+    }
+
+    /// Execute a single trade using Alpaca API
+    async fn execute_single_trade(&self, symbol: &str, action: &str, quantity: i32, price: f64) -> Result<()> {
+        println!("📈 Executing {} order: {} {} shares of {} at ${:.2}", 
+                 action, quantity, symbol, symbol, price);
+        
+        // Skip execution in paper trading mode for safety
+        if self.trading_mode == "paper" {
+            println!("📝 Paper trading mode - Simulating order execution");
+            return Ok(());
+        }
+
+        // For live trading, execute real orders
+        let client = reqwest::Client::new();
+        let api_key = std::env::var("ALPACA_API_KEY").unwrap_or_default();
+        let secret_key = std::env::var("ALPACA_SECRET_KEY").unwrap_or_default();
+        
+        if api_key.is_empty() || secret_key.is_empty() {
+            println!("⚠️ Alpaca API keys not configured. Simulating order execution.");
+            return Ok(());
+        }
+
+        let base_url = if self.trading_mode == "live" {
+            "https://api.alpaca.markets"
+        } else {
+            "https://paper-api.alpaca.markets"
+        };
+
+        // Create order request according to Alpaca API documentation
+        let order_request = serde_json::json!({
+            "symbol": symbol,
+            "qty": quantity.abs(),
+            "side": if action.to_lowercase().contains("buy") { "buy" } else { "sell" },
+            "type": "limit",
+            "time_in_force": "day",
+            "limit_price": price
+        });
+
+        let response = client
+            .post(&format!("{}/v2/orders", base_url))
+            .header("APCA-API-KEY-ID", &api_key)
+            .header("APCA-API-SECRET-KEY", &secret_key)
+            .header("Content-Type", "application/json")
+            .json(&order_request)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let order_response: Value = response.json().await?;
+            let order_id = order_response["id"].as_str().unwrap_or("unknown");
+            println!("✅ Order executed successfully! Order ID: {}", order_id);
+        } else {
+            let error_text = response.text().await?;
+            println!("❌ Order execution failed: {}", error_text);
+        }
+
         Ok(())
     }
 
@@ -441,5 +570,98 @@ impl InteractiveSetup {
         }
         
         Ok(())
+    }
+
+    /// Check if the market is currently open (for live trading)
+    async fn is_market_open(&self) -> Result<bool> {
+        if self.trading_mode == "paper" {
+            return Ok(true); // Paper trading can run anytime
+        }
+
+        // For live trading, check Alpaca market hours
+        let client = reqwest::Client::new();
+        let api_key = std::env::var("ALPACA_API_KEY").unwrap_or_default();
+        let secret_key = std::env::var("ALPACA_SECRET_KEY").unwrap_or_default();
+        
+        if api_key.is_empty() || secret_key.is_empty() {
+            println!("⚠️ Alpaca API keys not configured. Assuming market is open for testing.");
+            return Ok(true);
+        }
+
+        // Check market clock using Alpaca API
+        let base_url = if self.trading_mode == "live" {
+            "https://api.alpaca.markets"
+        } else {
+            "https://paper-api.alpaca.markets"
+        };
+
+        let response = client
+            .get(&format!("{}/v2/clock", base_url))
+            .header("APCA-API-KEY-ID", &api_key)
+            .header("APCA-API-SECRET-KEY", &secret_key)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let clock_data: Value = response.json().await?;
+            let is_open = clock_data["is_open"].as_bool().unwrap_or(false);
+            let next_open = clock_data["next_open"].as_str().unwrap_or("");
+            let next_close = clock_data["next_close"].as_str().unwrap_or("");
+            
+            if is_open {
+                println!("✅ Market is OPEN - Trading allowed");
+            } else {
+                println!("⏰ Market is CLOSED");
+                println!("   Next open: {}", next_open);
+                println!("   Next close: {}", next_close);
+            }
+            
+            Ok(is_open)
+        } else {
+            println!("⚠️ Could not check market status. Assuming market is open.");
+            Ok(true)
+        }
+    }
+
+    /// Scan for tradeable assets from the asset universe
+    async fn scan_tradeable_assets(&self) -> Result<Vec<String>> {
+        println!("🔍 Scanning for tradeable assets...");
+        
+        // Load asset universe
+        let asset_universe_file = "trading_portfolio/asset_universe.json";
+        if !std::path::Path::new(asset_universe_file).exists() {
+            println!("⚠️ Asset universe file not found. Creating sample assets...");
+            return Ok(vec!["AAPL".to_string(), "SPY".to_string(), "TSLA".to_string()]);
+        }
+
+        let content = tokio::fs::read_to_string(asset_universe_file).await?;
+        let data: Value = serde_json::from_str(&content)?;
+        
+        let mut tradeable_assets = Vec::new();
+        if let Some(assets) = data["assets"].as_array() {
+            for asset in assets {
+                if let Some(symbol) = asset["symbol"].as_str() {
+                    if let Some(tradeable) = asset["tradeable"].as_bool() {
+                        if tradeable {
+                            tradeable_assets.push(symbol.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        if tradeable_assets.is_empty() {
+            // Fallback to common tradeable assets
+            tradeable_assets = vec![
+                "AAPL".to_string(),
+                "SPY".to_string(), 
+                "TSLA".to_string(),
+                "MSFT".to_string(),
+                "GOOGL".to_string()
+            ];
+        }
+
+        println!("✅ Found {} tradeable assets: {:?}", tradeable_assets.len(), tradeable_assets);
+        Ok(tradeable_assets)
     }
 }
