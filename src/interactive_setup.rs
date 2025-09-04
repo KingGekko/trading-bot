@@ -650,6 +650,7 @@ impl InteractiveSetup {
                     // Use original response for symbol extraction to preserve case
                     let cap_original = regex.captures_iter(response).next();
                     let cap_to_use = cap_original.as_ref().unwrap_or(&cap);
+                    println!("🔍 Processing buy capture with {} groups", cap_to_use.len());
                     let (quantity, symbol, price) = if cap_to_use.len() == 4 {
                         // Pattern: "buy 100 shares of AAPL at $150.62"
                         if let (Some(quantity_str), Some(symbol), Some(price_str)) = (cap_to_use.get(1), cap_to_use.get(2), cap_to_use.get(3)) {
@@ -667,15 +668,19 @@ impl InteractiveSetup {
                         }
                     } else if cap_to_use.len() == 3 {
                         // Pattern: "buy 100 shares of AAPL" or "buy AAPL at $150.62" or "buy AAPL:" or "1. buy AAPL:"
+                        println!("🔍 Processing 3-group buy pattern");
                         if let (Some(first), Some(second)) = (cap_to_use.get(1), cap_to_use.get(2)) {
                             if first.as_str().chars().all(|c| c.is_ascii_digit()) {
                                 // Pattern: "buy 100 shares of AAPL" or "1. buy AAPL:"
+                                println!("🔍 First group is numeric: '{}'", first.as_str());
                                 if first.as_str().len() <= 2 && first.as_str().parse::<i32>().is_ok() {
                                     // Pattern: "1. buy AAPL:" (numbered list)
+                                    println!("🔍 Detected numbered list pattern: '{}'", first.as_str());
                                     let price = self.extract_price_for_symbol(response, second.as_str()).unwrap_or(150.0);
                                     (100, second.as_str(), price) // Default quantity
                                 } else {
                                     // Pattern: "buy 100 shares of AAPL"
+                                    println!("🔍 Detected quantity pattern: '{}'", first.as_str());
                                     if let Ok(quantity) = first.as_str().parse::<i32>() {
                                         let price = self.extract_price_for_symbol(response, second.as_str()).unwrap_or(150.0);
                                         (quantity, second.as_str(), price)
@@ -685,6 +690,7 @@ impl InteractiveSetup {
                                 }
                             } else {
                                 // Pattern: "buy AAPL at $150.62" or "buy AAPL:"
+                                println!("🔍 Detected symbol-only pattern: '{}'", first.as_str());
                                 let price = self.extract_price_for_symbol(response, first.as_str()).unwrap_or(150.0);
                                 (100, first.as_str(), price) // Default quantity
                             }
@@ -695,6 +701,7 @@ impl InteractiveSetup {
                         continue;
                     };
                     
+                    println!("🔍 Adding buy recommendation: {} {} shares at ${}", symbol.to_uppercase(), quantity, price);
                     recommendations.push(AIRecommendation {
                         symbol: symbol.to_uppercase(),
                         action: "buy".to_string(),
@@ -726,6 +733,7 @@ impl InteractiveSetup {
                     // Use original response for symbol extraction to preserve case
                     let cap_original = regex.captures_iter(response).next();
                     let cap_to_use = cap_original.as_ref().unwrap_or(&cap);
+                    println!("🔍 Processing sell capture with {} groups", cap_to_use.len());
                     let (quantity, symbol, price) = if cap_to_use.len() == 2 && pattern.contains("sell all shares") {
                         // Pattern: "sell all shares of TSLA"
                         if let Some(symbol) = cap_to_use.get(1) {
@@ -779,6 +787,7 @@ impl InteractiveSetup {
                         continue;
                     };
                     
+                    println!("🔍 Adding sell recommendation: {} {} shares at ${}", symbol.to_uppercase(), quantity, price);
                     recommendations.push(AIRecommendation {
                         symbol: symbol.to_uppercase(),
                         action: "sell".to_string(),
@@ -1027,18 +1036,16 @@ impl InteractiveSetup {
             "symbol": symbol,
             "qty": quantity.abs(),
             "side": if action.to_lowercase().contains("buy") { "buy" } else { "sell" },
-            "type": "limit",
-            "time_in_force": "day",
-            "limit_price": price
+            "type": "market",
+            "time_in_force": "day"
         });
 
         println!("📤 Sending order to Alpaca:");
         println!("   Symbol: {}", symbol);
         println!("   Quantity: {} shares", quantity.abs());
         println!("   Side: {}", if action.to_lowercase().contains("buy") { "buy" } else { "sell" });
-        println!("   Type: limit");
-        println!("   Limit Price: ${:.2}", price);
-        println!("   Total Value: ${:.2}", quantity.abs() as f64 * price);
+        println!("   Type: market");
+        println!("   Estimated Value: ${:.2}", quantity.abs() as f64 * price);
 
         let response = client
             .post(&format!("{}/v2/orders", base_url))
