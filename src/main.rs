@@ -1615,12 +1615,21 @@ async fn main() -> Result<()> {
         println!("Model: {}", config.ollama_model);
         println!("Processing mathematical analysis + AI insights...");
         
-        // Generate AI-enhanced decisions
+        // Load enhanced strategy data for AI analysis
+        let enhanced_strategy_file = format!("{}/enhanced_strategy_recommendations.json", data_dir);
+        let enhanced_strategy_data = if std::path::Path::new(&enhanced_strategy_file).exists() {
+            let content = tokio::fs::read_to_string(&enhanced_strategy_file).await?;
+            serde_json::from_str::<Value>(&content)?
+        } else {
+            portfolio_data.clone()
+        };
+
+        // Generate AI-enhanced decisions using enhanced strategy data
         let ai_decisions = ai_decision_engine.generate_ai_enhanced_decisions(
             &market_data,
             &account_data,
             &[], // No current positions for demo
-            &portfolio_data,
+            &enhanced_strategy_data,
         ).await?;
         
         println!("\n🎯 AI-ENHANCED TRADING DECISIONS:");
@@ -1651,13 +1660,13 @@ async fn main() -> Result<()> {
             }
         }
         
-        // Generate comprehensive AI analysis report
+        // Generate comprehensive AI analysis report using enhanced strategy data
         println!("\n📊 GENERATING COMPREHENSIVE AI ANALYSIS REPORT...");
         let ai_report = ai_decision_engine.generate_ai_analysis_report(
             &market_data,
             &account_data,
             &[], // No current positions for demo
-            &portfolio_data,
+            &enhanced_strategy_data,
         ).await?;
         
         // Save AI analysis report

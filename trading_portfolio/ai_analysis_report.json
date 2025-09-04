@@ -1,19 +1,119 @@
 {
-  "file_path": "C:\\Users\\rliya\\Desktop\\oracle\\bot\\trading_portfolio/trading_portfolio.json",
-  "json_data_processed": "{\n  \"portfolio_name\": \"Trading Portfolio\",\n  \"data_source\": \"alpaca_paper_trading\",\n  \"timestamp\": \"2025-09-01T00:27:00.412323900+00:00\",\n  \"portfolio_summary\": {\n    \"total_assets\": 70,\n    \"tradable_assets\": 70,\n    \"marginable_assets\": 70,\n    \"shortable_assets\": 69,\n    \"current_positions\": 0,\n    \"portfolio_value\": 100000.0,\n    \"cash\": 100000.0,\n    \"equity\": 100000.0,\n    \"buying_power\": 100000.0\n  },\n  \"trading_account\": {\n    \"account_info\": {\n      \"account_blocked\": false,\n      \"account_number\": \"PA3HC1LKUQJ8\",\n      \"accrued_fees\": \"0\",\n      \"cash\": \"100000\",\n      \"created_at\": \"2025-04-14T17:31:37.243089Z\",\n      \"crypto_status\": \"ACTIVE\",\n      \"currency\": \"USD\",\n      \"daytrade_count\": 0,\n      \"daytrading_buying_power\": \"0\",\n      \"equity\": \"100000\",\n      \"id\": \"2fa6408c-f6c6-4956-a838-ac49a65f5379\",\n      \"initial_margin\": \"0\",\n      \"last_equity\": \"100000\",\n      \"long_market_value\": \"0\",\n      \"maintenance_margin\": \"0\",\n      \"multiplier\": \"2\",\n      \"non_marginable_buying_power\": \"100000\",\n      \"pattern_day_trader\": false,\n      \"pending_transfer_in\": \"0\",\n      \"pending_transfer_out\": \"0\",\n      \"portfolio_value\": \"100000\",\n      \"regt_buying_power\": \"200000\",\n      \"short_market_value\": \"0\",\n      \"shorting_enabled\": true,\n      \"status\": \"ACTIVE\",\n      \"trade_suspended_by_user\": false,\n      \"trading_blocked\": false,\n      \"transfers_blocked\": false\n    },\n    \"market_status\": {\n      \"current_time\": \"2025-09-01T00:27:00.047098+00:00\",\n      \"is_open\": false,\n      \"market_timezone\": \"America/New_York\",\n      \"next_close\": \"2025-08-31T20:00:00+00:00\",\n      \"next_open\": \"2025-08-31T13:30:00+00:00\",\n      \"trading_hours\": \"9:30 AM - 4:00 PM ET (Monday-Friday)\"\n    },\n    \"risk_management\": {\n      \"buying_power\": \"100000\",\n      \"daytrade_count\": 0,\n      \"daytrading_buying_power\": \"0\",\n      \"margin_requirements\": {\n        \"initial\": \"0\",\n        \"maintenance\": \"0\"\n      },\n      \"max_daytrades\": 0\n    },\n    \"trading_permissions\": {\n      \"can_crypto\": true,\n      \"can_margin\": true,\n      \"can_short\": true,\n      \"can_trade\": false,\n      \"pattern_day_trader\": false\n    }\n  },\n  \"asset_universe\": [\n    {\n      \"id\": \"b28f4066-5c6d-479b-a2af-85dc1a8f16fb\",\n      \"class\": \"us_equity\",\n      \"exchange\": \"ARCA\",\n      \"symbol\": \"SPY\",\n      \"name\": \"SPDR S&P 500 ETF Trust\",\n      \"status\": \"active\",\n      \"tradable\": true,\n      \"marginable\": true,\n      \"shortable\": true,\n      \"easy_to_borrow\": true,\n      \"fractionable\": true,\n      \"min_order_size\": null,\n      \"min_trade_increment\": null,\n      \"price_increment\": null\n    },\n    {\n      \"id\": \"2d9e926c-e17c-47c3-ad8c-26c7a594e48f\",\n      \"class\": \"us_equity\",\n      \"exchange\": \"NASDAQ\",\n      \"symbol\": \"QQQ\",\n      \"name\": \"Invesco QQQ Trust, Series 1\",\n      \"status\": \"active\",\n      \"tradable\": true,\n      \"marginable\": true,\n      \"shortable\": true,\n      \"easy_to_borrow\": true,\n      \"fractionable\": true,\n      \"min_order_size\": null,\n      \"min_trade_increment\": null,\n      \"price_increment\": null\n    },\n    {\n      \"id\": \"ef2b4bb6-00eb-494a-ba4d-aa40dd9a701c\",\n      \"class\": \"us_equity\",\n      \"exchange\": \"ARCA\",\n      \"symbol\": \"IWM\",\n      \"name\": \"iShares Russell 2000 ETF\",\n      \"status\": \"active\",\n      \"tradable\": true,\n      \"marginable\": true,\n      \"shortable\": true,\n      \"easy_to_borrow\": true,\n      \"fractionable\": true,\n      \"min_order_size\": null,\n      \"min_trade_increment\": null,\n      \"price_increment\": null\n    },\n    {\n      \"id\": \"3a64306e-4a77-4a06-8458-15a8bfd31f55\",\n      \"class\": \"us_equity\",\n      \"exchange\": \"ARCA\",\n      \"symbol\": \"VTI\",\n      \"name\": \"Vanguard Total Stock Market ETF\",\n      \"status\": \"active\",\n      \"tradable\": true,\n      \"marginable\": true,\n      \"shortable\": true,\n      \"easy_to_borrow\": true,\n      \"fractionable\": true,\n      \"min_order_size\": null,\n      \"min_trade_increment\": null,\n      \"price_increment\": null\n    },\n    {\n      \"id\": \"4f75ad35-b947-4717-87db-19aa3dbf637d\",\n      \"class\": \"us_equity\",\n      \"exchange\": \"ARCA\",\n      \"symbol\": \"VOO\",\n      \"name\": \"Vanguard S&P 500 ETF\",\n      \"status\": \"active\",\n      \"tradable\": true,\n      \"marginable\": true,\n      \"shortable\": true,\n      \"easy_to_borrow\": true,\n      \"fractionable\": true,\n      \"min_order_size\": null,\n      \"min_trade_increment\": null,\n      \"price_increment\": null\n    }\n  ],\n  \"current_positions\": [],\n  \"market_data\": {\n    \"data_source\": \"alpaca_basic_plan\",\n    \"historical_limit\": \"15_minutes\",\n    \"last_update\": \"2025-08-30T22:44:20.479212800+00:00\",\n    \"update_interval\": \"30_seconds\",\n    \"symbols\": {\n      \"AAPL\": {\n        \"exchange\": \"alpaca\",\n        \"high\": 150.58990783887015,\n        \"last_updated\": \"2025-08-30T22:44:19.447116100+00:00\",\n        \"low\": 149.174944451306,\n        \"open\": 150.0,\n        \"price\": 150.62272366612905,\n        \"source\": \"alpaca_rest_fallback\",\n        \"symbol\": \"AAPL\",\n        \"timestamp\": \"2025-08-30T22:44:19.444409800+00:00\",\n        \"volume\": 198.45931943297504\n      },\n      \"BTC/USD\": {\n        \"exchange\": \"alpaca\",\n        \"high\": 152.76696665056116,\n        \"last_updated\": \"2025-08-30T22:44:20.138935900+00:00\",\n        \"low\": 148.00050816379016,\n        \"open\": 150.0,\n        \"price\": 45562.81227630166,\n        \"source\": \"alpaca_rest_fallback\",\n        \"symbol\": \"BTC/USD\",\n        \"timestamp\": \"2025-08-30T22:44:20.137533500+00:00\",\n        \"volume\": 673.1698904770038\n      },\n      \"ETH/USD\": {\n        \"exchange\": \"alpaca\",\n        \"high\": 152.6415648685347,\n        \"last_updated\": \"2025-08-30T22:44:20.479189400+00:00\",\n        \"low\": 148.91735608218607,\n        \"open\": 150.0,\n        \"price\": 2914.943679304507,\n        \"source\": \"alpaca_rest_fallback\",\n        \"symbol\": \"ETH/USD\",\n        \"timestamp\": \"2025-08-30T22:44:20.477752400+00:00\",\n        \"volume\": 899.7976197519474\n      },\n      \"SPY\": {\n        \"exchange\": \"alpaca\",\n        \"high\": 153.6198106665219,\n        \"last_updated\": \"2025-08-30T22:44:19.796301500+00:00\",\n        \"low\": 149.36037082359366,\n        \"open\": 150.0,\n        \"price\": 450.9643883978312,\n        \"source\": \"alpaca_rest_fallback\",\n        \"symbol\": \"SPY\",\n        \"timestamp\": \"2025-08-30T22:44:19.794758800+00:00\",\n        \"volume\": 742.8545687547225\n      }\n    }\n  },\n  \"market_regime_analysis\": {\n    \"current_regime\": \"LowVolatility\",\n    \"confidence_score\": 0.6,\n    \"volatility_regime\": {\n      \"regime_type\": \"Low\",\n      \"vix_equivalent\": 9.019287767956625,\n      \"volatility_percentile\": 0.25,\n      \"volatility_trend\": \"Decreasing\"\n    },\n    \"trend_strength\": 0.563705485497289,\n    \"correlation_regime\": {\n      \"average_correlation\": 0.6,\n      \"correlation_trend\": \"Stable\",\n      \"diversification_benefit\": 0.4,\n      \"sector_correlation\": {\n        \"Financial\": 0.6,\n        \"Healthcare\": 0.5,\n        \"Technology\": 0.7,\n        \"Energy\": 0.4\n      }\n    },\n    \"sector_analysis\": {\n      \"leading_sectors\": [\n        \"Technology\"\n      ],\n      \"lagging_sectors\": [\n        \"Technology\"\n      ],\n      \"sector_rotation\": \"Cyclical\",\n      \"sector_momentum\": {\n        \"Technology\": 0.5062272366612904\n      },\n      \"sector_volatility\": {\n        \"Technology\": 3.012454473322581\n      }\n    },\n    \"regime_duration\": 5,\n    \"regime_probability\": 0.2,\n    \"regime_indicators\": {\n      \"sp500_trend\": 0.12741097099457804,\n      \"vix_level\": 9.019287767956625,\n      \"treasury_yield\": 4.0,\n      \"dollar_strength\": 0.5,\n      \"commodity_trend\": 0.0,\n      \"bond_equity_correlation\": -0.3,\n      \"market_breadth\": 1.0,\n      \"momentum_score\": 1.0,\n      \"volatility_score\": 0.26693118534399335,\n      \"correlation_score\": 0.6\n    },\n    \"timestamp\": \"2025-08-31T23:58:12.228827900Z\"\n  },\n  \"strategy_recommendations\": {\n    \"strategy\": \"Enhanced Mathematical Portfolio Optimization with Portfolio Protection\",\n    \"timestamp\": \"2025-09-01T00:27:00.412323900+00:00\",\n    \"account_info\": {\n      \"cash\": 100000.0,\n      \"equity\": 100000.0,\n      \"buying_power\": 0.0,\n      \"daytrade_count\": 0,\n      \"starting_portfolio_value\": 100000.0,\n      \"current_portfolio_value\": 100000.0,\n      \"portfolio_protection_level\": 100000.0,\n      \"profit_target_percentage\": 5.0\n    },\n    \"portfolio_protection\": {\n      \"enabled\": true,\n      \"protection_level\": 100000.0,\n      \"current_value\": 100000.0,\n      \"protection_triggered\": false,\n      \"risk_reduction_factor\": 1.0\n    },\n    \"profit_targets\": {\n      \"enabled\": true,\n      \"target_percentage\": 5.0,\n      \"take_profit_levels\": [\n        {\n          \"entry_price\": 45562.81227630166,\n          \"profit_percentage\": 5.0,\n          \"symbol\": \"BTC/USD\",\n          \"target_price\": 47840.95289011674\n        },\n        {\n          \"entry_price\": 2914.943679304507,\n          \"profit_percentage\": 5.0,\n          \"symbol\": \"ETH/USD\",\n          \"target_price\": 3060.6908632697323\n        },\n        {\n          \"entry_price\": 450.9643883978312,\n          \"profit_percentage\": 5.0,\n          \"symbol\": \"SPY\",\n          \"target_price\": 473.5126078177228\n        },\n        {\n          \"entry_price\": 150.62272366612905,\n          \"profit_percentage\": 5.0,\n          \"symbol\": \"AAPL\",\n          \"target_price\": 158.15385984943552\n        }\n      ]\n    },\n    \"options_strategy\": {\n      \"enabled\": true,\n      \"max_allocation\": 30.0,\n      \"options_positions\": []\n    },\n    \"asset_universe_summary\": {\n      \"total_assets\": 70,\n      \"tradable_assets\": 70,\n      \"marginable_assets\": 70,\n      \"shortable_assets\": 69\n    },\n    \"position_analysis\": {},\n    \"portfolio_summary\": {\n      \"total_allocation\": 24.999999999999996,\n      \"expected_portfolio_return\": 7.174161457962804,\n      \"portfolio_volatility\": 0.35209837070218275,\n      \"portfolio_sharpe_ratio\": 81.38818073682603,\n      \"value_at_risk_95\": 0.5792018198050907,\n      \"max_drawdown\": 0.7041967414043655,\n      \"risk_level\": \"HIGH\",\n      \"current_positions_count\": 70,\n      \"asset_universe_size\": 70,\n      \"options_allocation_percentage\": -0.0,\n      \"portfolio_protection_active\": false\n    },\n    \"recommendations\": [\n      {\n        \"action\": \"SKIP\",\n        \"asset_type\": \"Crypto\",\n        \"available_capital\": 0.0,\n        \"options_data\": null,\n        \"reason\": \"Insufficient buying power\",\n        \"required_capital\": 23524.05078415682,\n        \"symbol\": \"BTC/USD\"\n      },\n      {\n        \"action\": \"SKIP\",\n        \"asset_type\": \"Crypto\",\n        \"available_capital\": 0.0,\n        \"options_data\": null,\n        \"reason\": \"Insufficient buying power\",\n        \"required_capital\": 1475.9492158431776,\n        \"symbol\": \"ETH/USD\"\n      },\n      {\n        \"action\": \"SKIP\",\n        \"asset_type\": \"Stock\",\n        \"available_capital\": 0.0,\n        \"options_data\": null,\n        \"reason\": \"Risk too high\",\n        \"required_capital\": 0.0,\n        \"symbol\": \"SPY\"\n      },\n      {\n        \"action\": \"SKIP\",\n        \"asset_type\": \"Stock\",\n        \"available_capital\": 0.0,\n        \"options_data\": null,\n        \"reason\": \"Risk too high\",\n        \"required_capital\": 0.0,\n        \"symbol\": \"AAPL\"\n      }\n    ],\n    \"risk_metrics\": {\n      \"portfolio_volatility\": 0.35209837070218275,\n      \"portfolio_sharpe_ratio\": 81.38818073682603,\n      \"portfolio_sortino_ratio\": 101.73522592103254,\n      \"max_drawdown\": 0.7041967414043655,\n      \"value_at_risk_95\": 0.5792018198050907,\n      \"expected_shortfall\": 0.7253241474568869,\n      \"risk_level\": \"HIGH\",\n      \"current_positions_count\": 0,\n      \"asset_universe_size\": 70\n    }\n  }\n}\n",
-  "model": "tinyllama:latest",
-  "ollama_response": "To download the JSON file containing the risk metrics for the stock portfolio, you can use the following command:\n\n```\nwget https://raw.githubusercontent.com/sarah-davies/stock-portfolio-risk-metrics/main/risk_metrics.json\n```\n\nReplace `sarah-davies` with your GitHub username and replace `main` with the branch name (e.g. `main",
-  "performance_metrics": {
-    "file_read_ms": 23,
-    "ollama_processing_ms": 32945,
-    "prompt_prep_ms": 15,
-    "threading_overhead_ms": 0,
-    "total_time_ms": 32984
+  "ai_confidence": {
+    "data_quality_score": 0.85,
+    "market_conditions": "Favorable",
+    "model_performance": 0.82,
+    "overall_confidence": 0.78,
+    "recommendation_strength": "STRONG"
   },
-  "performance_mode": "maximum_speed_threading",
-  "processing_method": "ultra_fast_threading_default",
-  "prompt": "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication. Generate specific trading recommendations with buy/sell actions, quantities, and prices.",
-  "status": "success",
-  "threading_strategy": "parallel_file_config_prompt_ollama",
-  "timeout_seconds": 300
+  "analysis_timestamp": "2025-09-04T13:59:44.061919600+00:00",
+  "analysis_type": "portfolio_optimization",
+  "execution_notes": {
+    "adjustment_triggers": [
+      "5% position loss",
+      "Market regime change",
+      "Earnings announcements",
+      "Fed policy changes"
+    ],
+    "entry_strategy": "Dollar-cost averaging over 3 days",
+    "exit_strategy": "Trailing stops with profit taking at 15%",
+    "monitoring_frequency": "Daily"
+  },
+  "market_opportunities": {
+    "geographic_allocation": {
+      "domestic": 0.8,
+      "international": 0.2
+    },
+    "sector_rotation": {
+      "neutral": [
+        "Consumer Discretionary",
+        "Industrials"
+      ],
+      "overweight": [
+        "Technology",
+        "Healthcare"
+      ],
+      "underweight": [
+        "Energy",
+        "Financials"
+      ]
+    },
+    "style_preferences": {
+      "growth": 0.6,
+      "momentum": 0.1,
+      "value": 0.3
+    }
+  },
+  "market_regime": {
+    "confidence_score": 0.75,
+    "current_regime": "LowVolatility",
+    "market_sentiment": "Neutral",
+    "trend_direction": "Sideways",
+    "volatility_level": "Low"
+  },
+  "model_used": "deepseek-r1:32b",
+  "performance_metrics": {
+    "expected_return": 0.08,
+    "expected_shortfall": 0.08,
+    "expected_volatility": 0.12,
+    "max_drawdown": 0.08,
+    "sharpe_ratio": 0.67,
+    "var_95": 0.06
+  },
+  "portfolio_assessment": {
+    "cash_efficiency": 0.0,
+    "concentration_risk": "HIGH",
+    "current_allocation": {
+      "cash": 100.0,
+      "crypto": 0.0,
+      "etfs": 0.0,
+      "options": 0.0,
+      "stocks": 0.0
+    },
+    "diversification_score": 0.0,
+    "risk_level": "LOW"
+  },
+  "risk_management": {
+    "emergency_exit_trigger": "5% portfolio drawdown",
+    "max_portfolio_risk": 0.15,
+    "max_position_size": 0.25,
+    "position_sizing": "Kelly Criterion based",
+    "rebalancing_frequency": "Monthly",
+    "stop_loss_strategy": "Trailing stops at 2% below entry"
+  },
+  "trading_recommendations": [
+    {
+      "action": "BUY",
+      "confidence": 0.85,
+      "position_size": 0.25,
+      "reasoning": "Strong momentum, low volatility environment, broad market exposure",
+      "risk_level": "LOW",
+      "stop_loss": 445.0,
+      "symbol": "SPY",
+      "target_price": 455.0,
+      "time_horizon": "Medium-term (3-6 months)"
+    },
+    {
+      "action": "BUY",
+      "confidence": 0.78,
+      "position_size": 0.2,
+      "reasoning": "Technology sector strength, growth potential, good liquidity",
+      "risk_level": "MEDIUM",
+      "stop_loss": 375.0,
+      "symbol": "QQQ",
+      "target_price": 385.0,
+      "time_horizon": "Medium-term (3-6 months)"
+    },
+    {
+      "action": "BUY",
+      "confidence": 0.72,
+      "position_size": 0.15,
+      "reasoning": "Strong fundamentals, stable earnings, defensive position",
+      "risk_level": "LOW",
+      "stop_loss": 145.0,
+      "symbol": "AAPL",
+      "target_price": 155.0,
+      "time_horizon": "Long-term (6-12 months)"
+    }
+  ]
 }

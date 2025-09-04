@@ -3,9 +3,18 @@ use serde_json::Value;
 use std::io::{self, Write};
 use std::process::Command;
 use tokio::time::{sleep, Duration};
+use regex::Regex;
 
 use chrono;
 use crate::ollama::Config;
+
+#[derive(Debug)]
+struct AIRecommendation {
+    symbol: String,
+    action: String,
+    quantity: i32,
+    price: f64,
+}
 
 /// Interactive setup wizard for the trading bot
 pub struct InteractiveSetup {
@@ -616,6 +625,93 @@ impl InteractiveSetup {
         Ok(())
     }
 
+    /// Parse AI recommendations from natural language response
+    fn parse_ai_recommendations(&self, response: &str) -> Vec<AIRecommendation> {
+        let mut recommendations = Vec::new();
+        let response_lower = response.to_lowercase();
+        
+        // Parse buy recommendations
+        let buy_patterns = [
+            "buy (\\d+) shares of ([A-Z]+)",
+            "buy ([A-Z]+) at \\$([0-9.]+)",
+            "buy ([A-Z]+) shares",
+        ];
+        
+        for pattern in &buy_patterns {
+            if let Ok(regex) = regex::Regex::new(pattern) {
+                for cap in regex.captures_iter(&response_lower) {
+                    if let (Some(quantity_str), Some(symbol)) = (cap.get(1), cap.get(2)) {
+                        if let Ok(quantity) = quantity_str.as_str().parse::<i32>() {
+                            // Extract price from the response
+                            let price = self.extract_price_for_symbol(response, symbol.as_str()).unwrap_or(150.0);
+                            recommendations.push(AIRecommendation {
+                                symbol: symbol.as_str().to_uppercase(),
+                                action: "buy".to_string(),
+                                quantity,
+                                price,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Parse sell recommendations
+        let sell_patterns = [
+            "sell (\\d+) shares of ([A-Z]+)",
+            "sell ([A-Z]+) at \\$([0-9.]+)",
+            "sell ([A-Z]+) shares",
+        ];
+        
+        for pattern in &sell_patterns {
+            if let Ok(regex) = regex::Regex::new(pattern) {
+                for cap in regex.captures_iter(&response_lower) {
+                    if let (Some(quantity_str), Some(symbol)) = (cap.get(1), cap.get(2)) {
+                        if let Ok(quantity) = quantity_str.as_str().parse::<i32>() {
+                            let price = self.extract_price_for_symbol(response, symbol.as_str()).unwrap_or(150.0);
+                            recommendations.push(AIRecommendation {
+                                symbol: symbol.as_str().to_uppercase(),
+                                action: "sell".to_string(),
+                                quantity,
+                                price,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        recommendations
+    }
+
+    /// Extract price for a symbol from the AI response
+    fn extract_price_for_symbol(&self, response: &str, symbol: &str) -> Option<f64> {
+        let response_lower = response.to_lowercase();
+        let symbol_lower = symbol.to_lowercase();
+        
+        // Look for price patterns like "$150.62" near the symbol
+        let price_pattern = format!(r"\${}([0-9.]+)", symbol_lower);
+        if let Ok(regex) = regex::Regex::new(&price_pattern) {
+            if let Some(cap) = regex.captures(&response_lower) {
+                if let Some(price_str) = cap.get(1) {
+                    return price_str.as_str().parse::<f64>().ok();
+                }
+            }
+        }
+        
+        // Look for general price patterns near the symbol
+        let general_price_pattern = format!(r"{}\s*\$([0-9.]+)", symbol_lower);
+        if let Ok(regex) = regex::Regex::new(&general_price_pattern) {
+            if let Some(cap) = regex.captures(&response_lower) {
+                if let Some(price_str) = cap.get(1) {
+                    return price_str.as_str().parse::<f64>().ok();
+                }
+            }
+        }
+        
+        None
+    }
+
     /// Execute trades based on AI recommendations
     async fn execute_trades(&self) -> Result<()> {
         #[derive(Debug)]
@@ -640,38 +736,52 @@ impl InteractiveSetup {
         let content = tokio::fs::read_to_string(ai_analysis_file).await?;
         let analysis: Value = serde_json::from_str(&content)?;
         
-        // Extract trading recommendations from AI enhanced decisions
-        if let Some(decisions) = analysis["ai_enhanced_decisions"].as_array() {
-            for decision in decisions {
-                if let Some(symbol) = decision["symbol"].as_str() {
-                    if let Some(action_obj) = decision["action"].as_object() {
-                        // Extract action type
-                        let action_type = if let Some(action_str) = action_obj["variant"].as_str() {
-                            match action_str {
-                                "OpenLong" => "buy",
-                                "OpenShort" => "sell",
-                                "CloseLong" => "sell",
-                                "CloseShort" => "buy",
-                                _ => "hold"
-                            }
-                        } else {
-                            "hold"
-                        };
-                        
-                        if action_type != "hold" {
-                            if let Some(position_size) = decision["position_size"].as_f64() {
-                                if let Some(current_price) = decision["current_price"].as_f64() {
-                                    // Calculate quantity based on position size and current price
-                                    let quantity = (position_size.abs() / current_price) as i32;
-                                    
-                                    // Execute the trade
-                                    if self.execute_single_trade(symbol, action_type, quantity, current_price).await? {
-                                        executed_trades.push(ExecutedTrade {
-                                            symbol: symbol.to_string(),
-                                            action: action_type.to_string(),
-                                            quantity,
-                                            price: current_price,
-                                        });
+        // Extract trading recommendations from AI response
+        if let Some(ollama_response) = analysis["ollama_response"].as_str() {
+            // Parse AI recommendations from natural language
+            let recommendations = self.parse_ai_recommendations(ollama_response);
+            
+            for recommendation in recommendations {
+                if recommendation.action != "hold" && recommendation.action != "skip" {
+                    // Execute the trade
+                    if self.execute_single_trade(&recommendation.symbol, &recommendation.action, recommendation.quantity, recommendation.price).await? {
+                        executed_trades.push(ExecutedTrade {
+                            symbol: recommendation.symbol.clone(),
+                            action: recommendation.action.clone(),
+                            quantity: recommendation.quantity,
+                            price: recommendation.price,
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Also check for structured recommendations in strategy_recommendations
+        if let Some(strategy_data) = analysis["strategy_recommendations"].as_object() {
+            if let Some(recommendations) = strategy_data["recommendations"].as_array() {
+                for recommendation in recommendations {
+                    if let Some(symbol) = recommendation["symbol"].as_str() {
+                        if let Some(action) = recommendation["action"].as_str() {
+                            if action != "SKIP" && action != "HOLD" {
+                                // Get current price from market data
+                                if let Some(market_data) = analysis["market_data"]["symbols"].as_object() {
+                                    if let Some(symbol_data) = market_data.get(symbol) {
+                                        if let Some(price) = symbol_data["price"].as_f64() {
+                                            // Calculate quantity based on available capital
+                                            let available_capital = recommendation["available_capital"].as_f64().unwrap_or(10000.0);
+                                            let quantity = (available_capital * 0.1 / price) as i32; // Use 10% of available capital
+                                            
+                                            let action_type = if action == "BUY" { "buy" } else { "sell" };
+                                            
+                                            if self.execute_single_trade(symbol, action_type, quantity, price).await? {
+                                                executed_trades.push(ExecutedTrade {
+                                                    symbol: symbol.to_string(),
+                                                    action: action_type.to_string(),
+                                                    quantity,
+                                                    price,
+                                                });
+                                            }
+                                        }
                                     }
                                 }
                             }
