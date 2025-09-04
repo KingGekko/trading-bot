@@ -418,7 +418,8 @@ impl MarketRegimeDetector {
         
         // Determine leading and lagging sectors
         let mut sector_pairs: Vec<_> = sector_momentum.iter().collect();
-        sector_pairs.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+        sector_pairs.sort_by(|a, b| b.1.partial_cmp(a.1)
+            .unwrap_or(std::cmp::Ordering::Equal));
         
         let leading_sectors: Vec<String> = sector_pairs.iter().take(2).map(|(s, _)| (*s).clone()).collect();
         let lagging_sectors: Vec<String> = sector_pairs.iter().rev().take(2).map(|(s, _)| (*s).clone()).collect();

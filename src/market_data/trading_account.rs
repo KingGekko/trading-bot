@@ -93,8 +93,10 @@ impl TradingAccountManager {
         let current_time = ny_time.time();
         
         // Market hours: 9:30 AM - 4:00 PM ET (Monday-Friday)
-        let market_open = chrono::NaiveTime::from_hms_opt(9, 30, 0).unwrap();
-        let market_close = chrono::NaiveTime::from_hms_opt(16, 0, 0).unwrap();
+        let market_open = chrono::NaiveTime::from_hms_opt(9, 30, 0)
+            .ok_or_else(|| anyhow!("Invalid market open time"))?;
+        let market_close = chrono::NaiveTime::from_hms_opt(16, 0, 0)
+            .ok_or_else(|| anyhow!("Invalid market close time"))?;
         
         // Check if it's a weekday
         let is_weekday = ny_time.weekday().num_days_from_monday() < 5;
@@ -125,11 +127,13 @@ impl TradingAccountManager {
         let ny_date = ny_time.date_naive();
         let market_open_time = chrono::NaiveDateTime::new(
             ny_date,
-            chrono::NaiveTime::from_hms_opt(9, 30, 0).unwrap()
+            chrono::NaiveTime::from_hms_opt(9, 30, 0)
+                .ok_or_else(|| anyhow!("Invalid market open time"))?
         );
         let market_close_time = chrono::NaiveDateTime::new(
             ny_date,
-            chrono::NaiveTime::from_hms_opt(16, 0, 0).unwrap()
+            chrono::NaiveTime::from_hms_opt(16, 0, 0)
+                .ok_or_else(|| anyhow!("Invalid market close time"))?
         );
         
         // Convert to UTC

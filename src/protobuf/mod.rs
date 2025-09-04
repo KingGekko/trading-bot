@@ -130,6 +130,12 @@ impl ProtobufStorage {
         }
     }
 
+    /// Safely convert timestamp to DateTime
+    fn safe_timestamp_to_datetime(ts: &prost_types::Timestamp) -> DateTime<Utc> {
+        DateTime::from_timestamp(ts.seconds, ts.nanos as u32)
+            .unwrap_or_else(|| DateTime::from_timestamp(0, 0).unwrap())
+    }
+
     pub fn display_detailed_data(&self) -> Result<()> {
         let data = self.load_trading_data()?;
         
@@ -142,7 +148,7 @@ impl ProtobufStorage {
             println!("   • ID: {} | Provider: {} | Environment: {} | Active: {}", 
                 key.id, key.provider, key.environment, key.is_active);
             if let Some(ts) = &key.created_at {
-                let dt = DateTime::from_timestamp(ts.seconds, ts.nanos as u32).unwrap();
+                let dt = Self::safe_timestamp_to_datetime(ts);
                 println!("     Created: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
             }
         }
@@ -153,7 +159,7 @@ impl ProtobufStorage {
             println!("   • {} ({}) | Class: {} | Exchange: {} | Price: ${:.2} | Tradable: {}", 
                 asset.symbol, asset.name, asset.asset_class, asset.exchange, asset.last_price, asset.is_tradable);
             if let Some(ts) = &asset.created_at {
-                let dt = DateTime::from_timestamp(ts.seconds, ts.nanos as u32).unwrap();
+                let dt = Self::safe_timestamp_to_datetime(ts);
                 println!("     Created: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
             }
         }
@@ -164,7 +170,7 @@ impl ProtobufStorage {
             println!("   • {} {} {} shares @ ${:.2} | Total: ${:.2}", 
                 trade.side.to_uppercase(), trade.quantity, trade.asset_symbol, trade.price, trade.total_value);
             if let Some(ts) = &trade.trade_time {
-                let dt = DateTime::from_timestamp(ts.seconds, ts.nanos as u32).unwrap();
+                let dt = Self::safe_timestamp_to_datetime(ts);
                 println!("     Time: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
             }
         }
@@ -176,7 +182,7 @@ impl ProtobufStorage {
             println!("     Prompt: {}", receipt.prompt);
             println!("     Response: {}", receipt.response);
             if let Some(ts) = &receipt.created_at {
-                let dt = DateTime::from_timestamp(ts.seconds, ts.nanos as u32).unwrap();
+                let dt = Self::safe_timestamp_to_datetime(ts);
                 println!("     Created: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
             }
         }
@@ -187,7 +193,7 @@ impl ProtobufStorage {
             println!("   • Regime: {} | Confidence: {:.1}%", 
                 analysis.market_regime, analysis.confidence_level * 100.0);
             if let Some(ts) = &analysis.analysis_time {
-                let dt = DateTime::from_timestamp(ts.seconds, ts.nanos as u32).unwrap();
+                let dt = Self::safe_timestamp_to_datetime(ts);
                 println!("     Time: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
             }
         }
@@ -198,7 +204,7 @@ impl ProtobufStorage {
             println!("   • {} {} | Target: ${:.2} | Confidence: {:.1}%", 
                 rec.action.to_uppercase(), rec.asset_symbol, rec.target_price, rec.confidence_score * 100.0);
             if let Some(ts) = &rec.created_at {
-                let dt = DateTime::from_timestamp(ts.seconds, ts.nanos as u32).unwrap();
+                let dt = Self::safe_timestamp_to_datetime(ts);
                 println!("     Created: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
             }
         }
@@ -209,7 +215,7 @@ impl ProtobufStorage {
             println!("   • {} {} | Strength: {:.1}% | Triggered: {}", 
                 signal.signal_type.to_uppercase(), signal.asset_symbol, signal.strength * 100.0, signal.is_triggered);
             if let Some(ts) = &signal.created_at {
-                let dt = DateTime::from_timestamp(ts.seconds, ts.nanos as u32).unwrap();
+                let dt = Self::safe_timestamp_to_datetime(ts);
                 println!("     Created: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
             }
         }
@@ -220,7 +226,7 @@ impl ProtobufStorage {
             println!("   • Total Value: ${:.2} | Cash: ${:.2} | Portfolio: ${:.2}", 
                 snapshot.total_value, snapshot.cash_balance, snapshot.portfolio_value);
             if let Some(ts) = &snapshot.snapshot_time {
-                let dt = DateTime::from_timestamp(ts.seconds, ts.nanos as u32).unwrap();
+                let dt = Self::safe_timestamp_to_datetime(ts);
                 println!("     Time: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
             }
         }
@@ -229,7 +235,7 @@ impl ProtobufStorage {
         println!("\n📋 METADATA:");
         println!("   • Version: {}", data.version);
         if let Some(ts) = &data.last_updated {
-            let dt = DateTime::from_timestamp(ts.seconds, ts.nanos as u32).unwrap();
+            let dt = Self::safe_timestamp_to_datetime(ts);
             println!("   • Last Updated: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
         }
         

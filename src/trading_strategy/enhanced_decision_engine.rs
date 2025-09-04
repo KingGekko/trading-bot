@@ -97,8 +97,9 @@ impl EnhancedDecisionEngine {
         // Sort by confidence and expected return
         decisions.sort_by(|a, b| {
             b.confidence_score.partial_cmp(&a.confidence_score)
-                .unwrap()
-                .then(b.expected_return.partial_cmp(&a.expected_return).unwrap())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+        .then(b.expected_return.partial_cmp(&a.expected_return)
+            .unwrap_or(std::cmp::Ordering::Equal))
         });
 
         Ok(decisions)

@@ -174,7 +174,8 @@ Provide your response in a structured format with clear sections and specific ac
         }
 
         // Sort by combined confidence
-        ai_enhanced_decisions.sort_by(|a, b| b.combined_confidence.partial_cmp(&a.combined_confidence).unwrap());
+        ai_enhanced_decisions.sort_by(|a, b| b.combined_confidence.partial_cmp(&a.combined_confidence)
+            .unwrap_or(std::cmp::Ordering::Equal));
 
         Ok(ai_enhanced_decisions)
     }

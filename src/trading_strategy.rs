@@ -245,7 +245,8 @@ impl AdvancedTradingStrategy {
         }
         
         // Sort by Sharpe ratio
-        allocations.sort_by(|a, b| b.sharpe_ratio.partial_cmp(&a.sharpe_ratio).unwrap());
+        allocations.sort_by(|a, b| b.sharpe_ratio.partial_cmp(&a.sharpe_ratio)
+            .unwrap_or(std::cmp::Ordering::Equal));
         
         Ok(allocations)
     }

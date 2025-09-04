@@ -14,6 +14,8 @@ mod trading_strategy;
 mod protobuf;
 mod order_execution;
 mod interactive_setup;
+mod circuit_breaker;
+mod rate_limiter;
 
 use ollama::{OllamaClient, Config, OllamaReceipt};
 use api::start_api_server;
@@ -630,7 +632,8 @@ async fn main() -> Result<()> {
         println!("{}", "=".repeat(50));
         
         // Parse stream types
-        let stream_types_str = matches.get_one::<String>("stream-types").unwrap();
+        let stream_types_str = matches.get_one::<String>("stream-types")
+            .ok_or_else(|| anyhow!("Stream types not provided"))?;
         let stream_types: Vec<market_data::StreamType> = stream_types_str
             .split(',')
                             .filter_map(|s| {
@@ -1134,7 +1137,8 @@ async fn main() -> Result<()> {
         println!("   • Version: {}", loaded_data.version);
         
         if let Some(timestamp) = &loaded_data.last_updated {
-            let dt = DateTime::from_timestamp(timestamp.seconds, timestamp.nanos as u32).unwrap();
+            let dt = DateTime::from_timestamp(timestamp.seconds, timestamp.nanos as u32)
+                .ok_or_else(|| anyhow!("Invalid timestamp"))?;
             println!("   • Last Updated: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
         }
 

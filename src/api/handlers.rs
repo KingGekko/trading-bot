@@ -142,9 +142,14 @@ async fn handle_socket(
             "content": content
         });
         
-        if let Err(e) = sender.send(axum::extract::ws::Message::Text(
-            serde_json::to_string(&message).unwrap().into()
-        )).await {
+        let message_text = match serde_json::to_string(&message) {
+            Ok(text) => text,
+            Err(e) => {
+                log::error!("Failed to serialize initial message: {}", e);
+                return;
+            }
+        };
+        if let Err(e) = sender.send(axum::extract::ws::Message::Text(message_text.into())).await {
             log::error!("Failed to send initial content: {}", e);
             return;
         }
@@ -162,9 +167,14 @@ async fn handle_socket(
                     "timestamp": chrono::Utc::now().to_rfc3339()
                 });
                 
-                if let Err(e) = sender.send(axum::extract::ws::Message::Text(
-                    serde_json::to_string(&message).unwrap().into()
-                )).await {
+                let message_text = match serde_json::to_string(&message) {
+                    Ok(text) => text,
+                    Err(e) => {
+                        log::error!("Failed to serialize update message: {}", e);
+                        break;
+                    }
+                };
+                if let Err(e) = sender.send(axum::extract::ws::Message::Text(message_text.into())).await {
                     log::error!("Failed to send update: {}", e);
                     break;
                 }
@@ -185,9 +195,14 @@ async fn handle_socket(
                                 "timestamp": chrono::Utc::now().to_rfc3339()
                             });
                             
-                            if let Err(e) = sender.send(axum::extract::ws::Message::Text(
-                                serde_json::to_string(&pong).unwrap().into()
-                            )).await {
+                            let pong_text = match serde_json::to_string(&pong) {
+                                Ok(text) => text,
+                                Err(e) => {
+                                    log::error!("Failed to serialize pong message: {}", e);
+                                    break;
+                                }
+                            };
+                            if let Err(e) = sender.send(axum::extract::ws::Message::Text(pong_text.into())).await {
                                 log::error!("Failed to send pong: {}", e);
                                 break;
                             }
@@ -525,7 +540,13 @@ FOCUS ON ACTIONABLE TRADING DECISIONS.",
             // Process with Ollama using threaded streams with timeout
         let ollama_future = spawn_blocking(move || {
         // This runs in a separate thread to prevent blocking
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => {
+                log::error!("Failed to create runtime: {}", e);
+                return Err(anyhow::anyhow!("Runtime creation failed"));
+            }
+        };
         rt.block_on(async {
             // Use the optimized client for maximum performance
             ollama_client.generate_optimized(&model_clone, &enhanced_prompt).await
@@ -800,7 +821,13 @@ FOCUS ON ACTIONABLE TRADING DECISIONS, NOT GENERAL MARKET COMMENTARY."
     
     let ollama_future = spawn_blocking(move || {
         // This runs in a separate thread for the blocking Ollama call
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => {
+                log::error!("Failed to create runtime: {}", e);
+                return Err(anyhow::anyhow!("Runtime creation failed"));
+            }
+        };
         rt.block_on(async {
             ollama_client.generate_optimized(&model_clone, &enhanced_prompt).await
         })
@@ -987,7 +1014,13 @@ pub async fn multi_model_conversation(
             
             // Spawn model response generation in separate thread
             let future = spawn_blocking(move || {
-                let rt = tokio::runtime::Runtime::new().unwrap();
+                let rt = match tokio::runtime::Runtime::new() {
+                    Ok(rt) => rt,
+                    Err(e) => {
+                        log::error!("Failed to create runtime for model {}: {}", model_name, e);
+                        return Err(anyhow::anyhow!("Runtime creation failed"));
+                    }
+                };
                 rt.block_on(async {
                     // Create a new client instance for this thread
                     let client = OllamaClient::new(&config_ollama_base_url_clone, config_max_timeout_seconds_clone);
@@ -1057,7 +1090,13 @@ pub async fn multi_model_conversation(
     let payload_models_clone = payload_models.clone();
     
     let summary_future = spawn_blocking(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => {
+                log::error!("Failed to create runtime for summary: {}", e);
+                return Err(anyhow::anyhow!("Runtime creation failed"));
+            }
+        };
         rt.block_on(async {
             let client = OllamaClient::new(&config_ollama_base_url_clone, config_max_timeout_seconds_clone);
             client.generate_optimized(&payload_models_clone[0], &summary_prompt).await
