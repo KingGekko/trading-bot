@@ -630,14 +630,14 @@ impl InteractiveSetup {
         let mut recommendations = Vec::new();
         let response_lower = response.to_lowercase();
         
-        // Parse buy recommendations - Updated patterns to match AI response format
+        // Parse buy recommendations - Updated patterns to match AI response format (case insensitive)
         let buy_patterns = [
-            "buy (\\d+) shares of ([A-Z]+) at \\$([0-9.]+)",
-            "buy (\\d+) shares of ([A-Z]+)",
-            "buy ([A-Z]+) at \\$([0-9.]+)",
-            "buy ([A-Z]+) shares",
-            "buy ([A-Z]+):",
-            "\\d+\\. buy ([A-Z]+):",
+            "(?i)buy (\\d+) shares of ([A-Z]+) at \\$([0-9.]+)",
+            "(?i)buy (\\d+) shares of ([A-Z]+)",
+            "(?i)buy ([A-Z]+) at \\$([0-9.]+)",
+            "(?i)buy ([A-Z]+) shares",
+            "(?i)buy ([A-Z]+):",
+            "(?i)\\d+\\. buy ([A-Z]+):",
         ];
         
         for pattern in &buy_patterns {
@@ -698,15 +698,15 @@ impl InteractiveSetup {
             }
         }
         
-        // Parse sell recommendations - Updated patterns to match AI response format
+        // Parse sell recommendations - Updated patterns to match AI response format (case insensitive)
         let sell_patterns = [
-            "sell all shares of ([A-Z]+)",
-            "sell (\\d+) shares of ([A-Z]+) at \\$([0-9.]+)",
-            "sell (\\d+) shares of ([A-Z]+)",
-            "sell ([A-Z]+) at \\$([0-9.]+)",
-            "sell ([A-Z]+) shares",
-            "sell ([A-Z]+):",
-            "\\d+\\. sell ([A-Z]+):",
+            "(?i)sell all shares of ([A-Z]+)",
+            "(?i)sell (\\d+) shares of ([A-Z]+) at \\$([0-9.]+)",
+            "(?i)sell (\\d+) shares of ([A-Z]+)",
+            "(?i)sell ([A-Z]+) at \\$([0-9.]+)",
+            "(?i)sell ([A-Z]+) shares",
+            "(?i)sell ([A-Z]+):",
+            "(?i)\\d+\\. sell ([A-Z]+):",
         ];
         
         for pattern in &sell_patterns {
