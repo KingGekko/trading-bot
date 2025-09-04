@@ -99,7 +99,7 @@ ALPACA_BASE_URL=https://paper-api.alpaca.markets
 OLLAMA_BASE_URL=http://localhost:11434
 
 # Default AI model to use
-DEFAULT_AI_MODEL=tinyllama
+DEFAULT_AI_MODEL=llama2:7b
 
 # Maximum timeout for Ollama requests in seconds
 MAX_TIMEOUT_SECONDS=300
@@ -1856,18 +1856,36 @@ async fn load_account_data(data_dir: &str) -> Result<AccountData> {
 
     let account_info = &data["trading_account"]["account_info"];
     
-            let portfolio_value = account_info["portfolio_value"].as_str().unwrap_or("0").parse().unwrap_or(0.0);
-        let account_data = AccountData {
-            cash: account_info["cash"].as_str().unwrap_or("0").parse().unwrap_or(0.0),
-            equity: account_info["equity"].as_str().unwrap_or("0").parse().unwrap_or(0.0),
-            buying_power: account_info["buying_power"].as_str().unwrap_or("0").parse().unwrap_or(0.0),
-            portfolio_value,
-            daytrade_count: account_info["daytrade_count"].as_i64().unwrap_or(0) as i32,
-            pattern_day_trader: account_info["pattern_day_trader"].as_bool().unwrap_or(false),
-            shorting_enabled: account_info["shorting_enabled"].as_bool().unwrap_or(false),
-            margin_multiplier: account_info["multiplier"].as_str().unwrap_or("1").parse().unwrap_or(1.0),
-            starting_portfolio_value: portfolio_value, // Use current value as starting value for protection
-        };
+    // Fix: Parse values correctly handling both string and numeric formats
+    let parse_value = |key: &str, default: f64| -> f64 {
+        if let Some(value_str) = account_info[key].as_str() {
+            value_str.parse().unwrap_or(default)
+        } else if let Some(value_num) = account_info[key].as_f64() {
+            value_num
+        } else {
+            default
+        }
+    };
+    
+    let portfolio_value = parse_value("portfolio_value", 100000.0);
+    let cash = parse_value("cash", 100000.0);
+    let equity = parse_value("equity", 100000.0);
+    let buying_power = parse_value("buying_power", 100000.0);
+    
+    // Use the higher of cash or buying_power for available funds
+    let available_funds = cash.max(buying_power);
+    
+    let account_data = AccountData {
+        cash,
+        equity,
+        buying_power: available_funds, // Use corrected buying power
+        portfolio_value,
+        daytrade_count: account_info["daytrade_count"].as_i64().unwrap_or(0) as i32,
+        pattern_day_trader: account_info["pattern_day_trader"].as_bool().unwrap_or(false),
+        shorting_enabled: account_info["shorting_enabled"].as_bool().unwrap_or(false),
+        margin_multiplier: account_info["multiplier"].as_str().unwrap_or("1").parse().unwrap_or(1.0),
+        starting_portfolio_value: portfolio_value, // Use current value as starting value for protection
+    };
 
     Ok(account_data)
 }

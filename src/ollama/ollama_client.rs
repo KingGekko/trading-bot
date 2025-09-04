@@ -9,11 +9,11 @@ use tokio::sync::Semaphore;
 use crate::ollama::ollama_receipt::OllamaReceipt;
 
 // Connection pool configuration
-const MAX_CONCURRENT_REQUESTS: usize = 5;  // Reduced to prevent overload
-const CONNECTION_TIMEOUT: u64 = 30;  // Increased for better reliability
-const REQUEST_TIMEOUT: u64 = 300;  // Increased to match config timeout
-const KEEP_ALIVE_DURATION: u64 = 120;  // Increased for better connection reuse
-const MAX_IDLE_PER_HOST: usize = 10;  // Reduced to prevent memory issues
+const MAX_CONCURRENT_REQUESTS: usize = 3;  // Reduced to prevent overload
+const CONNECTION_TIMEOUT: u64 = 60;  // Increased for better reliability
+const REQUEST_TIMEOUT: u64 = 180;  // Reduced to prevent long timeouts
+const KEEP_ALIVE_DURATION: u64 = 60;  // Reduced for better connection management
+const MAX_IDLE_PER_HOST: usize = 5;  // Reduced to prevent memory issues
 
 #[derive(Debug, Serialize)]
 struct GenerateRequest {
@@ -108,10 +108,100 @@ impl OllamaClient {
 
     // High-performance generate with connection pooling and concurrency control
     pub async fn generate_optimized(&self, model: &str, prompt: &str) -> Result<String> {
+        // Check if Ollama is running first
+        if let Err(e) = self.check_ollama_status().await {
+            return Err(anyhow!("Ollama server is not running or not accessible: {}", e));
+        }
+        
         // Acquire semaphore permit for concurrency control
         let _permit = self.semaphore.acquire().await.map_err(|e| anyhow!("Semaphore error: {}", e))?;
         
-        // Create optimized request
+        // Try streaming first, fallback to non-streaming if needed
+        match self.generate_with_streaming(model, prompt).await {
+            Ok(response) => Ok(response),
+            Err(stream_error) => {
+                println!("⚠️ Streaming failed, trying non-streaming mode: {}", stream_error);
+                self.generate_without_streaming(model, prompt).await
+            }
+        }
+    }
+    
+    // Check if Ollama server is running
+    async fn check_ollama_status(&self) -> Result<()> {
+        let status_url = format!("{}/api/tags", self.base_url);
+        
+        match timeout(Duration::from_secs(10), self.client.get(&status_url).send()).await {
+            Ok(Ok(response)) => {
+                if response.status().is_success() {
+                    Ok(())
+                } else {
+                    Err(anyhow!("Ollama server returned status: {}", response.status()))
+                }
+            }
+            Ok(Err(e)) => Err(anyhow!("Failed to connect to Ollama: {}", e)),
+            Err(_) => Err(anyhow!("Timeout connecting to Ollama server")),
+        }
+    }
+    
+    // Generate with streaming for better performance and timeout handling
+    async fn generate_with_streaming(&self, model: &str, prompt: &str) -> Result<String> {
+        let request = GenerateRequest {
+            model: model.to_string(),
+            prompt: prompt.to_string(),
+            stream: true, // Enable streaming for better timeout handling
+            options: OllamaClient::create_ultra_fast_options(), // Use faster options for streaming
+        };
+        
+        println!("🧠 Using model: {} (streaming mode)", model);
+        println!("📝 Prompt length: {} characters", prompt.len());
+        let generate_url = format!("{}/api/generate", self.base_url);
+        println!("🔗 Attempting to connect to: {}", generate_url);
+        
+        // Use timeout for the entire request
+        let response_future = self.client.post(&generate_url)
+            .json(&request)
+            .send();
+        
+        match timeout(Duration::from_secs(REQUEST_TIMEOUT), response_future).await {
+            Ok(Ok(response)) => {
+                if response.status().is_success() {
+                    // For streaming, we need to read the response as text and parse it
+                    let response_text = response.text().await?;
+                    let mut full_response = String::new();
+                    
+                    // Parse streaming response (each line is a JSON object)
+                    for line in response_text.lines() {
+                        if line.trim().is_empty() {
+                            continue;
+                        }
+                        
+                        if let Ok(stream_response) = serde_json::from_str::<StreamResponse>(line) {
+                            full_response.push_str(&stream_response.response);
+                        }
+                    }
+                    
+                    if full_response.is_empty() {
+                        Err(anyhow!("Empty response from Ollama streaming"))
+                    } else {
+                        Ok(full_response)
+                    }
+                } else {
+                    Err(anyhow!("HTTP error: {}", response.status()))
+                }
+            }
+            Ok(Err(e)) => {
+                println!("❌ HTTP request failed: {}", e);
+                Err(anyhow!("Request failed: {}", e))
+            }
+            Err(_) => {
+                println!("⏰ Request timeout after {} seconds (REQUEST_TIMEOUT: {}s). Consider increasing REQUEST_TIMEOUT or checking Ollama server performance.", REQUEST_TIMEOUT, REQUEST_TIMEOUT);
+                Err(anyhow!("Request timeout after {} seconds. Check Ollama server status and consider increasing timeout values.", REQUEST_TIMEOUT))
+            }
+        }
+    }
+    
+    // Fallback to non-streaming mode
+    async fn generate_without_streaming(&self, model: &str, prompt: &str) -> Result<String> {
         let request = GenerateRequest {
             model: model.to_string(),
             prompt: prompt.to_string(),
@@ -119,10 +209,8 @@ impl OllamaClient {
             options: OllamaClient::create_default_options(),
         };
         
-        println!("🧠 Using model: {}", model);
-        println!("📝 Prompt length: {} characters", prompt.len());
+        println!("🧠 Using model: {} (non-streaming mode)", model);
         let generate_url = format!("{}/api/generate", self.base_url);
-        println!("🔗 Attempting to connect to: {}", generate_url);
         
         // Use timeout for the entire request
         let response_future = self.client.post(&generate_url)
@@ -152,20 +240,20 @@ impl OllamaClient {
     // Ultra-fast options for maximum performance (simplified for compatibility)
     fn create_ultra_fast_options() -> GenerateOptions {
         GenerateOptions {
-            // PERFORMANCE OPTIMIZED: Faster responses for trading analysis (5-15s)
-            num_predict: 300,          // Balanced response length
-            temperature: 0.2,          // More focused responses
-            top_k: 15,                 // Balanced sampling
-            top_p: 0.85,               // Efficient nucleus sampling
+            // PERFORMANCE OPTIMIZED: Faster responses for trading analysis (3-8s)
+            num_predict: 150,          // Shorter responses for speed
+            temperature: 0.1,          // More focused responses
+            top_k: 10,                 // Reduced sampling for speed
+            top_p: 0.8,               // Efficient nucleus sampling
             
             // Performance optimizations for speed
-            num_ctx: 1024,             // Smaller context for speed
-            num_batch: 8,              // Smaller batch for faster processing
-            num_thread: -1,            // Use all CPU cores
-            repeat_penalty: 1.05,      // Minimal repetition penalty
+            num_ctx: 512,             // Smaller context for speed
+            num_batch: 4,             // Smaller batch for faster processing
+            num_thread: -1,           // Use all CPU cores
+            repeat_penalty: 1.02,     // Minimal repetition penalty
             
             // Disable advanced features for speed
-            mirostat: 0,               // Disable for speed
+            mirostat: 0,              // Disable for speed
             mirostat_eta: 0.0,        
             mirostat_tau: 0.0,
         }

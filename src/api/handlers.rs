@@ -250,7 +250,7 @@ pub struct OllamaProcessRequest {
     pub model: Option<String>,
 }
 
-/// Process JSON file with Ollama AI (default: ultra-fast threading)
+/// Process JSON file with Ollama AI (default: ultra-threading)
 pub async fn ollama_process_json(
     State(_state): State<ApiState>,
     Json(payload): Json<OllamaProcessRequest>,
@@ -340,14 +340,41 @@ pub async fn ollama_process_json(
         
         // Use custom prompt or default Elite trading analyst prompt
         let base_prompt = if payload_prompt.trim().is_empty() {
-            "You are an Elite quantitative trading analyst. Analyze this simplified portfolio data and provide specific trading recommendations:
+            "You are an Elite quantitative trading analyst specializing in algorithmic trading and portfolio optimization. 
 
-1. PORTFOLIO STATUS: Current value, cash, positions
-2. MARKET OPPORTUNITIES: Buy/sell recommendations for the 5 main symbols
-3. RISK ASSESSMENT: Current risk level and management suggestions
-4. TRADING ACTIONS: Specific recommendations with entry/exit prices
+ANALYZE THE FOLLOWING PORTFOLIO DATA AND PROVIDE SPECIFIC, ACTIONABLE TRADING RECOMMENDATIONS:
 
-Keep your response concise and actionable."
+REQUIRED OUTPUT FORMAT:
+
+1. PORTFOLIO STATUS:
+   - Current portfolio value and cash position
+   - Current positions analysis
+   - Available buying power
+
+2. MARKET OPPORTUNITIES:
+   - Specific BUY/SELL/HOLD recommendations for each symbol
+   - Target entry/exit prices
+   - Position sizes (as % of portfolio)
+   - Time horizon for each trade
+
+3. RISK ASSESSMENT:
+   - Current risk level (LOW/MEDIUM/HIGH)
+   - Risk management suggestions
+   - Stop loss recommendations
+   - Portfolio protection strategies
+
+4. TRADING ACTIONS:
+   - Prioritized list of actions to take
+   - Order of execution
+   - Market timing considerations
+   - Position sizing strategy
+
+5. PORTFOLIO OPTIMIZATION:
+   - Rebalancing suggestions
+   - Asset allocation improvements
+   - Diversification recommendations
+
+Provide your response in a structured format with clear sections and specific actionable recommendations. Focus on profit maximization and risk management."
         } else {
             &payload_prompt
         };
@@ -400,10 +427,10 @@ Keep your response concise and actionable."
                 "model": model,
                 "ollama_response": response,
                 "json_data_processed": file_content,
-                "processing_method": "direct_async_call",
+                "processing_method": "ultra_threading_optimized",
                 "timeout_seconds": config.max_timeout_seconds,
-                "performance_mode": "simplified_async",
-                "threading_strategy": "direct_ollama_call",
+                "performance_mode": "maximum_threading",
+                "threading_strategy": "parallel_file_config_prompt_ollama",
                 "performance_metrics": {
                     "file_read_ms": file_read_time.as_millis(),
                     "prompt_prep_ms": prompt_prep_time.as_millis(),

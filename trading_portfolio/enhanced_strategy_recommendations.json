@@ -1,6 +1,6 @@
 {
   "account_info": {
-    "buying_power": 0.0,
+    "buying_power": 100000.0,
     "cash": 100000.0,
     "current_portfolio_value": 100000.0,
     "daytrade_count": 0,
@@ -75,25 +75,25 @@
     {
       "action": "SKIP",
       "asset_type": "Crypto",
-      "available_capital": 0.0,
+      "available_capital": 100000.0,
       "options_data": null,
-      "reason": "Insufficient buying power",
+      "reason": "Risk too high",
       "required_capital": 23524.05078415682,
       "symbol": "BTC/USD"
     },
     {
       "action": "SKIP",
       "asset_type": "Crypto",
-      "available_capital": 0.0,
+      "available_capital": 100000.0,
       "options_data": null,
-      "reason": "Insufficient buying power",
+      "reason": "Risk too high",
       "required_capital": 1475.9492158431776,
       "symbol": "ETH/USD"
     },
     {
       "action": "SKIP",
       "asset_type": "Stock",
-      "available_capital": 0.0,
+      "available_capital": 100000.0,
       "options_data": null,
       "reason": "Risk too high",
       "required_capital": 0.0,
@@ -102,7 +102,7 @@
     {
       "action": "SKIP",
       "asset_type": "Stock",
-      "available_capital": 0.0,
+      "available_capital": 100000.0,
       "options_data": null,
       "reason": "Risk too high",
       "required_capital": 0.0,
@@ -121,5 +121,5 @@
     "value_at_risk_95": 0.5792018198050907
   },
   "strategy": "Enhanced Mathematical Portfolio Optimization with Portfolio Protection",
-  "timestamp": "2025-09-01T18:05:53.640711+00:00"
+  "timestamp": "2025-09-04T11:01:12.346505100+00:00"
 }

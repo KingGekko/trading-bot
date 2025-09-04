@@ -73,7 +73,9 @@ impl AIDecisionEngine {
             .join("\n");
 
         format!(
-            r#"You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication:
+            r#"You are an Elite quantitative trading analyst specializing in algorithmic trading and portfolio optimization. 
+
+ANALYZE THE FOLLOWING TRADING DATA AND PROVIDE SPECIFIC, ACTIONABLE TRADING RECOMMENDATIONS:
 
 MARKET REGIME: {}
 CURRENT MATHEMATICAL DECISIONS:
@@ -82,17 +84,41 @@ CURRENT MATHEMATICAL DECISIONS:
 PORTFOLIO DATA:
 {}
 
-As an Elite quantitative trading analyst, provide:
+REQUIRED OUTPUT FORMAT:
 
-1. MARKET REGIME ASSESSMENT: Is the mathematical regime detection accurate? Any additional insights for profit multiplication?
-2. DECISION VALIDATION: Which mathematical decisions do you agree/disagree with and why? Focus on profit maximization.
-3. RISK ASSESSMENT: Any additional risks not captured by the mathematical model that could impact profit multiplication?
-4. OPPORTUNITY IDENTIFICATION: Any trading opportunities the mathematical model missed for exponential profit growth?
-5. ENHANCED RECOMMENDATIONS: Specific buy/sell/hold recommendations with reasoning for maximum profit multiplication.
-6. MARKET SENTIMENT: Overall market sentiment and implications for profit optimization.
-7. PORTFOLIO OPTIMIZATION: Suggestions for portfolio rebalancing to transcend in profit multiplication.
+1. MARKET REGIME ASSESSMENT:
+   - Is the mathematical regime detection accurate?
+   - Additional market insights for profit optimization
+   - Current market sentiment analysis
 
-Format your response as structured analysis with clear sections focused on profit multiplication and market transcendence."#,
+2. DECISION VALIDATION:
+   - Which mathematical decisions do you agree/disagree with?
+   - Specific reasoning for each decision
+   - Confidence adjustments for each symbol
+
+3. RISK ASSESSMENT:
+   - Additional risks not captured by mathematical model
+   - Risk level for each symbol (LOW/MEDIUM/HIGH)
+   - Portfolio-level risk considerations
+
+4. TRADING RECOMMENDATIONS:
+   - Specific BUY/SELL/HOLD actions for each symbol
+   - Target entry/exit prices
+   - Position sizes (as % of portfolio)
+   - Stop loss levels
+   - Time horizon for each trade
+
+5. PORTFOLIO OPTIMIZATION:
+   - Rebalancing suggestions
+   - Asset allocation recommendations
+   - Risk management strategies
+
+6. EXECUTION PRIORITY:
+   - Order of execution for recommendations
+   - Market timing considerations
+   - Position sizing strategy
+
+Provide your response in a structured format with clear sections and specific actionable recommendations. Focus on profit maximization and risk management."#,
             market_regime,
             decisions_summary,
             serde_json::to_string_pretty(portfolio_data).unwrap_or_else(|_| "Invalid JSON".to_string())
@@ -153,19 +179,53 @@ Format your response as structured analysis with clear sections focused on profi
         Ok(ai_enhanced_decisions)
     }
 
-    /// Extract AI confidence boost for a specific symbol (simplified parsing)
+    /// Extract AI confidence boost for a specific symbol (improved parsing)
     fn extract_ai_confidence_boost(&self, ai_response: &str, symbol: &str) -> f64 {
-        // In a real implementation, you'd parse the structured AI response
-        // For now, we'll use a simple heuristic based on sentiment
-        if ai_response.to_lowercase().contains(&format!("{}: buy", symbol.to_lowercase())) {
-            0.1 // Boost confidence for AI-confirmed buy signals
-        } else if ai_response.to_lowercase().contains(&format!("{}: sell", symbol.to_lowercase())) {
-            0.1 // Boost confidence for AI-confirmed sell signals
-        } else if ai_response.to_lowercase().contains(&format!("{}: hold", symbol.to_lowercase())) {
-            0.05 // Small boost for hold recommendations
-        } else {
-            0.0 // No boost if AI doesn't mention the symbol
+        let response_lower = ai_response.to_lowercase();
+        let symbol_lower = symbol.to_lowercase();
+        
+        // Look for structured trading recommendations
+        if response_lower.contains(&format!("{}: buy", symbol_lower)) || 
+           response_lower.contains(&format!("buy {}", symbol_lower)) ||
+           response_lower.contains(&format!("{} buy", symbol_lower)) {
+            return 0.15; // Higher boost for AI-confirmed buy signals
+        } else if response_lower.contains(&format!("{}: sell", symbol_lower)) ||
+                  response_lower.contains(&format!("sell {}", symbol_lower)) ||
+                  response_lower.contains(&format!("{} sell", symbol_lower)) {
+            return 0.15; // Higher boost for AI-confirmed sell signals
+        } else if response_lower.contains(&format!("{}: hold", symbol_lower)) ||
+                  response_lower.contains(&format!("hold {}", symbol_lower)) ||
+                  response_lower.contains(&format!("{} hold", symbol_lower)) {
+            return 0.08; // Moderate boost for hold recommendations
         }
+        
+        // Look for confidence indicators
+        if response_lower.contains("high confidence") || response_lower.contains("strong buy") {
+            return 0.12;
+        } else if response_lower.contains("medium confidence") || response_lower.contains("moderate") {
+            return 0.08;
+        } else if response_lower.contains("low confidence") || response_lower.contains("weak") {
+            return 0.03;
+        }
+        
+        // Look for positive sentiment around the symbol
+        let positive_indicators = ["bullish", "positive", "strong", "good", "favorable", "opportunity"];
+        let negative_indicators = ["bearish", "negative", "weak", "poor", "unfavorable", "risk"];
+        
+        let positive_count = positive_indicators.iter()
+            .filter(|&&indicator| response_lower.contains(indicator))
+            .count();
+        let negative_count = negative_indicators.iter()
+            .filter(|&&indicator| response_lower.contains(indicator))
+            .count();
+        
+        if positive_count > negative_count {
+            return 0.05; // Small boost for positive sentiment
+        } else if negative_count > positive_count {
+            return -0.05; // Small reduction for negative sentiment
+        }
+        
+        0.0 // No boost if AI doesn't provide clear signals
     }
 
     /// Extract AI reasoning for a specific symbol

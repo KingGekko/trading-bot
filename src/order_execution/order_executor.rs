@@ -48,6 +48,46 @@ impl OrderExecutor {
 
         // Load current portfolio data
         let portfolio_data = self.load_portfolio_data(data_dir).await?;
+        
+        // Check market hours first
+        let market_status = &portfolio_data["trading_account"]["market_status"];
+        let is_market_open = market_status["is_open"].as_bool().unwrap_or(false);
+        
+        if !is_market_open {
+            println!("⚠️ MARKET IS CLOSED - Orders will be queued for next market open");
+            println!("   Next market open: {}", market_status["next_open"].as_str().unwrap_or("Unknown"));
+            println!("   Current time: {}", market_status["current_time"].as_str().unwrap_or("Unknown"));
+            
+            // Return early with market closed message
+            return Ok(vec![OrderExecutionResult {
+                success: false,
+                order_id: None,
+                error_message: Some("Market is closed - orders will be queued for next market open".to_string()),
+                alpaca_response: None,
+                execution_time: chrono::Utc::now(),
+            }]);
+        }
+        
+        // Check trading permissions
+        let trading_permissions = &portfolio_data["trading_account"]["trading_permissions"];
+        let can_trade = trading_permissions["can_trade"].as_bool().unwrap_or(false);
+        
+        if !can_trade {
+            println!("⚠️ TRADING NOT ALLOWED - Account trading is disabled");
+            println!("   Can trade: {}", can_trade);
+            println!("   Can crypto: {}", trading_permissions["can_crypto"].as_bool().unwrap_or(false));
+            println!("   Can margin: {}", trading_permissions["can_margin"].as_bool().unwrap_or(false));
+            println!("   Can short: {}", trading_permissions["can_short"].as_bool().unwrap_or(false));
+            
+            return Ok(vec![OrderExecutionResult {
+                success: false,
+                order_id: None,
+                error_message: Some("Trading is not allowed on this account".to_string()),
+                alpaca_response: None,
+                execution_time: chrono::Utc::now(),
+            }]);
+        }
+        
         let current_portfolio_value = portfolio_data["trading_account"]["account_info"]["portfolio_value"]
             .as_str()
             .unwrap_or("100000")
@@ -325,22 +365,51 @@ impl OrderExecutor {
     }
 
     /// Calculate position size based on confidence and available funds
-    async fn calculate_position_size(&self, _symbol: &str, confidence: f64, data_dir: &str) -> Result<f64> {
+    async fn calculate_position_size(&self, symbol: &str, confidence: f64, data_dir: &str) -> Result<f64> {
         let portfolio_data = self.load_portfolio_data(data_dir).await?;
-        let cash_balance = portfolio_data["trading_account"]["account_info"]["cash"]
-            .as_str()
-            .unwrap_or("0")
-            .parse::<f64>()
-            .unwrap_or(0.0);
+        
+        // Fix: Get cash balance correctly from the nested structure
+        let cash_balance = if let Some(cash_str) = portfolio_data["trading_account"]["account_info"]["cash"].as_str() {
+            cash_str.parse::<f64>().unwrap_or(0.0)
+        } else if let Some(cash_num) = portfolio_data["trading_account"]["account_info"]["cash"].as_f64() {
+            cash_num
+        } else {
+            0.0
+        };
 
-        // Use 10% of available cash, scaled by confidence
-        let base_allocation = cash_balance * 0.10;
+        // Also check buying_power field as fallback
+        let buying_power = if let Some(bp_str) = portfolio_data["trading_account"]["account_info"]["buying_power"].as_str() {
+            bp_str.parse::<f64>().unwrap_or(0.0)
+        } else if let Some(bp_num) = portfolio_data["trading_account"]["account_info"]["buying_power"].as_f64() {
+            bp_num
+        } else {
+            0.0
+        };
+
+        // Use the higher of cash or buying_power
+        let available_funds = cash_balance.max(buying_power);
+        
+        if available_funds <= 0.0 {
+            return Ok(0.0);
+        }
+
+        // Get current price for the symbol
+        let current_price = if let Some(market_data) = portfolio_data["market_data"]["symbols"].as_object() {
+            if let Some(symbol_data) = market_data.get(symbol) {
+                symbol_data["price"].as_f64().unwrap_or(100.0)
+            } else {
+                100.0 // Default price if symbol not found
+            }
+        } else {
+            100.0 // Default price
+        };
+
+        // Use 10% of available funds, scaled by confidence
+        let base_allocation = available_funds * 0.10;
         let confidence_scaled = base_allocation * confidence;
         
-        // Assume average stock price of $100 for position size calculation
-        // In a real implementation, you'd fetch the current price
-        let estimated_price = 100.0;
-        let shares = (confidence_scaled / estimated_price).floor();
+        // Calculate shares based on actual current price
+        let shares = (confidence_scaled / current_price).floor();
         
         Ok(shares.max(1.0)) // Minimum 1 share
     }
