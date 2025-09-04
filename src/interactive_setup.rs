@@ -636,6 +636,7 @@ impl InteractiveSetup {
             "buy (\\d+) shares of ([A-Z]+)",
             "buy ([A-Z]+) at \\$([0-9.]+)",
             "buy ([A-Z]+) shares",
+            "buy ([A-Z]+):",
         ];
         
         for pattern in &buy_patterns {
@@ -657,7 +658,7 @@ impl InteractiveSetup {
                             continue;
                         }
                     } else if cap.len() == 3 {
-                        // Pattern: "buy 100 shares of AAPL" or "buy AAPL at $150.62"
+                        // Pattern: "buy 100 shares of AAPL" or "buy AAPL at $150.62" or "buy AAPL:"
                         if let (Some(first), Some(second)) = (cap.get(1), cap.get(2)) {
                             if first.as_str().chars().all(|c| c.is_ascii_digit()) {
                                 // Pattern: "buy 100 shares of AAPL"
@@ -668,7 +669,7 @@ impl InteractiveSetup {
                                     continue;
                                 }
                             } else {
-                                // Pattern: "buy AAPL at $150.62"
+                                // Pattern: "buy AAPL at $150.62" or "buy AAPL:"
                                 let price = self.extract_price_for_symbol(response, first.as_str()).unwrap_or(150.0);
                                 (100, first.as_str(), price) // Default quantity
                             }
@@ -696,6 +697,7 @@ impl InteractiveSetup {
             "sell (\\d+) shares of ([A-Z]+)",
             "sell ([A-Z]+) at \\$([0-9.]+)",
             "sell ([A-Z]+) shares",
+            "sell ([A-Z]+):",
         ];
         
         for pattern in &sell_patterns {
@@ -725,7 +727,7 @@ impl InteractiveSetup {
                             continue;
                         }
                     } else if cap.len() == 3 {
-                        // Pattern: "sell 100 shares of AAPL" or "sell AAPL at $150.62"
+                        // Pattern: "sell 100 shares of AAPL" or "sell AAPL at $150.62" or "sell AAPL:"
                         if let (Some(first), Some(second)) = (cap.get(1), cap.get(2)) {
                             if first.as_str().chars().all(|c| c.is_ascii_digit()) {
                                 // Pattern: "sell 100 shares of AAPL"
@@ -736,7 +738,7 @@ impl InteractiveSetup {
                                     continue;
                                 }
                             } else {
-                                // Pattern: "sell AAPL at $150.62"
+                                // Pattern: "sell AAPL at $150.62" or "sell AAPL:"
                                 let price = self.extract_price_for_symbol(response, first.as_str()).unwrap_or(150.0);
                                 (100, first.as_str(), price) // Default quantity
                             }
