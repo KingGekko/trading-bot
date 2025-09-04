@@ -734,7 +734,10 @@ impl InteractiveSetup {
 
         // Read AI analysis results
         let content = tokio::fs::read_to_string(ai_analysis_file).await?;
+        println!("🔍 File content length: {} characters", content.len());
+        
         let analysis: Value = serde_json::from_str(&content)?;
+        println!("🔍 JSON parsed successfully");
         
         // Debug: Print available fields in the analysis
         println!("🔍 Available fields in AI analysis:");
@@ -742,6 +745,13 @@ impl InteractiveSetup {
             for (key, _) in obj {
                 println!("   - {}", key);
             }
+        }
+        
+        // Debug: Check if trading_recommendations exists
+        if let Some(trading_recs) = analysis.get("trading_recommendations") {
+            println!("🔍 trading_recommendations found: {:?}", trading_recs);
+        } else {
+            println!("🔍 trading_recommendations NOT found in analysis");
         }
         
         // Extract trading recommendations from AI response (natural language)
