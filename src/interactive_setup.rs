@@ -756,10 +756,13 @@ impl InteractiveSetup {
         
         // Extract trading recommendations from AI response (natural language)
         if let Some(ollama_response) = analysis["ollama_response"].as_str() {
+            println!("🔍 Found ollama_response: {}", ollama_response);
             // Parse AI recommendations from natural language
             let recommendations = self.parse_ai_recommendations(ollama_response);
+            println!("🔍 Parsed {} recommendations from ollama_response", recommendations.len());
             
             for recommendation in recommendations {
+                println!("🔍 Processing recommendation: {:?}", recommendation);
                 if recommendation.action != "hold" && recommendation.action != "skip" {
                     // Execute the trade
                     if self.execute_single_trade(&recommendation.symbol, &recommendation.action, recommendation.quantity, recommendation.price).await? {
@@ -772,6 +775,8 @@ impl InteractiveSetup {
                     }
                 }
             }
+        } else {
+            println!("🔍 ollama_response field not found or not a string");
         }
         
         // Extract structured trading recommendations
