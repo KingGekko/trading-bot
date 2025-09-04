@@ -736,7 +736,7 @@ impl InteractiveSetup {
         let content = tokio::fs::read_to_string(ai_analysis_file).await?;
         let analysis: Value = serde_json::from_str(&content)?;
         
-        // Extract trading recommendations from AI response
+        // Extract trading recommendations from AI response (natural language)
         if let Some(ollama_response) = analysis["ollama_response"].as_str() {
             // Parse AI recommendations from natural language
             let recommendations = self.parse_ai_recommendations(ollama_response);
@@ -756,7 +756,50 @@ impl InteractiveSetup {
             }
         }
         
-        // Also check for structured recommendations in strategy_recommendations
+        // Extract structured trading recommendations
+        if let Some(trading_recommendations) = analysis["trading_recommendations"].as_array() {
+            println!("📊 Found {} structured trading recommendations", trading_recommendations.len());
+            
+            for recommendation in trading_recommendations {
+                if let Some(symbol) = recommendation["symbol"].as_str() {
+                    if let Some(action) = recommendation["action"].as_str() {
+                        if action == "BUY" || action == "SELL" {
+                            // Get target price or use current market price
+                            let target_price = recommendation["target_price"].as_f64();
+                            let stop_loss = recommendation["stop_loss"].as_f64();
+                            let confidence = recommendation["confidence"].as_f64().unwrap_or(0.5);
+                            
+                            // Calculate position size based on confidence and available funds
+                            let available_funds = 100000.0; // Default, should get from account
+                            let position_size_pct = recommendation["position_size"].as_f64().unwrap_or(0.1);
+                            let allocation_amount = available_funds * position_size_pct * confidence;
+                            
+                            // Use target price if available, otherwise use current market price
+                            let execution_price = target_price.unwrap_or(150.0); // Default fallback
+                            let quantity = (allocation_amount / execution_price) as i32;
+                            
+                            if quantity > 0 {
+                                let action_type = if action == "BUY" { "buy" } else { "sell" };
+                                
+                                println!("🎯 Executing {}: {} {} shares of {} at ${:.2} (confidence: {:.2})", 
+                                    action_type, quantity, symbol, symbol, execution_price, confidence);
+                                
+                                if self.execute_single_trade(symbol, action_type, quantity, execution_price).await? {
+                                    executed_trades.push(ExecutedTrade {
+                                        symbol: symbol.to_string(),
+                                        action: action_type.to_string(),
+                                        quantity,
+                                        price: execution_price,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Also check for structured recommendations in strategy_recommendations (legacy)
         if let Some(strategy_data) = analysis["strategy_recommendations"].as_object() {
             if let Some(recommendations) = strategy_data["recommendations"].as_array() {
                 for recommendation in recommendations {
@@ -812,6 +855,14 @@ impl InteractiveSetup {
         println!("📈 Executing {} order: {} {} shares of {} at ${:.2}", 
                  action, quantity, symbol, symbol, price);
         
+        // Check if market is open (for paper trading, we can trade anytime)
+        if self.trading_mode == "live" {
+            if !self.is_market_open().await? {
+                println!("⚠️ Market is closed. Skipping order execution.");
+                return Ok(false);
+            }
+        }
+        
         // Execute real orders in paper trading mode
         if self.trading_mode == "paper" {
             println!("📝 Paper trading mode - Executing real paper trading orders");
@@ -820,8 +871,8 @@ impl InteractiveSetup {
 
         // For live trading, execute real orders
         let client = reqwest::Client::new();
-        let api_key = std::env::var("ALPACA_API_KEY").unwrap_or_default();
-        let secret_key = std::env::var("ALPACA_SECRET_KEY").unwrap_or_default();
+        let api_key = std::env::var("APCA_API_KEY_ID").unwrap_or_default();
+        let secret_key = std::env::var("APCA_API_SECRET_KEY").unwrap_or_default();
         
         if api_key.is_empty() || secret_key.is_empty() {
             println!("⚠️ Alpaca API keys not configured. Simulating order execution.");
@@ -897,8 +948,8 @@ impl InteractiveSetup {
 
         // For live trading, check Alpaca market hours
         let client = reqwest::Client::new();
-        let api_key = std::env::var("ALPACA_API_KEY").unwrap_or_default();
-        let secret_key = std::env::var("ALPACA_SECRET_KEY").unwrap_or_default();
+        let api_key = std::env::var("APCA_API_KEY_ID").unwrap_or_default();
+        let secret_key = std::env::var("APCA_API_SECRET_KEY").unwrap_or_default();
         
         if api_key.is_empty() || secret_key.is_empty() {
             println!("⚠️ Alpaca API keys not configured. Assuming market is open for testing.");

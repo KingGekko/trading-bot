@@ -45,30 +45,30 @@
   "market_data": {
     "data_source": "alpaca_basic_plan",
     "historical_limit": "15_minutes",
-    "last_update": "2025-09-04T13:59:44.052302100+00:00",
+    "last_update": "2025-09-04T15:14:15.437195300+00:00",
     "symbols": {
       "AAPL": {
         "exchange": "alpaca",
         "high": 150.59,
-        "last_updated": "2025-09-04T13:59:44.052304400+00:00",
+        "last_updated": "2025-09-04T15:14:15.437199+00:00",
         "low": 149.17,
         "open": 150.0,
         "price": 150.62,
         "source": "alpaca_rest_fallback",
         "symbol": "AAPL",
-        "timestamp": "2025-09-04T13:59:44.052306900+00:00",
+        "timestamp": "2025-09-04T15:14:15.437203+00:00",
         "volume": 198.46
       },
       "SPY": {
         "exchange": "alpaca",
         "high": 453.62,
-        "last_updated": "2025-09-04T13:59:44.052311800+00:00",
+        "last_updated": "2025-09-04T15:14:15.437209700+00:00",
         "low": 449.36,
         "open": 450.0,
         "price": 450.96,
         "source": "alpaca_rest_fallback",
         "symbol": "SPY",
-        "timestamp": "2025-09-04T13:59:44.052313300+00:00",
+        "timestamp": "2025-09-04T15:14:15.437212200+00:00",
         "volume": 742.85
       }
     },
@@ -84,7 +84,7 @@
     "current_regime": "LowVolatility",
     "regime_duration": 5,
     "regime_probability": 0.2,
-    "timestamp": "2025-09-04T13:59:44.052334900+00:00",
+    "timestamp": "2025-09-04T15:14:15.437238900+00:00",
     "trend_strength": 0.56,
     "volatility_regime": {
       "regime_type": "Low",
@@ -151,9 +151,9 @@
       "value_at_risk_95": 0.08
     },
     "strategy": "Enhanced Mathematical Portfolio Optimization",
-    "timestamp": "2025-09-04T13:59:44.052336700+00:00"
+    "timestamp": "2025-09-04T15:14:15.437241700+00:00"
   },
-  "timestamp": "2025-09-04T13:59:44.052187+00:00",
+  "timestamp": "2025-09-04T15:14:15.437008300+00:00",
   "trading_account": {
     "account_info": {
       "account_blocked": false,
@@ -186,7 +186,7 @@
       "transfers_blocked": false
     },
     "market_status": {
-      "current_time": "2025-09-04T13:59:44.052273300+00:00",
+      "current_time": "2025-09-04T15:14:15.437164200+00:00",
       "is_open": false,
       "market_timezone": "America/New_York",
       "next_close": "2025-08-31T20:00:00+00:00",
