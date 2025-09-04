@@ -618,6 +618,15 @@ impl InteractiveSetup {
 
     /// Execute trades based on AI recommendations
     async fn execute_trades(&self) -> Result<()> {
+        #[derive(Debug)]
+        struct ExecutedTrade {
+            symbol: String,
+            action: String,
+            quantity: i32,
+            price: f64,
+        }
+        
+        let mut executed_trades = Vec::new();
         println!("🎯 Executing trades based on AI recommendations");
         
         // Check if we have AI analysis results
@@ -656,7 +665,14 @@ impl InteractiveSetup {
                                     let quantity = (position_size.abs() / current_price) as i32;
                                     
                                     // Execute the trade
-                                    self.execute_single_trade(symbol, action_type, quantity, current_price).await?;
+                                    if self.execute_single_trade(symbol, action_type, quantity, current_price).await? {
+                                        executed_trades.push(ExecutedTrade {
+                                            symbol: symbol.to_string(),
+                                            action: action_type.to_string(),
+                                            quantity,
+                                            price: current_price,
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -665,12 +681,24 @@ impl InteractiveSetup {
             }
         }
         
+        // Display trade execution summary
+        if !executed_trades.is_empty() {
+            println!("📊 Trade Execution Summary:");
+            println!("   📈 Trades Executed: {}", executed_trades.len());
+            for (i, trade) in executed_trades.iter().enumerate() {
+                println!("   {}. {} {} shares of {} at ${:.2}", 
+                    i + 1, trade.action, trade.quantity, trade.symbol, trade.price);
+            }
+        } else {
+            println!("📊 No trades executed - All recommendations were HOLD or SKIP");
+        }
+        
         println!("✅ Trade execution completed");
         Ok(())
     }
 
     /// Execute a single trade using Alpaca API
-    async fn execute_single_trade(&self, symbol: &str, action: &str, quantity: i32, price: f64) -> Result<()> {
+    async fn execute_single_trade(&self, symbol: &str, action: &str, quantity: i32, price: f64) -> Result<bool> {
         println!("📈 Executing {} order: {} {} shares of {} at ${:.2}", 
                  action, quantity, symbol, symbol, price);
         
@@ -687,7 +715,7 @@ impl InteractiveSetup {
         
         if api_key.is_empty() || secret_key.is_empty() {
             println!("⚠️ Alpaca API keys not configured. Simulating order execution.");
-            return Ok(());
+            return Ok(true); // Return true for simulated execution
         }
 
         let base_url = if self.trading_mode == "live" {
@@ -719,12 +747,12 @@ impl InteractiveSetup {
             let order_response: Value = response.json().await?;
             let order_id = order_response["id"].as_str().unwrap_or("unknown");
             println!("✅ Order executed successfully! Order ID: {}", order_id);
+            Ok(true)
         } else {
             let error_text = response.text().await?;
             println!("❌ Order execution failed: {}", error_text);
+            Ok(false)
         }
-
-        Ok(())
     }
 
     /// Display current portfolio status
