@@ -647,9 +647,12 @@ impl InteractiveSetup {
             if let Ok(regex) = regex::Regex::new(pattern) {
                 for cap in regex.captures_iter(&response_lower) {
                     println!("🔍 Buy pattern matched! Captures: {:?}", cap);
-                    let (quantity, symbol, price) = if cap.len() == 4 {
+                    // Use original response for symbol extraction to preserve case
+                    let cap_original = regex.captures_iter(response).next();
+                    let cap_to_use = cap_original.as_ref().unwrap_or(&cap);
+                    let (quantity, symbol, price) = if cap_to_use.len() == 4 {
                         // Pattern: "buy 100 shares of AAPL at $150.62"
-                        if let (Some(quantity_str), Some(symbol), Some(price_str)) = (cap.get(1), cap.get(2), cap.get(3)) {
+                        if let (Some(quantity_str), Some(symbol), Some(price_str)) = (cap_to_use.get(1), cap_to_use.get(2), cap_to_use.get(3)) {
                             if let Ok(quantity) = quantity_str.as_str().parse::<i32>() {
                                 if let Ok(price) = price_str.as_str().parse::<f64>() {
                                     (quantity, symbol.as_str(), price)
@@ -662,9 +665,9 @@ impl InteractiveSetup {
                         } else {
                             continue;
                         }
-                    } else if cap.len() == 3 {
+                    } else if cap_to_use.len() == 3 {
                         // Pattern: "buy 100 shares of AAPL" or "buy AAPL at $150.62" or "buy AAPL:" or "1. buy AAPL:"
-                        if let (Some(first), Some(second)) = (cap.get(1), cap.get(2)) {
+                        if let (Some(first), Some(second)) = (cap_to_use.get(1), cap_to_use.get(2)) {
                             if first.as_str().chars().all(|c| c.is_ascii_digit()) {
                                 // Pattern: "buy 100 shares of AAPL" or "1. buy AAPL:"
                                 if first.as_str().len() <= 2 && first.as_str().parse::<i32>().is_ok() {
@@ -720,17 +723,20 @@ impl InteractiveSetup {
             if let Ok(regex) = regex::Regex::new(pattern) {
                 for cap in regex.captures_iter(&response_lower) {
                     println!("🔍 Sell pattern matched! Captures: {:?}", cap);
-                    let (quantity, symbol, price) = if cap.len() == 2 && pattern.contains("sell all shares") {
+                    // Use original response for symbol extraction to preserve case
+                    let cap_original = regex.captures_iter(response).next();
+                    let cap_to_use = cap_original.as_ref().unwrap_or(&cap);
+                    let (quantity, symbol, price) = if cap_to_use.len() == 2 && pattern.contains("sell all shares") {
                         // Pattern: "sell all shares of TSLA"
-                        if let Some(symbol) = cap.get(1) {
+                        if let Some(symbol) = cap_to_use.get(1) {
                             let price = self.extract_price_for_symbol(response, symbol.as_str()).unwrap_or(150.0);
                             (1000, symbol.as_str(), price) // Large quantity for "all shares"
                         } else {
                             continue;
                         }
-                    } else if cap.len() == 4 {
+                    } else if cap_to_use.len() == 4 {
                         // Pattern: "sell 100 shares of AAPL at $150.62"
-                        if let (Some(quantity_str), Some(symbol), Some(price_str)) = (cap.get(1), cap.get(2), cap.get(3)) {
+                        if let (Some(quantity_str), Some(symbol), Some(price_str)) = (cap_to_use.get(1), cap_to_use.get(2), cap_to_use.get(3)) {
                             if let Ok(quantity) = quantity_str.as_str().parse::<i32>() {
                                 if let Ok(price) = price_str.as_str().parse::<f64>() {
                                     (quantity, symbol.as_str(), price)
@@ -743,9 +749,9 @@ impl InteractiveSetup {
                         } else {
                             continue;
                         }
-                    } else if cap.len() == 3 {
+                    } else if cap_to_use.len() == 3 {
                         // Pattern: "sell 100 shares of AAPL" or "sell AAPL at $150.62" or "sell AAPL:" or "1. sell AAPL:"
-                        if let (Some(first), Some(second)) = (cap.get(1), cap.get(2)) {
+                        if let (Some(first), Some(second)) = (cap_to_use.get(1), cap_to_use.get(2)) {
                             if first.as_str().chars().all(|c| c.is_ascii_digit()) {
                                 // Pattern: "sell 100 shares of AAPL" or "1. sell AAPL:"
                                 if first.as_str().len() <= 2 && first.as_str().parse::<i32>().is_ok() {
