@@ -736,6 +736,14 @@ impl InteractiveSetup {
         let content = tokio::fs::read_to_string(ai_analysis_file).await?;
         let analysis: Value = serde_json::from_str(&content)?;
         
+        // Debug: Print available fields in the analysis
+        println!("🔍 Available fields in AI analysis:");
+        if let Some(obj) = analysis.as_object() {
+            for (key, _) in obj {
+                println!("   - {}", key);
+            }
+        }
+        
         // Extract trading recommendations from AI response (natural language)
         if let Some(ollama_response) = analysis["ollama_response"].as_str() {
             // Parse AI recommendations from natural language
@@ -757,6 +765,7 @@ impl InteractiveSetup {
         }
         
         // Extract structured trading recommendations
+        println!("🔍 Looking for trading_recommendations in AI analysis...");
         if let Some(trading_recommendations) = analysis["trading_recommendations"].as_array() {
             println!("📊 Found {} structured trading recommendations", trading_recommendations.len());
             
@@ -848,6 +857,7 @@ impl InteractiveSetup {
             }
         } else {
             println!("📊 No trades executed - All recommendations were HOLD or SKIP");
+            println!("🔍 Debug: trading_recommendations field not found or empty in AI analysis");
         }
         
         println!("✅ Trade execution completed");
