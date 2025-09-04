@@ -640,9 +640,13 @@ impl InteractiveSetup {
             "(?i)\\d+\\. buy ([A-Z]+):",
         ];
         
+        println!("🔍 Testing buy patterns on: {}", response_lower);
+        
         for pattern in &buy_patterns {
+            println!("🔍 Testing buy pattern: {}", pattern);
             if let Ok(regex) = regex::Regex::new(pattern) {
                 for cap in regex.captures_iter(&response_lower) {
+                    println!("🔍 Buy pattern matched! Captures: {:?}", cap);
                     let (quantity, symbol, price) = if cap.len() == 4 {
                         // Pattern: "buy 100 shares of AAPL at $150.62"
                         if let (Some(quantity_str), Some(symbol), Some(price_str)) = (cap.get(1), cap.get(2), cap.get(3)) {
@@ -709,9 +713,13 @@ impl InteractiveSetup {
             "(?i)\\d+\\. sell ([A-Z]+):",
         ];
         
+        println!("🔍 Testing sell patterns on: {}", response_lower);
+        
         for pattern in &sell_patterns {
+            println!("🔍 Testing sell pattern: {}", pattern);
             if let Ok(regex) = regex::Regex::new(pattern) {
                 for cap in regex.captures_iter(&response_lower) {
+                    println!("🔍 Sell pattern matched! Captures: {:?}", cap);
                     let (quantity, symbol, price) = if cap.len() == 2 && pattern.contains("sell all shares") {
                         // Pattern: "sell all shares of TSLA"
                         if let Some(symbol) = cap.get(1) {
