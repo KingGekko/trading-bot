@@ -630,8 +630,9 @@ impl InteractiveSetup {
         let mut recommendations = Vec::new();
         let response_lower = response.to_lowercase();
         
-        // Parse buy recommendations
+        // Parse buy recommendations - Updated patterns to match AI response format
         let buy_patterns = [
+            "buy (\\d+) shares of ([A-Z]+) at \\$([0-9.]+)",
             "buy (\\d+) shares of ([A-Z]+)",
             "buy ([A-Z]+) at \\$([0-9.]+)",
             "buy ([A-Z]+) shares",
@@ -640,24 +641,58 @@ impl InteractiveSetup {
         for pattern in &buy_patterns {
             if let Ok(regex) = regex::Regex::new(pattern) {
                 for cap in regex.captures_iter(&response_lower) {
-                    if let (Some(quantity_str), Some(symbol)) = (cap.get(1), cap.get(2)) {
-                        if let Ok(quantity) = quantity_str.as_str().parse::<i32>() {
-                            // Extract price from the response
-                            let price = self.extract_price_for_symbol(response, symbol.as_str()).unwrap_or(150.0);
-                            recommendations.push(AIRecommendation {
-                                symbol: symbol.as_str().to_uppercase(),
-                                action: "buy".to_string(),
-                                quantity,
-                                price,
-                            });
+                    let (quantity, symbol, price) = if cap.len() == 4 {
+                        // Pattern: "buy 100 shares of AAPL at $150.62"
+                        if let (Some(quantity_str), Some(symbol), Some(price_str)) = (cap.get(1), cap.get(2), cap.get(3)) {
+                            if let Ok(quantity) = quantity_str.as_str().parse::<i32>() {
+                                if let Ok(price) = price_str.as_str().parse::<f64>() {
+                                    (quantity, symbol.as_str(), price)
+                                } else {
+                                    continue;
+                                }
+                            } else {
+                                continue;
+                            }
+                        } else {
+                            continue;
                         }
-                    }
+                    } else if cap.len() == 3 {
+                        // Pattern: "buy 100 shares of AAPL" or "buy AAPL at $150.62"
+                        if let (Some(first), Some(second)) = (cap.get(1), cap.get(2)) {
+                            if first.as_str().chars().all(|c| c.is_ascii_digit()) {
+                                // Pattern: "buy 100 shares of AAPL"
+                                if let Ok(quantity) = first.as_str().parse::<i32>() {
+                                    let price = self.extract_price_for_symbol(response, second.as_str()).unwrap_or(150.0);
+                                    (quantity, second.as_str(), price)
+                                } else {
+                                    continue;
+                                }
+                            } else {
+                                // Pattern: "buy AAPL at $150.62"
+                                let price = self.extract_price_for_symbol(response, first.as_str()).unwrap_or(150.0);
+                                (100, first.as_str(), price) // Default quantity
+                            }
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    };
+                    
+                    recommendations.push(AIRecommendation {
+                        symbol: symbol.to_uppercase(),
+                        action: "buy".to_string(),
+                        quantity,
+                        price,
+                    });
                 }
             }
         }
         
-        // Parse sell recommendations
+        // Parse sell recommendations - Updated patterns to match AI response format
         let sell_patterns = [
+            "sell all shares of ([A-Z]+)",
+            "sell (\\d+) shares of ([A-Z]+) at \\$([0-9.]+)",
             "sell (\\d+) shares of ([A-Z]+)",
             "sell ([A-Z]+) at \\$([0-9.]+)",
             "sell ([A-Z]+) shares",
@@ -666,17 +701,58 @@ impl InteractiveSetup {
         for pattern in &sell_patterns {
             if let Ok(regex) = regex::Regex::new(pattern) {
                 for cap in regex.captures_iter(&response_lower) {
-                    if let (Some(quantity_str), Some(symbol)) = (cap.get(1), cap.get(2)) {
-                        if let Ok(quantity) = quantity_str.as_str().parse::<i32>() {
+                    let (quantity, symbol, price) = if cap.len() == 2 && pattern.contains("sell all shares") {
+                        // Pattern: "sell all shares of TSLA"
+                        if let Some(symbol) = cap.get(1) {
                             let price = self.extract_price_for_symbol(response, symbol.as_str()).unwrap_or(150.0);
-                            recommendations.push(AIRecommendation {
-                                symbol: symbol.as_str().to_uppercase(),
-                                action: "sell".to_string(),
-                                quantity,
-                                price,
-                            });
+                            (1000, symbol.as_str(), price) // Large quantity for "all shares"
+                        } else {
+                            continue;
                         }
-                    }
+                    } else if cap.len() == 4 {
+                        // Pattern: "sell 100 shares of AAPL at $150.62"
+                        if let (Some(quantity_str), Some(symbol), Some(price_str)) = (cap.get(1), cap.get(2), cap.get(3)) {
+                            if let Ok(quantity) = quantity_str.as_str().parse::<i32>() {
+                                if let Ok(price) = price_str.as_str().parse::<f64>() {
+                                    (quantity, symbol.as_str(), price)
+                                } else {
+                                    continue;
+                                }
+                            } else {
+                                continue;
+                            }
+                        } else {
+                            continue;
+                        }
+                    } else if cap.len() == 3 {
+                        // Pattern: "sell 100 shares of AAPL" or "sell AAPL at $150.62"
+                        if let (Some(first), Some(second)) = (cap.get(1), cap.get(2)) {
+                            if first.as_str().chars().all(|c| c.is_ascii_digit()) {
+                                // Pattern: "sell 100 shares of AAPL"
+                                if let Ok(quantity) = first.as_str().parse::<i32>() {
+                                    let price = self.extract_price_for_symbol(response, second.as_str()).unwrap_or(150.0);
+                                    (quantity, second.as_str(), price)
+                                } else {
+                                    continue;
+                                }
+                            } else {
+                                // Pattern: "sell AAPL at $150.62"
+                                let price = self.extract_price_for_symbol(response, first.as_str()).unwrap_or(150.0);
+                                (100, first.as_str(), price) // Default quantity
+                            }
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    };
+                    
+                    recommendations.push(AIRecommendation {
+                        symbol: symbol.to_uppercase(),
+                        action: "sell".to_string(),
+                        quantity,
+                        price,
+                    });
                 }
             }
         }
