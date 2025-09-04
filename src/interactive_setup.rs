@@ -781,8 +781,12 @@ impl InteractiveSetup {
                             if quantity > 0 {
                                 let action_type = if action == "BUY" { "buy" } else { "sell" };
                                 
-                                println!("🎯 Executing {}: {} {} shares of {} at ${:.2} (confidence: {:.2})", 
-                                    action_type, quantity, symbol, symbol, execution_price, confidence);
+                                println!("🎯 Executing {}: {} shares of {} at ${:.2} (confidence: {:.2})", 
+                                    action_type, quantity, symbol, execution_price, confidence);
+                                println!("   💰 Allocation: ${:.2} ({}% of ${:.2} portfolio)", 
+                                    allocation_amount, position_size_pct * 100.0, available_funds);
+                                println!("   📊 Position Size: {} shares × ${:.2} = ${:.2}", 
+                                    quantity, execution_price, quantity as f64 * execution_price);
                                 
                                 if self.execute_single_trade(symbol, action_type, quantity, execution_price).await? {
                                     executed_trades.push(ExecutedTrade {
@@ -894,6 +898,14 @@ impl InteractiveSetup {
             "time_in_force": "day",
             "limit_price": price
         });
+
+        println!("📤 Sending order to Alpaca:");
+        println!("   Symbol: {}", symbol);
+        println!("   Quantity: {} shares", quantity.abs());
+        println!("   Side: {}", if action.to_lowercase().contains("buy") { "buy" } else { "sell" });
+        println!("   Type: limit");
+        println!("   Limit Price: ${:.2}", price);
+        println!("   Total Value: ${:.2}", quantity.abs() as f64 * price);
 
         let response = client
             .post(&format!("{}/v2/orders", base_url))
