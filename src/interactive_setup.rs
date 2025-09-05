@@ -512,6 +512,14 @@ impl InteractiveSetup {
                 self.run_multi_model_analysis().await?;
             }
             
+            // Check for emergency stop before executing trades
+            if self.is_emergency_stop_triggered().await? {
+                println!("🚨 EMERGENCY STOP TRIGGERED - Suspending trading");
+                println!("   Portfolio protection activated. Waiting for recovery...");
+                sleep(Duration::from_secs(60)).await; // Wait 1 minute before checking again
+                continue;
+            }
+            
             // Execute trades
             self.execute_trades().await?;
             
@@ -930,10 +938,10 @@ impl InteractiveSetup {
             for recommendation in recommendations {
                 println!("🔍 Processing recommendation: {:?}", recommendation);
                 if recommendation.action != "hold" && recommendation.action != "skip" {
-                    // Adjust quantity based on available buying power for buy orders
+                    // Adjust quantity based on available buying power and portfolio protection
                     let adjusted_quantity = if recommendation.action == "buy" {
-                        // Use smaller position size to avoid insufficient buying power
-                        std::cmp::min(recommendation.quantity, 5) // Max 5 shares for buy orders
+                        // Calculate safe position size based on available cash and portfolio protection
+                        self.calculate_safe_position_size(&recommendation.symbol, recommendation.price).await.unwrap_or(1)
                     } else {
                         recommendation.quantity
                     };
@@ -1053,10 +1061,120 @@ impl InteractiveSetup {
         Ok(())
     }
 
+    /// Calculate safe position size based on available cash and portfolio protection
+    async fn calculate_safe_position_size(&self, symbol: &str, price: f64) -> Result<i32> {
+        // Get current portfolio data
+        let portfolio_file = "trading_portfolio/trading_portfolio.json";
+        if !std::path::Path::new(portfolio_file).exists() {
+            return Ok(1); // Default to 1 share if no portfolio data
+        }
+
+        let content = tokio::fs::read_to_string(portfolio_file).await?;
+        let portfolio_data: Value = serde_json::from_str(&content)?;
+        
+        // Get current cash
+        let current_cash = portfolio_data["trading_account"]["account_info"]["cash"]
+            .as_str()
+            .unwrap_or("100000")
+            .parse::<f64>()
+            .unwrap_or(100000.0);
+        
+        // Get starting portfolio value for protection
+        let starting_value = portfolio_data["portfolio_summary"]["portfolio_value"]
+            .as_f64()
+            .unwrap_or(100000.0);
+        
+        // Calculate maximum safe position size
+        // Use only 5% of available cash to be conservative
+        let max_allocation = current_cash * 0.05;
+        let max_shares = (max_allocation / price) as i32;
+        
+        // Ensure we don't go below starting portfolio value
+        let protection_buffer = (current_cash - starting_value).max(0.0);
+        let protected_allocation = protection_buffer * 0.1; // Use only 10% of protection buffer
+        let protected_shares = (protected_allocation / price) as i32;
+        
+        // Use the smaller of the two calculations
+        let safe_shares = std::cmp::min(max_shares, protected_shares).max(1);
+        
+        println!("🛡️ Safe Position Size for {}: {} shares (Max: {}, Protected: {}, Cash: ${:.2})", 
+            symbol, safe_shares, max_shares, protected_shares, current_cash);
+        
+        Ok(safe_shares)
+    }
+
+    /// Check portfolio protection to ensure portfolio doesn't go below starting value
+    async fn check_portfolio_protection(&self, action: &str, quantity: i32, price: f64) -> Result<()> {
+        // Get current portfolio data
+        let portfolio_file = "trading_portfolio/trading_portfolio.json";
+        if !std::path::Path::new(portfolio_file).exists() {
+            return Ok(()); // No portfolio data, allow trade
+        }
+
+        let content = tokio::fs::read_to_string(portfolio_file).await?;
+        let portfolio_data: Value = serde_json::from_str(&content)?;
+        
+        // Get starting portfolio value
+        let starting_value = portfolio_data["portfolio_summary"]["portfolio_value"]
+            .as_f64()
+            .unwrap_or(100000.0);
+        
+        // Get current portfolio value
+        let current_value = portfolio_data["trading_account"]["account_info"]["portfolio_value"]
+            .as_str()
+            .unwrap_or("100000")
+            .parse::<f64>()
+            .unwrap_or(100000.0);
+        
+        // Get current cash
+        let current_cash = portfolio_data["trading_account"]["account_info"]["cash"]
+            .as_str()
+            .unwrap_or("100000")
+            .parse::<f64>()
+            .unwrap_or(100000.0);
+        
+        // Calculate trade impact
+        let trade_value = quantity.abs() as f64 * price;
+        
+        // For buy orders: Check if we have enough cash and won't go below starting value
+        if action.to_lowercase().contains("buy") {
+            if trade_value > current_cash {
+                return Err(anyhow::anyhow!("Insufficient cash: Need ${:.2}, have ${:.2}", trade_value, current_cash));
+            }
+            
+            // Check if buying would reduce portfolio below starting value
+            let projected_portfolio_value = current_value; // Buying doesn't reduce portfolio value
+            if projected_portfolio_value < starting_value {
+                return Err(anyhow::anyhow!("Portfolio protection: Current value ${:.2} below starting value ${:.2}", 
+                    projected_portfolio_value, starting_value));
+            }
+        }
+        
+        // For sell orders: Check if selling would reduce portfolio below starting value
+        if action.to_lowercase().contains("sell") {
+            // Estimate portfolio value after selling (simplified - assumes we're selling existing positions)
+            let projected_portfolio_value = current_value - trade_value;
+            if projected_portfolio_value < starting_value {
+                return Err(anyhow::anyhow!("Portfolio protection: Selling would reduce portfolio to ${:.2}, below starting value ${:.2}", 
+                    projected_portfolio_value, starting_value));
+            }
+        }
+        
+        println!("🛡️ Portfolio Protection: Trade approved - Current: ${:.2}, Starting: ${:.2}", 
+            current_value, starting_value);
+        Ok(())
+    }
+
     /// Execute a single trade using Alpaca API
     async fn execute_single_trade(&self, symbol: &str, action: &str, quantity: i32, price: f64) -> Result<bool> {
         println!("📈 Executing {} order: {} {} shares of {} at ${:.2}", 
                  action, quantity, symbol, symbol, price);
+        
+        // Portfolio Protection: Check if trade would reduce portfolio below starting value
+        if let Err(e) = self.check_portfolio_protection(action, quantity, price).await {
+            println!("🛡️ Portfolio Protection: {}", e);
+            return Ok(false);
+        }
         
         // Check if market is open (for paper trading, we can trade anytime)
         if self.trading_mode == "live" {
@@ -1125,7 +1243,40 @@ impl InteractiveSetup {
         }
     }
 
-    /// Display current portfolio status
+    /// Check if emergency stop is triggered (portfolio below 95% of starting value)
+    async fn is_emergency_stop_triggered(&self) -> Result<bool> {
+        let portfolio_file = "trading_portfolio/trading_portfolio.json";
+        if !std::path::Path::new(portfolio_file).exists() {
+            return Ok(false); // No portfolio data, no emergency stop
+        }
+
+        let content = tokio::fs::read_to_string(portfolio_file).await?;
+        let data: Value = serde_json::from_str(&content)?;
+        
+        // Get starting and current portfolio values
+        let starting_value = data["portfolio_summary"]["portfolio_value"]
+            .as_f64()
+            .unwrap_or(100000.0);
+        
+        let current_value = data["trading_account"]["account_info"]["portfolio_value"]
+            .as_str()
+            .unwrap_or("100000")
+            .parse::<f64>()
+            .unwrap_or(100000.0);
+        
+        // Emergency stop if portfolio is 5% below starting value
+        let emergency_threshold = starting_value * 0.95;
+        let is_emergency = current_value < emergency_threshold;
+        
+        if is_emergency {
+            println!("🚨 Emergency Stop Check: Current ${:.2} < Threshold ${:.2}", 
+                current_value, emergency_threshold);
+        }
+        
+        Ok(is_emergency)
+    }
+
+    /// Display current portfolio status with protection monitoring
     async fn display_portfolio_status(&self) -> Result<()> {
         println!("📊 Current Portfolio Status:");
         
@@ -1140,9 +1291,35 @@ impl InteractiveSetup {
                 let cash = account_info["cash"].as_str().unwrap_or("0");
                 let equity = account_info["equity"].as_str().unwrap_or("0");
                 
-                println!("   💰 Portfolio Value: ${}", portfolio_value);
+                // Get starting portfolio value for comparison
+                let starting_value = data["portfolio_summary"]["portfolio_value"]
+                    .as_f64()
+                    .unwrap_or(100000.0);
+                
+                let current_value = portfolio_value.parse::<f64>().unwrap_or(0.0);
+                let current_cash = cash.parse::<f64>().unwrap_or(0.0);
+                
+                // Calculate protection status
+                let protection_status = if current_value >= starting_value {
+                    "🛡️ PROTECTED"
+                } else {
+                    "⚠️ BELOW STARTING VALUE"
+                };
+                
+                let performance = ((current_value - starting_value) / starting_value) * 100.0;
+                
+                println!("   💰 Portfolio Value: ${} ({})", portfolio_value, protection_status);
                 println!("   💵 Cash: ${}", cash);
                 println!("   📈 Equity: ${}", equity);
+                println!("   🎯 Starting Value: ${:.2}", starting_value);
+                println!("   📊 Performance: {:.2}%", performance);
+                
+                // Emergency stop if portfolio is significantly below starting value
+                if current_value < starting_value * 0.95 {
+                    println!("🚨 EMERGENCY STOP: Portfolio is 5% below starting value!");
+                    println!("   Current: ${:.2}, Starting: ${:.2}", current_value, starting_value);
+                    println!("   Trading will be suspended until portfolio recovers.");
+                }
             }
         }
         
