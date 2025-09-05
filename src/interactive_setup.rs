@@ -1110,11 +1110,16 @@ Focus on actionable trades that will multiply profits.",
                             // Calculate position size based on confidence and available funds
                             let position_size_pct = recommendation["position_size"].as_f64().unwrap_or(0.1);
                             let allocation_amount = available_funds * position_size_pct * confidence;
+                            println!("🔍 Position size calculation: ${:.2} × {:.2} × {:.2} = ${:.2}", 
+                                available_funds, position_size_pct, confidence, allocation_amount);
                             
                             // Use target price if available, otherwise use current market price
                             let execution_price = target_price.unwrap_or(150.0); // Default fallback
                             let quantity = (allocation_amount / execution_price) as i32;
+                            println!("🔍 Quantity calculation: ${:.2} ÷ ${:.2} = {} shares", 
+                                allocation_amount, execution_price, quantity);
                             
+                            println!("🔍 Checking if quantity > 0: {} > 0 = {}", quantity, quantity > 0);
                             if quantity > 0 {
                                 let action_type = if action == "BUY" { "buy" } else { "sell" };
                                 
