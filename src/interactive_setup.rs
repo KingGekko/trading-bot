@@ -1094,8 +1094,15 @@ Focus on actionable trades that will multiply profits.",
                             let stop_loss = recommendation["stop_loss"].as_f64();
                             let confidence = recommendation["confidence"].as_f64().unwrap_or(0.5);
                             
+                            // Get real available cash from account
+                            let account_data = self.get_real_account_data().await?;
+                            let available_funds = account_data["cash"]
+                                .as_str()
+                                .unwrap_or("0")
+                                .parse::<f64>()
+                                .unwrap_or(0.0);
+                            
                             // Calculate position size based on confidence and available funds
-                            let available_funds = 100000.0; // Default, should get from account
                             let position_size_pct = recommendation["position_size"].as_f64().unwrap_or(0.1);
                             let allocation_amount = available_funds * position_size_pct * confidence;
                             
@@ -1108,7 +1115,7 @@ Focus on actionable trades that will multiply profits.",
                                 
                                 println!("🎯 Executing {}: {} shares of {} at ${:.2} (confidence: {:.2})", 
                                     action_type, quantity, symbol, execution_price, confidence);
-                                println!("   💰 Allocation: ${:.2} ({}% of ${:.2} portfolio)", 
+                                println!("   💰 Allocation: ${:.2} ({}% of ${:.2} available cash)", 
                                     allocation_amount, position_size_pct * 100.0, available_funds);
                                 println!("   📊 Position Size: {} shares × ${:.2} = ${:.2}", 
                                     quantity, execution_price, quantity as f64 * execution_price);
