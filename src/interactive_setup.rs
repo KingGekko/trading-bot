@@ -520,6 +520,9 @@ impl InteractiveSetup {
                 continue;
             }
             
+            // Monitor and liquidate profitable positions (0.25% profit target)
+            self.monitor_and_liquidate_positions().await?;
+            
             // Execute trades
             self.execute_trades().await?;
             
@@ -1049,8 +1052,13 @@ impl InteractiveSetup {
             println!("📊 Trade Execution Summary:");
             println!("   📈 Trades Executed: {}", executed_trades.len());
             for (i, trade) in executed_trades.iter().enumerate() {
-                println!("   {}. {} {} shares of {} at ${:.2}", 
-                    i + 1, trade.action, trade.quantity, trade.symbol, trade.price);
+                let trade_type = if trade.action == "sell" {
+                    "💰 LIQUIDATION"
+                } else {
+                    "📈 NEW POSITION"
+                };
+                println!("   {}. {} {} shares of {} at ${:.2} ({})", 
+                    i + 1, trade.action, trade.quantity, trade.symbol, trade.price, trade_type);
             }
         } else {
             println!("📊 No trades executed - All recommendations were HOLD or SKIP");
@@ -1243,6 +1251,97 @@ impl InteractiveSetup {
         }
     }
 
+    /// Monitor positions and liquidate at 0.25% profit
+    async fn monitor_and_liquidate_positions(&self) -> Result<()> {
+        const PROFIT_TARGET_PERCENTAGE: f64 = 0.25; // 0.25% profit target
+        println!("🔍 Monitoring positions for {:.2}% profit liquidation...", PROFIT_TARGET_PERCENTAGE);
+        
+        // Get current positions from Alpaca API
+        let positions = self.get_current_positions().await?;
+        
+        if positions.is_empty() {
+            println!("📊 No positions to monitor");
+            return Ok(());
+        }
+        
+        println!("📊 Monitoring {} positions", positions.len());
+        
+        for position in positions {
+            let symbol = position["symbol"].as_str().unwrap_or("UNKNOWN");
+            let qty = position["qty"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+            let market_value = position["market_value"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+            let cost_basis = position["cost_basis"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+            let unrealized_pl = position["unrealized_pl"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+            
+            // Only monitor long positions (positive quantity)
+            if qty <= 0.0 {
+                continue;
+            }
+            
+            // Calculate profit percentage
+            let profit_percentage = if cost_basis > 0.0 {
+                (unrealized_pl / cost_basis) * 100.0
+            } else {
+                0.0
+            };
+            
+            println!("📈 Position {}: {} shares, P&L: ${:.2} ({:.3}%)", 
+                symbol, qty, unrealized_pl, profit_percentage);
+            
+            // Liquidate if profit >= target percentage
+            if profit_percentage >= PROFIT_TARGET_PERCENTAGE {
+                println!("💰 PROFIT TARGET HIT! Liquidating {} at {:.3}% profit", symbol, profit_percentage);
+                
+                // Execute liquidation order
+                if self.execute_single_trade(symbol, "sell", qty as i32, market_value / qty).await? {
+                    println!("✅ Successfully liquidated {} shares of {} at {:.3}% profit", 
+                        qty, symbol, profit_percentage);
+                } else {
+                    println!("❌ Failed to liquidate {} shares of {}", qty, symbol);
+                }
+            } else {
+                println!("⏳ {} not ready for liquidation (need {:.2}%, currently {:.3}%)", 
+                    symbol, PROFIT_TARGET_PERCENTAGE, profit_percentage);
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Get current positions from Alpaca API
+    async fn get_current_positions(&self) -> Result<Vec<Value>> {
+        let client = reqwest::Client::new();
+        let api_key = std::env::var("APCA_API_KEY_ID").unwrap_or_default();
+        let secret_key = std::env::var("APCA_API_SECRET_KEY").unwrap_or_default();
+        
+        if api_key.is_empty() || secret_key.is_empty() {
+            println!("⚠️ Alpaca API keys not configured. Using simulated positions.");
+            return Ok(vec![]); // Return empty positions for simulation
+        }
+
+        let base_url = if self.trading_mode == "live" {
+            "https://api.alpaca.markets"
+        } else {
+            "https://paper-api.alpaca.markets"
+        };
+
+        let response = client
+            .get(&format!("{}/v2/positions", base_url))
+            .header("APCA-API-KEY-ID", &api_key)
+            .header("APCA-API-SECRET-KEY", &secret_key)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let positions: Vec<Value> = response.json().await?;
+            Ok(positions)
+        } else {
+            let error_text = response.text().await?;
+            println!("⚠️ Failed to get positions: {}", error_text);
+            Ok(vec![])
+        }
+    }
+
     /// Check if emergency stop is triggered (portfolio below 95% of starting value)
     async fn is_emergency_stop_triggered(&self) -> Result<bool> {
         let portfolio_file = "trading_portfolio/trading_portfolio.json";
@@ -1313,6 +1412,37 @@ impl InteractiveSetup {
                 println!("   📈 Equity: ${}", equity);
                 println!("   🎯 Starting Value: ${:.2}", starting_value);
                 println!("   📊 Performance: {:.2}%", performance);
+                
+                // Display current positions
+                let positions = self.get_current_positions().await?;
+                if !positions.is_empty() {
+                    println!("   📋 Active Positions:");
+                    for position in positions {
+                        let symbol = position["symbol"].as_str().unwrap_or("UNKNOWN");
+                        let qty = position["qty"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+                        let unrealized_pl = position["unrealized_pl"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+                        let cost_basis = position["cost_basis"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+                        
+                        if qty > 0.0 {
+                            let profit_percentage = if cost_basis > 0.0 {
+                                (unrealized_pl / cost_basis) * 100.0
+                            } else {
+                                0.0
+                            };
+                            
+                            let status = if profit_percentage >= 0.25 {
+                                "💰 READY TO LIQUIDATE"
+                            } else {
+                                "⏳ Monitoring"
+                            };
+                            
+                            println!("     • {}: {} shares, P&L: ${:.2} ({:.3}%) {}", 
+                                symbol, qty, unrealized_pl, profit_percentage, status);
+                        }
+                    }
+                } else {
+                    println!("   📋 No active positions");
+                }
                 
                 // Emergency stop if portfolio is significantly below starting value
                 if current_value < starting_value * 0.95 {
