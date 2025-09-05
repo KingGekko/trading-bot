@@ -1115,9 +1115,15 @@ Focus on actionable trades that will multiply profits.",
                             
                             // Use target price if available, otherwise use current market price
                             let execution_price = target_price.unwrap_or(150.0); // Default fallback
-                            let quantity = (allocation_amount / execution_price) as i32;
+                            let mut quantity = (allocation_amount / execution_price) as i32;
                             println!("🔍 Quantity calculation: ${:.2} ÷ ${:.2} = {} shares", 
                                 allocation_amount, execution_price, quantity);
+                            
+                            // If we have enough cash for at least 1 share, ensure we buy at least 1
+                            if quantity == 0 && allocation_amount >= execution_price {
+                                quantity = 1;
+                                println!("🔍 Adjusted quantity to 1 share (minimum viable trade)");
+                            }
                             
                             println!("🔍 Checking if quantity > 0: {} > 0 = {}", quantity, quantity > 0);
                             if quantity > 0 {
