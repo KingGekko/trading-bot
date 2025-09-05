@@ -549,13 +549,66 @@ impl InteractiveSetup {
             .parse::<u16>()
             .unwrap_or(8080);
             
+        // Get live account data for the prompt
+        let account_data = self.get_real_account_data().await?;
+        let positions = self.get_current_positions().await?;
+        
+        // Create enhanced prompt with live data
+        let enhanced_prompt = format!(
+            "You are an Elite quantitative trading analyst specializing in profit multiplication and market transcendence.
+
+🎯 MISSION: Analyze the following LIVE trading data and provide precise trading recommendations for maximum profit generation.
+
+💰 LIVE ACCOUNT DATA:
+- Portfolio Value: ${}
+- Cash Available: ${}
+- Equity: ${}
+
+📋 CURRENT POSITIONS:
+{}
+
+📊 MARKET CONDITIONS:
+- Market Regime: Low Volatility
+- Risk Level: Medium
+- Available Assets: 70 diversified assets
+
+🧠 ANALYSIS REQUIREMENTS:
+1. Focus on profit multiplication strategies
+2. Consider current positions and their performance
+3. Identify high-probability entry/exit points
+4. Optimize position sizing for maximum returns
+5. Use technical analysis for timing
+
+🎯 RESPONSE FORMAT:
+Provide specific trading recommendations in this exact format:
+- BUY [SYMBOL]: [QUANTITY] shares at [PRICE] - [REASONING]
+- SELL [SYMBOL]: [QUANTITY] shares at [PRICE] - [REASONING]
+- HOLD [SYMBOL] - [REASONING]
+
+Focus on actionable trades that will multiply profits.",
+            account_data["portfolio_value"].as_str().unwrap_or("100000"),
+            account_data["cash"].as_str().unwrap_or("100000"),
+            account_data["equity"].as_str().unwrap_or("100000"),
+            if positions.is_empty() {
+                "No current positions".to_string()
+            } else {
+                positions.iter().map(|p| {
+                    format!("- {}: {} shares, P&L: ${:.2}", 
+                        p["symbol"].as_str().unwrap_or("UNKNOWN"),
+                        p["qty"].as_str().unwrap_or("0"),
+                        p["unrealized_pl"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0)
+                    )
+                }).collect::<Vec<_>>().join("\n")
+            }
+        );
+
         // Send portfolio analysis request to the API server
         let response = client
             .post(format!("http://localhost:{}/api/ollama/process", api_port))
             .json(&serde_json::json!({
                 "file_path": "trading_portfolio/trading_portfolio.json",
                 "model": self.selected_model,
-                "prompt": "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication. Generate specific trading recommendations with buy/sell actions, quantities, and prices."
+                "prompt": enhanced_prompt
             }))
             .timeout(Duration::from_secs(60))
             .send()
@@ -597,13 +650,66 @@ impl InteractiveSetup {
             .parse::<u16>()
             .unwrap_or(8080);
             
+        // Get live account data for the prompt
+        let account_data = self.get_real_account_data().await?;
+        let positions = self.get_current_positions().await?;
+        
+        // Create enhanced prompt with live data
+        let enhanced_prompt = format!(
+            "You are an Elite quantitative trading analyst specializing in profit multiplication and market transcendence.
+
+🎯 MISSION: Analyze the following LIVE trading data and provide precise trading recommendations for maximum profit generation.
+
+💰 LIVE ACCOUNT DATA:
+- Portfolio Value: ${}
+- Cash Available: ${}
+- Equity: ${}
+
+📋 CURRENT POSITIONS:
+{}
+
+📊 MARKET CONDITIONS:
+- Market Regime: Low Volatility
+- Risk Level: Medium
+- Available Assets: 70 diversified assets
+
+🧠 ANALYSIS REQUIREMENTS:
+1. Focus on profit multiplication strategies
+2. Consider current positions and their performance
+3. Identify high-probability entry/exit points
+4. Optimize position sizing for maximum returns
+5. Use technical analysis for timing
+
+🎯 RESPONSE FORMAT:
+Provide specific trading recommendations in this exact format:
+- BUY [SYMBOL]: [QUANTITY] shares at [PRICE] - [REASONING]
+- SELL [SYMBOL]: [QUANTITY] shares at [PRICE] - [REASONING]
+- HOLD [SYMBOL] - [REASONING]
+
+Focus on actionable trades that will multiply profits.",
+            account_data["portfolio_value"].as_str().unwrap_or("100000"),
+            account_data["cash"].as_str().unwrap_or("100000"),
+            account_data["equity"].as_str().unwrap_or("100000"),
+            if positions.is_empty() {
+                "No current positions".to_string()
+            } else {
+                positions.iter().map(|p| {
+                    format!("- {}: {} shares, P&L: ${:.2}", 
+                        p["symbol"].as_str().unwrap_or("UNKNOWN"),
+                        p["qty"].as_str().unwrap_or("0"),
+                        p["unrealized_pl"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0)
+                    )
+                }).collect::<Vec<_>>().join("\n")
+            }
+        );
+
         // Use portfolio analysis with multi-model conversation
         let client = reqwest::Client::new();
         let response = client
             .post(format!("http://localhost:{}/api/ollama/conversation", api_port))
             .json(&serde_json::json!({
                 "file_path": "trading_portfolio/trading_portfolio.json",
-                "initial_prompt": "You are an Elite quantitative trading analyst. Analyze the following trading data to transcend in profit multiplication. Generate specific trading recommendations with buy/sell actions, quantities, and prices.",
+                "initial_prompt": enhanced_prompt,
                 "models": self.models
             }))
             .timeout(Duration::from_secs(60))

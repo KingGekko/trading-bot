@@ -1624,12 +1624,45 @@ async fn main() -> Result<()> {
             portfolio_data.clone()
         };
 
-        // Generate AI-enhanced decisions using enhanced strategy data
-        let ai_decisions = ai_decision_engine.generate_ai_enhanced_decisions(
+        // For now, create placeholder technical indicators
+        // In a full implementation, you'd fetch real historical data and calculate indicators
+        let mut technical_indicators = std::collections::HashMap::new();
+        
+        for symbol in market_data.keys() {
+            let indicators = crate::market_data::TechnicalIndicators {
+                symbol: symbol.clone(),
+                timestamp: chrono::Utc::now(),
+                sma_5: 149.5,
+                sma_10: 149.0,
+                sma_15: 148.5,
+                ema_5: 149.8,
+                ema_10: 149.2,
+                rsi: 45.0,
+                macd: 0.5,
+                macd_signal: 0.3,
+                macd_histogram: 0.2,
+                bollinger_upper: 155.0,
+                bollinger_middle: 150.0,
+                bollinger_lower: 145.0,
+                atr: 2.5,
+                volume_sma: 1000000.0,
+                volume_ratio: 1.2,
+                price_change_1min: 0.1,
+                price_change_5min: 0.5,
+                price_change_15min: 1.2,
+                volatility: 2.0,
+            };
+            technical_indicators.insert(symbol.clone(), indicators);
+            println!("✅ Created technical indicators for {}", symbol);
+        }
+
+        // Generate AI-enhanced decisions with technical analysis
+        let ai_decisions = ai_decision_engine.generate_ai_enhanced_decisions_with_technical_analysis(
             &market_data,
             &account_data,
             &[], // No current positions for demo
             &enhanced_strategy_data,
+            &technical_indicators,
         ).await?;
         
         println!("\n🎯 AI-ENHANCED TRADING DECISIONS:");
