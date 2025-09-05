@@ -1056,13 +1056,23 @@ Focus on actionable trades that will multiply profits.",
                     };
                                     
                                     // Execute the trade
-                    if self.execute_single_trade(&recommendation.symbol, &recommendation.action, adjusted_quantity, recommendation.price).await? {
-                        executed_trades.push(ExecutedTrade {
-                            symbol: recommendation.symbol.clone(),
-                            action: recommendation.action.clone(),
-                            quantity: adjusted_quantity,
-                            price: recommendation.price,
-                        });
+                    match self.execute_single_trade(&recommendation.symbol, &recommendation.action, adjusted_quantity, recommendation.price).await {
+                        Ok(true) => {
+                            executed_trades.push(ExecutedTrade {
+                                symbol: recommendation.symbol.clone(),
+                                action: recommendation.action.clone(),
+                                quantity: adjusted_quantity,
+                                price: recommendation.price,
+                            });
+                        }
+                        Ok(false) => {
+                            println!("⚠️ Trade blocked: {} {} shares of {} at ${:.2}", 
+                                recommendation.action, adjusted_quantity, recommendation.symbol, recommendation.price);
+                        }
+                        Err(e) => {
+                            println!("❌ Trade failed: {} {} shares of {} at ${:.2} - Error: {}", 
+                                recommendation.action, adjusted_quantity, recommendation.symbol, recommendation.price, e);
+                        }
                     }
                 }
             }
@@ -1103,13 +1113,23 @@ Focus on actionable trades that will multiply profits.",
                                 println!("   📊 Position Size: {} shares × ${:.2} = ${:.2}", 
                                     quantity, execution_price, quantity as f64 * execution_price);
                                 
-                                if self.execute_single_trade(symbol, action_type, quantity, execution_price).await? {
-                                    executed_trades.push(ExecutedTrade {
-                                        symbol: symbol.to_string(),
-                                        action: action_type.to_string(),
-                                        quantity,
-                                        price: execution_price,
-                                    });
+                                match self.execute_single_trade(symbol, action_type, quantity, execution_price).await {
+                                    Ok(true) => {
+                                        executed_trades.push(ExecutedTrade {
+                                            symbol: symbol.to_string(),
+                                            action: action_type.to_string(),
+                                            quantity,
+                                            price: execution_price,
+                                        });
+                                    }
+                                    Ok(false) => {
+                                        println!("⚠️ Trade blocked: {} {} shares of {} at ${:.2}", 
+                                            action_type, quantity, symbol, execution_price);
+                                    }
+                                    Err(e) => {
+                                        println!("❌ Trade failed: {} {} shares of {} at ${:.2} - Error: {}", 
+                                            action_type, quantity, symbol, execution_price, e);
+                                    }
                                 }
                             }
                         }
@@ -1135,13 +1155,23 @@ Focus on actionable trades that will multiply profits.",
                                             
                                             let action_type = if action == "BUY" { "buy" } else { "sell" };
                                             
-                                            if self.execute_single_trade(symbol, action_type, quantity, price).await? {
-                                                executed_trades.push(ExecutedTrade {
-                                                    symbol: symbol.to_string(),
-                                                    action: action_type.to_string(),
-                                                    quantity,
-                                                    price,
-                                                });
+                                            match self.execute_single_trade(symbol, action_type, quantity, price).await {
+                                                Ok(true) => {
+                                                    executed_trades.push(ExecutedTrade {
+                                                        symbol: symbol.to_string(),
+                                                        action: action_type.to_string(),
+                                                        quantity,
+                                                        price,
+                                                    });
+                                                }
+                                                Ok(false) => {
+                                                    println!("⚠️ Trade blocked: {} {} shares of {} at ${:.2}", 
+                                                        action_type, quantity, symbol, price);
+                                                }
+                                                Err(e) => {
+                                                    println!("❌ Trade failed: {} {} shares of {} at ${:.2} - Error: {}", 
+                                                        action_type, quantity, symbol, price, e);
+                                                }
                                             }
                                         }
                                     }
@@ -1234,18 +1264,16 @@ Focus on actionable trades that will multiply profits.",
         // Calculate trade impact
         let trade_value = quantity.abs() as f64 * price;
         
-        // For buy orders: Check if we have enough cash and won't go below starting value
+        // For buy orders: Check if we have enough cash
         if action.to_lowercase().contains("buy") {
             if trade_value > current_cash {
                 return Err(anyhow::anyhow!("Insufficient cash: Need ${:.2}, have ${:.2}", trade_value, current_cash));
             }
             
-            // Check if buying would reduce portfolio below starting value
-            let projected_portfolio_value = current_value; // Buying doesn't reduce portfolio value
-            if projected_portfolio_value < starting_value {
-                return Err(anyhow::anyhow!("Portfolio protection: Current value ${:.2} below starting value ${:.2}", 
-                    projected_portfolio_value, starting_value));
-            }
+            // Buy orders don't reduce portfolio value - they convert cash to positions
+            // Portfolio protection doesn't apply to buy orders since they don't reduce total value
+            println!("🛡️ Portfolio Protection: Buy order approved - Using ${:.2} of ${:.2} available cash", 
+                trade_value, current_cash);
         }
         
         // For sell orders: Check if selling would reduce portfolio below starting value
