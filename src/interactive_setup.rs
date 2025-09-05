@@ -1086,21 +1086,26 @@ Focus on actionable trades that will multiply profits.",
             println!("📊 Found {} structured trading recommendations", trading_recommendations.len());
             
             for recommendation in trading_recommendations {
+                println!("🔍 Processing recommendation: {:?}", recommendation);
                 if let Some(symbol) = recommendation["symbol"].as_str() {
                     if let Some(action) = recommendation["action"].as_str() {
+                        println!("🔍 Found symbol: {}, action: {}", symbol, action);
                         if action == "BUY" || action == "SELL" {
+                            println!("🔍 Action is BUY/SELL, proceeding with trade execution...");
                             // Get target price or use current market price
                             let target_price = recommendation["target_price"].as_f64();
                             let stop_loss = recommendation["stop_loss"].as_f64();
                             let confidence = recommendation["confidence"].as_f64().unwrap_or(0.5);
                             
                             // Get real available cash from account
+                            println!("🔍 Getting account data for position sizing...");
                             let account_data = self.get_real_account_data().await?;
                             let available_funds = account_data["cash"]
                                 .as_str()
                                 .unwrap_or("0")
                                 .parse::<f64>()
                                 .unwrap_or(0.0);
+                            println!("🔍 Available funds: ${:.2}", available_funds);
                             
                             // Calculate position size based on confidence and available funds
                             let position_size_pct = recommendation["position_size"].as_f64().unwrap_or(0.1);
