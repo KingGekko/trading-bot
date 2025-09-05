@@ -625,6 +625,20 @@ impl InteractiveSetup {
         Ok(())
     }
 
+    /// Map company names to stock symbols
+    fn map_company_to_symbol(&self, company: &str) -> String {
+        match company.to_uppercase().as_str() {
+            "APPLE" | "AAPL" => "AAPL".to_string(),
+            "MICROSOFT" | "MSFT" => "MSFT".to_string(),
+            "TESLA" | "TSLA" => "TSLA".to_string(),
+            "GOOGLE" | "GOOGL" | "ALPHABET" => "GOOGL".to_string(),
+            "SPY" | "SPDR" => "SPY".to_string(),
+            "QQQ" => "QQQ".to_string(),
+            "ALL" => "AAPL".to_string(), // Default mapping for "all"
+            _ => company.to_uppercase(),
+        }
+    }
+
     /// Parse AI recommendations from natural language response
     fn parse_ai_recommendations(&self, response: &str) -> Vec<AIRecommendation> {
         let mut recommendations = Vec::new();
@@ -711,13 +725,20 @@ impl InteractiveSetup {
                         continue;
                     };
                     
-                    println!("🔍 Adding buy recommendation: {} {} shares at ${}", symbol.to_uppercase(), quantity, price);
-                    recommendations.push(AIRecommendation {
-                        symbol: symbol.to_uppercase(),
-                        action: "buy".to_string(),
-                        quantity,
-                        price,
-                    });
+                    let mapped_symbol = self.map_company_to_symbol(symbol);
+                    println!("🔍 Adding buy recommendation: {} {} shares at ${}", mapped_symbol, quantity, price);
+                    
+                    // Check for duplicates before adding
+                    if !recommendations.iter().any(|r: &AIRecommendation| r.symbol == mapped_symbol && r.action == "buy") {
+                        recommendations.push(AIRecommendation {
+                            symbol: mapped_symbol,
+                            action: "buy".to_string(),
+                            quantity,
+                            price,
+                        });
+                    } else {
+                        println!("🔍 Skipping duplicate buy recommendation for {}", mapped_symbol);
+                    }
                 }
             }
         }
@@ -808,13 +829,20 @@ impl InteractiveSetup {
                         continue;
                     };
                     
-                    println!("🔍 Adding sell recommendation: {} {} shares at ${}", symbol.to_uppercase(), quantity, price);
-                    recommendations.push(AIRecommendation {
-                        symbol: symbol.to_uppercase(),
-                        action: "sell".to_string(),
-                        quantity,
-                        price,
-                    });
+                    let mapped_symbol = self.map_company_to_symbol(symbol);
+                    println!("🔍 Adding sell recommendation: {} {} shares at ${}", mapped_symbol, quantity, price);
+                    
+                    // Check for duplicates before adding
+                    if !recommendations.iter().any(|r: &AIRecommendation| r.symbol == mapped_symbol && r.action == "sell") {
+                        recommendations.push(AIRecommendation {
+                            symbol: mapped_symbol,
+                            action: "sell".to_string(),
+                            quantity,
+                            price,
+                        });
+                    } else {
+                        println!("🔍 Skipping duplicate sell recommendation for {}", mapped_symbol);
+                    }
                 }
             }
         }
@@ -888,7 +916,7 @@ impl InteractiveSetup {
         // Debug: Check if trading_recommendations exists
         if let Some(trading_recs) = analysis.get("trading_recommendations") {
             println!("🔍 trading_recommendations found: {:?}", trading_recs);
-        } else {
+                        } else {
             println!("🔍 trading_recommendations NOT found in analysis");
         }
         
@@ -902,12 +930,20 @@ impl InteractiveSetup {
             for recommendation in recommendations {
                 println!("🔍 Processing recommendation: {:?}", recommendation);
                 if recommendation.action != "hold" && recommendation.action != "skip" {
-                    // Execute the trade
-                    if self.execute_single_trade(&recommendation.symbol, &recommendation.action, recommendation.quantity, recommendation.price).await? {
+                    // Adjust quantity based on available buying power for buy orders
+                    let adjusted_quantity = if recommendation.action == "buy" {
+                        // Use smaller position size to avoid insufficient buying power
+                        std::cmp::min(recommendation.quantity, 5) // Max 5 shares for buy orders
+                    } else {
+                        recommendation.quantity
+                    };
+                                    
+                                    // Execute the trade
+                    if self.execute_single_trade(&recommendation.symbol, &recommendation.action, adjusted_quantity, recommendation.price).await? {
                         executed_trades.push(ExecutedTrade {
                             symbol: recommendation.symbol.clone(),
                             action: recommendation.action.clone(),
-                            quantity: recommendation.quantity,
+                            quantity: adjusted_quantity,
                             price: recommendation.price,
                         });
                     }
