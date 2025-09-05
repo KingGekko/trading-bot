@@ -1071,26 +1071,18 @@ impl InteractiveSetup {
 
     /// Calculate safe position size based on available cash and portfolio protection
     async fn calculate_safe_position_size(&self, symbol: &str, price: f64) -> Result<i32> {
-        // Get current portfolio data
-        let portfolio_file = "trading_portfolio/trading_portfolio.json";
-        if !std::path::Path::new(portfolio_file).exists() {
-            return Ok(1); // Default to 1 share if no portfolio data
-        }
-
-        let content = tokio::fs::read_to_string(portfolio_file).await?;
-        let portfolio_data: Value = serde_json::from_str(&content)?;
+        // Get real-time account data from Alpaca API
+        let account_data = self.get_real_account_data().await?;
         
-        // Get current cash
-        let current_cash = portfolio_data["trading_account"]["account_info"]["cash"]
+        // Get current cash from real account data
+        let current_cash = account_data["cash"]
             .as_str()
             .unwrap_or("100000")
             .parse::<f64>()
             .unwrap_or(100000.0);
         
         // Get starting portfolio value for protection
-        let starting_value = portfolio_data["portfolio_summary"]["portfolio_value"]
-            .as_f64()
-            .unwrap_or(100000.0);
+        let starting_value = self.get_starting_portfolio_value().await?;
         
         // Calculate maximum safe position size
         // Use only 5% of available cash to be conservative
@@ -1113,29 +1105,21 @@ impl InteractiveSetup {
 
     /// Check portfolio protection to ensure portfolio doesn't go below starting value
     async fn check_portfolio_protection(&self, action: &str, quantity: i32, price: f64) -> Result<()> {
-        // Get current portfolio data
-        let portfolio_file = "trading_portfolio/trading_portfolio.json";
-        if !std::path::Path::new(portfolio_file).exists() {
-            return Ok(()); // No portfolio data, allow trade
-        }
-
-        let content = tokio::fs::read_to_string(portfolio_file).await?;
-        let portfolio_data: Value = serde_json::from_str(&content)?;
+        // Get real-time account data from Alpaca API
+        let account_data = self.get_real_account_data().await?;
         
         // Get starting portfolio value
-        let starting_value = portfolio_data["portfolio_summary"]["portfolio_value"]
-            .as_f64()
-            .unwrap_or(100000.0);
+        let starting_value = self.get_starting_portfolio_value().await?;
         
-        // Get current portfolio value
-        let current_value = portfolio_data["trading_account"]["account_info"]["portfolio_value"]
+        // Get current portfolio value from real account data
+        let current_value = account_data["portfolio_value"]
             .as_str()
             .unwrap_or("100000")
             .parse::<f64>()
             .unwrap_or(100000.0);
         
-        // Get current cash
-        let current_cash = portfolio_data["trading_account"]["account_info"]["cash"]
+        // Get current cash from real account data
+        let current_cash = account_data["cash"]
             .as_str()
             .unwrap_or("100000")
             .parse::<f64>()
@@ -1308,6 +1292,68 @@ impl InteractiveSetup {
         Ok(())
     }
 
+    /// Get real-time account data from Alpaca API
+    async fn get_real_account_data(&self) -> Result<Value> {
+        let client = reqwest::Client::new();
+        let api_key = std::env::var("APCA_API_KEY_ID").unwrap_or_default();
+        let secret_key = std::env::var("APCA_API_SECRET_KEY").unwrap_or_default();
+        
+        if api_key.is_empty() || secret_key.is_empty() {
+            println!("⚠️ Alpaca API keys not configured. Using simulated account data.");
+            // Return simulated data structure
+            return Ok(serde_json::json!({
+                "portfolio_value": "100000",
+                "cash": "100000", 
+                "equity": "100000"
+            }));
+        }
+
+        let base_url = if self.trading_mode == "live" {
+            "https://api.alpaca.markets"
+        } else {
+            "https://paper-api.alpaca.markets"
+        };
+
+        let response = client
+            .get(&format!("{}/v2/account", base_url))
+            .header("APCA-API-KEY-ID", &api_key)
+            .header("APCA-API-SECRET-KEY", &secret_key)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let account_data: Value = response.json().await?;
+            println!("✅ Fetched real account data from Alpaca API");
+            Ok(account_data)
+        } else {
+            let error_text = response.text().await?;
+            println!("⚠️ Failed to get account data: {}", error_text);
+            // Return simulated data as fallback
+            Ok(serde_json::json!({
+                "portfolio_value": "100000",
+                "cash": "100000",
+                "equity": "100000"
+            }))
+        }
+    }
+
+    /// Get starting portfolio value from static file
+    async fn get_starting_portfolio_value(&self) -> Result<f64> {
+        let portfolio_file = "trading_portfolio/trading_portfolio.json";
+        if std::path::Path::new(portfolio_file).exists() {
+            let content = tokio::fs::read_to_string(portfolio_file).await?;
+            let data: Value = serde_json::from_str(&content)?;
+            
+            let starting_value = data["portfolio_summary"]["portfolio_value"]
+                .as_f64()
+                .unwrap_or(100000.0);
+            
+            Ok(starting_value)
+        } else {
+            Ok(100000.0) // Default starting value
+        }
+    }
+
     /// Get current positions from Alpaca API
     async fn get_current_positions(&self) -> Result<Vec<Value>> {
         let client = reqwest::Client::new();
@@ -1344,20 +1390,13 @@ impl InteractiveSetup {
 
     /// Check if emergency stop is triggered (portfolio below 95% of starting value)
     async fn is_emergency_stop_triggered(&self) -> Result<bool> {
-        let portfolio_file = "trading_portfolio/trading_portfolio.json";
-        if !std::path::Path::new(portfolio_file).exists() {
-            return Ok(false); // No portfolio data, no emergency stop
-        }
-
-        let content = tokio::fs::read_to_string(portfolio_file).await?;
-        let data: Value = serde_json::from_str(&content)?;
+        // Get real-time account data from Alpaca API
+        let account_data = self.get_real_account_data().await?;
         
         // Get starting and current portfolio values
-        let starting_value = data["portfolio_summary"]["portfolio_value"]
-            .as_f64()
-            .unwrap_or(100000.0);
+        let starting_value = self.get_starting_portfolio_value().await?;
         
-        let current_value = data["trading_account"]["account_info"]["portfolio_value"]
+        let current_value = account_data["portfolio_value"]
             .as_str()
             .unwrap_or("100000")
             .parse::<f64>()
@@ -1379,78 +1418,74 @@ impl InteractiveSetup {
     async fn display_portfolio_status(&self) -> Result<()> {
         println!("📊 Current Portfolio Status:");
         
-        // Read portfolio data
-        let portfolio_file = "trading_portfolio/trading_portfolio.json";
-        if std::path::Path::new(portfolio_file).exists() {
-            let content = tokio::fs::read_to_string(portfolio_file).await?;
-            let data: Value = serde_json::from_str(&content)?;
+        // Get real-time account data from Alpaca API
+        let account_data = self.get_real_account_data().await?;
+        
+        if let Some(account_info) = account_data.as_object() {
+            let portfolio_value = account_info["portfolio_value"].as_str().unwrap_or("0");
+            let cash = account_info["cash"].as_str().unwrap_or("0");
+            let equity = account_info["equity"].as_str().unwrap_or("0");
             
-            if let Some(account_info) = data["trading_account"]["account_info"].as_object() {
-                let portfolio_value = account_info["portfolio_value"].as_str().unwrap_or("0");
-                let cash = account_info["cash"].as_str().unwrap_or("0");
-                let equity = account_info["equity"].as_str().unwrap_or("0");
-                
-                // Get starting portfolio value for comparison
-                let starting_value = data["portfolio_summary"]["portfolio_value"]
-                    .as_f64()
-                    .unwrap_or(100000.0);
-                
-                let current_value = portfolio_value.parse::<f64>().unwrap_or(0.0);
-                let current_cash = cash.parse::<f64>().unwrap_or(0.0);
-                
-                // Calculate protection status
-                let protection_status = if current_value >= starting_value {
-                    "🛡️ PROTECTED"
-                } else {
-                    "⚠️ BELOW STARTING VALUE"
-                };
-                
-                let performance = ((current_value - starting_value) / starting_value) * 100.0;
-                
-                println!("   💰 Portfolio Value: ${} ({})", portfolio_value, protection_status);
-                println!("   💵 Cash: ${}", cash);
-                println!("   📈 Equity: ${}", equity);
-                println!("   🎯 Starting Value: ${:.2}", starting_value);
-                println!("   📊 Performance: {:.2}%", performance);
-                
-                // Display current positions
-                let positions = self.get_current_positions().await?;
-                if !positions.is_empty() {
-                    println!("   📋 Active Positions:");
-                    for position in positions {
-                        let symbol = position["symbol"].as_str().unwrap_or("UNKNOWN");
-                        let qty = position["qty"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
-                        let unrealized_pl = position["unrealized_pl"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
-                        let cost_basis = position["cost_basis"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+            // Get starting portfolio value for comparison (from static file)
+            let starting_value = self.get_starting_portfolio_value().await?;
+            
+            let current_value = portfolio_value.parse::<f64>().unwrap_or(0.0);
+            let current_cash = cash.parse::<f64>().unwrap_or(0.0);
+            
+            // Calculate protection status
+            let protection_status = if current_value >= starting_value {
+                "🛡️ PROTECTED"
+            } else {
+                "⚠️ BELOW STARTING VALUE"
+            };
+            
+            let performance = ((current_value - starting_value) / starting_value) * 100.0;
+            
+            println!("   💰 Portfolio Value: ${} ({})", portfolio_value, protection_status);
+            println!("   💵 Cash: ${}", cash);
+            println!("   📈 Equity: ${}", equity);
+            println!("   🎯 Starting Value: ${:.2}", starting_value);
+            println!("   📊 Performance: {:.2}%", performance);
+            
+            // Display current positions
+            let positions = self.get_current_positions().await?;
+            if !positions.is_empty() {
+                println!("   📋 Active Positions:");
+                for position in positions {
+                    let symbol = position["symbol"].as_str().unwrap_or("UNKNOWN");
+                    let qty = position["qty"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+                    let unrealized_pl = position["unrealized_pl"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+                    let cost_basis = position["cost_basis"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+                    
+                    if qty > 0.0 {
+                        let profit_percentage = if cost_basis > 0.0 {
+                            (unrealized_pl / cost_basis) * 100.0
+                        } else {
+                            0.0
+                        };
                         
-                        if qty > 0.0 {
-                            let profit_percentage = if cost_basis > 0.0 {
-                                (unrealized_pl / cost_basis) * 100.0
-                            } else {
-                                0.0
-                            };
-                            
-                            let status = if profit_percentage >= 0.25 {
-                                "💰 READY TO LIQUIDATE"
-                            } else {
-                                "⏳ Monitoring"
-                            };
-                            
-                            println!("     • {}: {} shares, P&L: ${:.2} ({:.3}%) {}", 
-                                symbol, qty, unrealized_pl, profit_percentage, status);
-                        }
+                        let status = if profit_percentage >= 0.25 {
+                            "💰 READY TO LIQUIDATE"
+                        } else {
+                            "⏳ Monitoring"
+                        };
+                        
+                        println!("     • {}: {} shares, P&L: ${:.2} ({:.3}%) {}", 
+                            symbol, qty, unrealized_pl, profit_percentage, status);
                     }
-                } else {
-                    println!("   📋 No active positions");
                 }
-                
-                // Emergency stop if portfolio is significantly below starting value
-                if current_value < starting_value * 0.95 {
-                    println!("🚨 EMERGENCY STOP: Portfolio is 5% below starting value!");
-                    println!("   Current: ${:.2}, Starting: ${:.2}", current_value, starting_value);
-                    println!("   Trading will be suspended until portfolio recovers.");
-                }
+            } else {
+                println!("   📋 No active positions");
             }
+            
+            // Emergency stop if portfolio is significantly below starting value
+            if current_value < starting_value * 0.95 {
+                println!("🚨 EMERGENCY STOP: Portfolio is 5% below starting value!");
+                println!("   Current: ${:.2}, Starting: ${:.2}", current_value, starting_value);
+                println!("   Trading will be suspended until portfolio recovers.");
+            }
+        } else {
+            println!("⚠️ Could not fetch account data. Using fallback values.");
         }
         
         Ok(())
