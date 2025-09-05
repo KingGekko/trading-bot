@@ -1637,14 +1637,14 @@ async fn main() -> Result<()> {
         
         for (i, decision) in ai_decisions.iter().enumerate() {
             println!("\n{}. {} - {}", i + 1, decision.symbol, decision.action);
-            println!("   📊 Mathematical Confidence: {:.2}", decision.mathematical_confidence);
-            println!("   🤖 AI Confidence Boost: {:.2}", decision.ai_confidence_boost);
-            println!("   🎯 Combined Confidence: {:.2}", decision.combined_confidence);
+            println!("   📊 Confidence Score: {:.2}", decision.confidence_score);
             println!("   💰 Position Size: ${:.2}", decision.position_size.abs());
             println!("   📈 Expected Return: {:.2}%", decision.expected_return * 100.0);
-            println!("   ⚠️ AI Risk Assessment: {:.2}", decision.ai_risk_assessment);
-            println!("   🧠 Mathematical Reasoning: {}", decision.mathematical_reasoning);
-            println!("   🤖 AI Reasoning: {}", decision.ai_reasoning);
+            println!("   🧠 Reasoning: {}", decision.reasoning);
+            println!("   🤖 AI Insights: {}", decision.ai_insights);
+            if !decision.technical_analysis.is_empty() {
+                println!("   📊 Technical Analysis: {}", decision.technical_analysis);
+            }
             println!("   🛡️ Stop Loss: ${:.2}", decision.stop_loss);
             println!("   🎯 Take Profit: ${:.2}", decision.take_profit);
             

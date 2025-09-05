@@ -1,5 +1,6 @@
 use crate::market_data::types::{MarketData, Symbol, NewsData};
 use crate::market_data::account_verifier::{AccountVerifier, AccountVerification};
+use crate::market_data::technical_indicators::MarketDataPoint;
 use anyhow::{anyhow, Result};
 use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
@@ -357,6 +358,88 @@ impl UnifiedAlpacaWebSocket {
         Ok(())
     }
 
+    /// Get 15-minute historical data for AI analysis
+    async fn get_15min_historical_data(&self, symbol: &str) -> Result<Vec<MarketDataPoint>> {
+        let client = reqwest::Client::new();
+        
+        // Determine endpoint based on symbol type
+        let (endpoint, api_key_header) = if symbol.contains("/") {
+            // Crypto symbol
+            (
+                format!("https://data.alpaca.markets/v1beta3/crypto/{}/bars", symbol),
+                "APCA-API-KEY-ID"
+            )
+        } else {
+            // Stock symbol
+            (
+                format!("https://data.alpaca.markets/v2/stocks/{}/bars", symbol),
+                "APCA-API-KEY-ID"
+            )
+        };
+        
+        // Get current time and 15 minutes ago
+        let now = Utc::now();
+        let fifteen_minutes_ago = now - chrono::Duration::minutes(15);
+        
+        // Use latest Alpaca API v2 syntax (September 2025)
+        let response = client
+            .get(&endpoint)
+            .header(api_key_header, &self.market_data_config.api_key)
+            .header("APCA-API-SECRET-KEY", &self.market_data_config.secret_key)
+            .query(&[
+                ("timeframe", "1Min"),           // 1-minute bars for detailed analysis
+                ("start", &fifteen_minutes_ago.to_rfc3339()),
+                ("end", &now.to_rfc3339()),
+                ("limit", "1000"),               // Max bars per request
+                ("asof", &now.to_rfc3339()),     // Latest Alpaca API parameter
+                ("feed", "iex"),                 // Use IEX feed for better data quality
+                ("sort", "asc")                  // Ascending chronological order
+            ])
+            .send()
+            .await?;
+        
+        if response.status().is_success() {
+            let data: serde_json::Value = response.json().await?;
+            
+            let mut historical_points = Vec::new();
+            
+            if let Some(bars) = data["bars"].as_array() {
+                for bar in bars {
+                    if let (Some(t), Some(o), Some(h), Some(l), Some(c), Some(v)) = (
+                        bar["t"].as_str(),
+                        bar["o"].as_f64(),
+                        bar["h"].as_f64(),
+                        bar["l"].as_f64(),
+                        bar["c"].as_f64(),
+                        bar["v"].as_i64()
+                    ) {
+                        let timestamp = chrono::DateTime::parse_from_rfc3339(t)
+                            .unwrap_or_else(|_| Utc::now().into())
+                            .with_timezone(&Utc);
+                        
+                        historical_points.push(MarketDataPoint {
+                            symbol: symbol.to_string(),
+                            timestamp,
+                            open: o,
+                            high: h,
+                            low: l,
+                            close: c,
+                            volume: v as f64,
+                        });
+                    }
+                }
+            }
+            
+            println!("✅ Collected {} historical data points for {} (15-minute window)", 
+                historical_points.len(), symbol);
+            
+            Ok(historical_points)
+        } else {
+            let error_text = response.text().await?;
+            Err(anyhow::anyhow!("Failed to get historical data for {}: {}", symbol, error_text))
+        }
+    }
+
     /// Fetch market data using REST API (Basic plan compatible)
     async fn fetch_market_data_rest(&self, symbol: &str) -> Result<MarketData> {
         // Use real Alpaca REST API for Basic plan (15-minute historical data limit)
@@ -381,15 +464,19 @@ impl UnifiedAlpacaWebSocket {
         let now = Utc::now();
         let fifteen_minutes_ago = now - chrono::Duration::minutes(15);
         
+        // Use latest Alpaca API v2 syntax (September 2025)
         let response = client
             .get(&endpoint)
             .header(api_key_header, &self.market_data_config.api_key)
             .header("APCA-API-SECRET-KEY", &self.market_data_config.secret_key)
             .query(&[
-                ("timeframe", "1Min"),
+                ("timeframe", "1Min"),           // 1-minute bars
                 ("start", &fifteen_minutes_ago.to_rfc3339()),
                 ("end", &now.to_rfc3339()),
-                ("limit", "1000")
+                ("limit", "1000"),               // Max bars per request
+                ("asof", &now.to_rfc3339()),     // Latest Alpaca API parameter
+                ("feed", "iex"),                 // Use IEX feed for better data quality
+                ("sort", "asc")                  // Ascending chronological order
             ])
             .send()
             .await?;
@@ -1019,6 +1106,11 @@ impl UnifiedAlpacaWebSocket {
     pub async fn get_current_data(&self, symbol: &Symbol) -> Option<MarketData> {
         let market_data = self.market_data.read().await;
         market_data.get(symbol).cloned()
+    }
+
+    /// Get 15-minute historical data for AI analysis (public interface)
+    pub async fn get_historical_data_for_ai(&self, symbol: &str) -> Result<Vec<MarketDataPoint>> {
+        self.get_15min_historical_data(symbol).await
     }
 
     /// Get all market data

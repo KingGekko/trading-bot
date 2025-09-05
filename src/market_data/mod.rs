@@ -14,6 +14,7 @@ pub mod asset_universe;
 pub mod market_regime;
 pub mod simulated_stream;
 pub mod trading_account;
+pub mod technical_indicators;
 
 // Re-export main types for easy access
 pub use unified_websocket::{UnifiedAlpacaWebSocket, StreamType, load_unified_websocket_config};
@@ -22,3 +23,4 @@ pub use asset_universe::{AssetUniverseManager, Asset, Position};
 pub use market_regime::{MarketRegimeDetector, MarketRegimeAnalysis};
 pub use simulated_stream::SimulatedMarketStream;
 pub use trading_account::TradingAccountManager;
+pub use technical_indicators::{TechnicalIndicators, MarketDataPoint};

@@ -1288,7 +1288,7 @@ impl InteractiveSetup {
                     symbol, PROFIT_TARGET_PERCENTAGE, profit_percentage);
             }
         }
-        
+
         Ok(())
     }
 
@@ -1422,10 +1422,10 @@ impl InteractiveSetup {
         let account_data = self.get_real_account_data().await?;
         
         if let Some(account_info) = account_data.as_object() {
-            let portfolio_value = account_info["portfolio_value"].as_str().unwrap_or("0");
-            let cash = account_info["cash"].as_str().unwrap_or("0");
-            let equity = account_info["equity"].as_str().unwrap_or("0");
-            
+                let portfolio_value = account_info["portfolio_value"].as_str().unwrap_or("0");
+                let cash = account_info["cash"].as_str().unwrap_or("0");
+                let equity = account_info["equity"].as_str().unwrap_or("0");
+                
             // Get starting portfolio value for comparison (from static file)
             let starting_value = self.get_starting_portfolio_value().await?;
             
@@ -1442,8 +1442,8 @@ impl InteractiveSetup {
             let performance = ((current_value - starting_value) / starting_value) * 100.0;
             
             println!("   💰 Portfolio Value: ${} ({})", portfolio_value, protection_status);
-            println!("   💵 Cash: ${}", cash);
-            println!("   📈 Equity: ${}", equity);
+                println!("   💵 Cash: ${}", cash);
+                println!("   📈 Equity: ${}", equity);
             println!("   🎯 Starting Value: ${:.2}", starting_value);
             println!("   📊 Performance: {:.2}%", performance);
             
