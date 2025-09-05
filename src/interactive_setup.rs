@@ -666,8 +666,18 @@ impl InteractiveSetup {
                         } else {
                             continue;
                         }
+                    } else if cap_to_use.len() == 2 {
+                        // Pattern: "buy AAPL:" or "1. buy AAPL:" (numbered list)
+                        println!("🔍 Processing 2-group buy pattern");
+                        if let Some(symbol) = cap_to_use.get(1) {
+                            println!("🔍 Detected symbol-only pattern: '{}'", symbol.as_str());
+                            let price = self.extract_price_for_symbol(response, symbol.as_str()).unwrap_or(150.0);
+                            (100, symbol.as_str(), price) // Default quantity
+                        } else {
+                            continue;
+                        }
                     } else if cap_to_use.len() == 3 {
-                        // Pattern: "buy 100 shares of AAPL" or "buy AAPL at $150.62" or "buy AAPL:" or "1. buy AAPL:"
+                        // Pattern: "buy 100 shares of AAPL" or "buy AAPL at $150.62" or "1. buy AAPL:"
                         println!("🔍 Processing 3-group buy pattern");
                         if let (Some(first), Some(second)) = (cap_to_use.get(1), cap_to_use.get(2)) {
                             if first.as_str().chars().all(|c| c.is_ascii_digit()) {
@@ -742,6 +752,16 @@ impl InteractiveSetup {
                         } else {
                             continue;
                         }
+                    } else if cap_to_use.len() == 2 {
+                        // Pattern: "sell AAPL:" or "1. sell AAPL:" (numbered list)
+                        println!("🔍 Processing 2-group sell pattern");
+                        if let Some(symbol) = cap_to_use.get(1) {
+                            println!("🔍 Detected symbol-only sell pattern: '{}'", symbol.as_str());
+                            let price = self.extract_price_for_symbol(response, symbol.as_str()).unwrap_or(150.0);
+                            (100, symbol.as_str(), price) // Default quantity
+                        } else {
+                            continue;
+                        }
                     } else if cap_to_use.len() == 4 {
                         // Pattern: "sell 100 shares of AAPL at $150.62"
                         if let (Some(quantity_str), Some(symbol), Some(price_str)) = (cap_to_use.get(1), cap_to_use.get(2), cap_to_use.get(3)) {
@@ -758,7 +778,8 @@ impl InteractiveSetup {
                             continue;
                         }
                     } else if cap_to_use.len() == 3 {
-                        // Pattern: "sell 100 shares of AAPL" or "sell AAPL at $150.62" or "sell AAPL:" or "1. sell AAPL:"
+                        // Pattern: "sell 100 shares of AAPL" or "sell AAPL at $150.62" or "1. sell AAPL:"
+                        println!("🔍 Processing 3-group sell pattern");
                         if let (Some(first), Some(second)) = (cap_to_use.get(1), cap_to_use.get(2)) {
                             if first.as_str().chars().all(|c| c.is_ascii_digit()) {
                                 // Pattern: "sell 100 shares of AAPL" or "1. sell AAPL:"
