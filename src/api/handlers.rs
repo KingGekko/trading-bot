@@ -1099,6 +1099,9 @@ pub async fn multi_model_conversation(
         };
         rt.block_on(async {
             let client = OllamaClient::new(&config_ollama_base_url_clone, config_max_timeout_seconds_clone);
+            if payload_models_clone.is_empty() {
+                return Err(anyhow::anyhow!("No models available for summary generation"));
+            }
             client.generate_optimized(&payload_models_clone[0], &summary_prompt).await
         })
     });

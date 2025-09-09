@@ -575,6 +575,11 @@ impl InteractiveSetup {
             // Perform Phase 3 advanced analysis
             self.perform_phase3_analysis().await?;
             
+            // Clean up old liquidated symbols (clear after 5 iterations to prevent wash trades)
+            if iteration % 5 == 0 {
+                self.clear_old_liquidated_symbols().await?;
+            }
+            
             // Wait before next iteration using adaptive timing
             println!("⏳ Waiting {} seconds before next analysis...", cycle_duration.as_secs());
             sleep(cycle_duration).await;
@@ -1348,6 +1353,19 @@ Focus on actionable trades that will multiply profits.",
         let mut executed_trades = Vec::new();
         println!("🎯 Executing trades based on AI recommendations");
         
+        // Check for recently liquidated symbols to prevent wash trades
+        let recently_liquidated_file = "trading_portfolio/recently_liquidated.json";
+        let mut recently_liquidated: std::collections::HashSet<String> = std::collections::HashSet::new();
+        
+        if std::path::Path::new(recently_liquidated_file).exists() {
+            if let Ok(content) = tokio::fs::read_to_string(recently_liquidated_file).await {
+                if let Ok(symbols) = serde_json::from_str::<Vec<String>>(&content) {
+                    recently_liquidated = symbols.into_iter().collect();
+                    println!("🚫 Recently liquidated symbols (wash trade protection): {:?}", recently_liquidated);
+                }
+            }
+        }
+        
         // Check if we have AI analysis results
         let ai_analysis_file = "trading_portfolio/ai_analysis_report.json";
         if !std::path::Path::new(ai_analysis_file).exists() {
@@ -1430,6 +1448,13 @@ Focus on actionable trades that will multiply profits.",
                 if let Some(symbol) = recommendation["symbol"].as_str() {
                     if let Some(action) = recommendation["action"].as_str() {
                         println!("🔍 Found symbol: {}, action: {}", symbol, action);
+                        
+                        // Check for wash trade protection
+                        if recently_liquidated.contains(symbol) {
+                            println!("🚫 Wash trade protection: Skipping {} {} - recently liquidated", action, symbol);
+                            continue;
+                        }
+                        
                         if action == "BUY" || action == "SELL" {
                             println!("🔍 Action is BUY/SELL, proceeding with trade execution...");
                             // Get target price or use current market price
@@ -2589,6 +2614,9 @@ Focus on actionable trades that will multiply profits.",
         
         println!("📊 Liquidating {} positions", positions.len());
         
+        // Track liquidated symbols for wash trade protection
+        let mut liquidated_symbols = Vec::new();
+        
         for position in positions {
             let symbol = position["symbol"].as_str().unwrap_or("UNKNOWN");
             let qty = position["qty"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
@@ -2607,6 +2635,9 @@ Focus on actionable trades that will multiply profits.",
                     let action = if qty > 0.0 { "sell" } else { "buy" };
                     println!("✅ Successfully liquidated {} {} shares of {} ({})", 
                         liquidation_qty, action, symbol, reason);
+                    
+                    // Add to liquidated symbols list
+                    liquidated_symbols.push(symbol.to_string());
                 } else {
                     let action = if qty > 0.0 { "sell" } else { "buy" };
                     println!("❌ Failed to liquidate {} {} shares of {} ({})", 
@@ -2615,7 +2646,32 @@ Focus on actionable trades that will multiply profits.",
             }
         }
         
+        // Save liquidated symbols for wash trade protection
+        if !liquidated_symbols.is_empty() {
+            let recently_liquidated_file = "trading_portfolio/recently_liquidated.json";
+            if let Ok(json_content) = serde_json::to_string_pretty(&liquidated_symbols) {
+                if let Err(e) = tokio::fs::write(recently_liquidated_file, json_content).await {
+                    println!("⚠️ Failed to save liquidated symbols: {}", e);
+                } else {
+                    println!("💾 Saved liquidated symbols for wash trade protection: {:?}", liquidated_symbols);
+                }
+            }
+        }
+        
         println!("🎯 All position liquidation completed: {}", reason);
+        Ok(())
+    }
+    
+    /// Clear old liquidated symbols to allow re-trading
+    async fn clear_old_liquidated_symbols(&self) -> Result<()> {
+        let recently_liquidated_file = "trading_portfolio/recently_liquidated.json";
+        if std::path::Path::new(recently_liquidated_file).exists() {
+            if let Err(e) = tokio::fs::remove_file(recently_liquidated_file).await {
+                println!("⚠️ Failed to clear liquidated symbols: {}", e);
+            } else {
+                println!("🧹 Cleared old liquidated symbols - wash trade protection reset");
+            }
+        }
         Ok(())
     }
     
