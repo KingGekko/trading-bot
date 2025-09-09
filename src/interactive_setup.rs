@@ -1780,16 +1780,33 @@ Focus on actionable trades that will multiply profits.",
         }
 
         if tradeable_assets.is_empty() {
-            // Fallback to common tradeable assets
+            // Fallback to expanded tradeable assets
             tradeable_assets = vec![
-                "AAPL".to_string(),
-                "SPY".to_string(), 
-                "TSLA".to_string(),
-                "MSFT".to_string(),
-                "GOOGL".to_string()
+                // Major ETFs
+                "SPY".to_string(), "QQQ".to_string(), "IWM".to_string(), "VTI".to_string(),
+                // Tech Giants
+                "AAPL".to_string(), "MSFT".to_string(), "GOOGL".to_string(), "AMZN".to_string(),
+                "META".to_string(), "NVDA".to_string(), "TSLA".to_string(),
+                // Financial
+                "JPM".to_string(), "BAC".to_string(), "WFC".to_string(),
+                // Healthcare
+                "JNJ".to_string(), "PFE".to_string(), "UNH".to_string(),
+                // Consumer
+                "KO".to_string(), "PEP".to_string(), "WMT".to_string(),
+                // Energy
+                "XOM".to_string(), "CVX".to_string(),
+                // Industrial
+                "BA".to_string(), "CAT".to_string(), "GE".to_string()
             ];
         }
 
+        // Limit the number of assets to analyze (configurable)
+        let max_assets = 20; // Increase this to trade more assets
+        if tradeable_assets.len() > max_assets {
+            tradeable_assets.truncate(max_assets);
+            println!("📊 Limited to top {} assets for analysis", max_assets);
+        }
+        
         println!("✅ Found {} tradeable assets: {:?}", tradeable_assets.len(), tradeable_assets);
         Ok(tradeable_assets)
     }
