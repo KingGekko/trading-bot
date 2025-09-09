@@ -1461,7 +1461,6 @@ Focus on actionable trades that will multiply profits.",
             
             // Determine position type and side
             let position_type = if qty > 0.0 { "LONG" } else { "SHORT" };
-            let side = if qty > 0.0 { "buy" } else { "sell" };
             
             // Calculate profit percentage (use absolute values for short positions)
             let profit_percentage = if cost_basis.abs() > 0.0 {
@@ -1481,15 +1480,16 @@ Focus on actionable trades that will multiply profits.",
                 // For short positions, we need to buy to close (positive quantity)
                 // For long positions, we need to sell to close (negative quantity)
                 let liquidation_qty = if qty > 0.0 { qty as i32 } else { -qty as i32 };
-                let liquidation_side = if qty > 0.0 { "sell" } else { "buy" };
                 
                 // Execute liquidation order (bypass portfolio protection for profitable exits)
                 if self.execute_liquidation_trade(symbol, liquidation_qty, market_value.abs() / qty.abs()).await? {
+                    let action = if qty > 0.0 { "sell" } else { "buy" };
                     println!("✅ Successfully liquidated {} {} shares of {} at {:.3}% profit", 
-                        liquidation_qty, liquidation_side, symbol, profit_percentage);
+                        liquidation_qty, action, symbol, profit_percentage);
                 } else {
+                    let action = if qty > 0.0 { "sell" } else { "buy" };
                     println!("❌ Failed to liquidate {} {} shares of {}", 
-                        liquidation_qty, liquidation_side, symbol);
+                        liquidation_qty, action, symbol);
                 }
             } else {
                 println!("⏳ {} {} not ready for liquidation (need {:.2}%, currently {:.3}%)", 
@@ -1826,7 +1826,7 @@ Focus on actionable trades that will multiply profits.",
         Ok(final_assets)
     }
     
-    /// Fetch real tradeable assets from Alpaca API
+    /// Fetch real tradeable assets from Alpaca API (supports both paper and live trading)
     async fn fetch_alpaca_assets(&self) -> Result<Vec<String>> {
         let client = reqwest::Client::new();
         let api_key = std::env::var("APCA_API_KEY_ID").unwrap_or_default();
@@ -1836,22 +1836,25 @@ Focus on actionable trades that will multiply profits.",
             return Err(anyhow::anyhow!("Alpaca API keys not configured"));
         }
 
+        // Use correct endpoint for paper vs live trading
         let base_url = if self.trading_mode == "live" {
             "https://api.alpaca.markets"
         } else {
             "https://paper-api.alpaca.markets"
         };
 
-        // Fetch assets from Alpaca API (optimized for Basic Plan)
+        println!("🔍 Fetching assets from {} ({} trading)", base_url, self.trading_mode);
+
+        // Fetch assets from Alpaca API (Basic Plan supports short selling with $2k+ equity)
         let response = client
             .get(&format!("{}/v2/assets", base_url))
             .header("APCA-API-KEY-ID", &api_key)
             .header("APCA-API-SECRET-KEY", &secret_key)
             .query(&[
                 ("status", "active"), 
-                ("attributes", "tradable"),
-                ("class", "us_equity"),  // Only US equities for Basic Plan
-                ("exchange", "NASDAQ,NYSE,ARCA")  // Major exchanges only
+                ("attributes", "tradable,shortable"),  // Include shortable assets
+                ("class", "us_equity"),  // US equities only
+                ("exchange", "NASDAQ,NYSE,ARCA")  // Major exchanges
             ])
             .send()
             .await?;
@@ -1863,25 +1866,29 @@ Focus on actionable trades that will multiply profits.",
             if let Some(assets_array) = assets.as_array() {
                 for asset in assets_array {
                     if let Some(symbol) = asset["symbol"].as_str() {
-                        if let Some(tradeable) = asset["tradable"].as_bool() {
-                            if tradeable {
-                                tradeable_assets.push(symbol.to_string());
-                            }
+                        // Check if asset is both tradable and shortable (Basic Plan supports both)
+                        let tradeable = asset["tradable"].as_bool().unwrap_or(false);
+                        let shortable = asset["shortable"].as_bool().unwrap_or(false);
+                        
+                        if tradeable {
+                            tradeable_assets.push(symbol.to_string());
                         }
                     }
                 }
             }
             
-            // Sort and limit to most liquid assets (Basic Plan has ~30 assets)
+            // Sort and limit to most liquid assets (Basic Plan: ~30 assets)
             tradeable_assets.sort();
             if tradeable_assets.len() > 30 {
                 tradeable_assets.truncate(30);
+                println!("📊 Limited to top 30 assets for Basic Plan");
             }
             
-        Ok(tradeable_assets)
+            println!("✅ Found {} tradeable assets from {} API", tradeable_assets.len(), self.trading_mode);
+            Ok(tradeable_assets)
         } else {
             let error_text = response.text().await?;
-            Err(anyhow::anyhow!("Failed to fetch assets from Alpaca: {}", error_text))
+            Err(anyhow::anyhow!("Failed to fetch assets from Alpaca {}: {}", self.trading_mode, error_text))
         }
     }
     
