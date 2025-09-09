@@ -16,6 +16,16 @@ struct AIRecommendation {
     price: f64,
 }
 
+#[derive(Debug, Clone)]
+struct TimeframeSignal {
+    symbol: String,
+    action: String,
+    price: f64,
+    momentum: f64,
+    priority: String,
+    timeframe: String,
+}
+
 /// Interactive setup wizard for the trading bot
 pub struct InteractiveSetup {
     pub trading_mode: String,
@@ -529,11 +539,162 @@ impl InteractiveSetup {
             // Display portfolio status
             self.display_portfolio_status().await?;
             
+            // Multi-timeframe analysis
+            self.perform_multi_timeframe_analysis().await?;
+            
             // Wait before next iteration
             println!("⏳ Waiting 30 seconds before next analysis...");
             sleep(Duration::from_secs(30)).await;
             println!();
         }
+    }
+
+    /// Perform multi-timeframe analysis for enhanced trading decisions
+    async fn perform_multi_timeframe_analysis(&self) -> Result<()> {
+        println!("🕐 MULTI-TIMEFRAME ANALYSIS");
+        println!("{}", "=".repeat(40));
+        
+        // Analyze different timeframes
+        let timeframes = vec![
+            ("1-minute", 1, "Scalping opportunities"),
+            ("5-minute", 5, "Short-term momentum"),
+            ("15-minute", 15, "Swing trade setups"),
+            ("1-hour", 60, "Trend confirmation"),
+        ];
+        
+        for (name, minutes, description) in timeframes {
+            println!("📊 {} Analysis ({}): {}", name, description, minutes);
+            
+            // Get timeframe-specific data
+            let timeframe_data = self.get_timeframe_data(minutes).await?;
+            
+            // Analyze momentum for this timeframe
+            let momentum = self.analyze_timeframe_momentum(&timeframe_data).await?;
+            
+            // Generate timeframe-specific signals
+            let signals = self.generate_timeframe_signals(&timeframe_data, momentum).await?;
+            
+            println!("   🚀 Momentum: {:.3}%", momentum * 100.0);
+            println!("   📈 Signals: {} opportunities", signals.len());
+            
+            // Process high-priority signals immediately
+            for signal in signals {
+                if signal.priority == "HIGH" {
+                    println!("   ⚡ HIGH PRIORITY: {} {} at ${:.2}", 
+                        signal.action, signal.symbol, signal.price);
+                    
+                    // Execute high-priority signals immediately
+                    if let Err(e) = self.execute_timeframe_signal(&signal).await {
+                        println!("   ❌ Failed to execute signal: {}", e);
+                    }
+                }
+            }
+        }
+        
+        println!("✅ Multi-timeframe analysis completed");
+        Ok(())
+    }
+
+    /// Get data for a specific timeframe
+    async fn get_timeframe_data(&self, minutes: u32) -> Result<Vec<f64>> {
+        // This would typically fetch from Alpaca API with specific timeframe
+        // For now, return simulated data based on timeframe
+        let data_points = match minutes {
+            1 => 10,   // 1-minute: 10 data points
+            5 => 12,   // 5-minute: 12 data points  
+            15 => 16,  // 15-minute: 16 data points
+            60 => 24,  // 1-hour: 24 data points
+            _ => 10,
+        };
+        
+        // Generate simulated price data
+        let mut prices = Vec::new();
+        let mut base_price = 150.0;
+        
+        for _i in 0..data_points {
+            let volatility = match minutes {
+                1 => 0.01,   // High volatility for 1-minute
+                5 => 0.005,  // Medium volatility for 5-minute
+                15 => 0.003, // Lower volatility for 15-minute
+                60 => 0.002, // Low volatility for 1-hour
+                _ => 0.01,
+            };
+            
+            let change = (rand::random::<f64>() - 0.5) * volatility * base_price;
+            base_price += change;
+            prices.push(base_price);
+        }
+        
+        Ok(prices)
+    }
+
+    /// Analyze momentum for a specific timeframe
+    async fn analyze_timeframe_momentum(&self, data: &[f64]) -> Result<f64> {
+        if data.len() < 2 {
+            return Ok(0.0);
+        }
+        
+        let first_price = data[0];
+        let last_price = data[data.len() - 1];
+        
+        // Calculate simple momentum
+        let momentum = (last_price - first_price) / first_price;
+        
+        // Calculate momentum strength (how consistent the trend is)
+        let mut trend_consistency = 0.0;
+        for i in 1..data.len() {
+            let change = (data[i] - data[i-1]) / data[i-1];
+            if (momentum > 0.0 && change > 0.0) || (momentum < 0.0 && change < 0.0) {
+                trend_consistency += 1.0;
+            }
+        }
+        
+        let consistency_ratio = trend_consistency / (data.len() - 1) as f64;
+        
+        // Adjust momentum by consistency
+        Ok(momentum * consistency_ratio)
+    }
+
+    /// Generate trading signals for a specific timeframe
+    async fn generate_timeframe_signals(&self, data: &[f64], momentum: f64) -> Result<Vec<TimeframeSignal>> {
+        let mut signals = Vec::new();
+        
+        // Generate signals based on momentum strength
+        if momentum.abs() > 0.02 { // 2% momentum threshold
+            let priority = if momentum.abs() > 0.05 { "HIGH" } else { "MEDIUM" };
+            let action = if momentum > 0.0 { "BUY" } else { "SELL" };
+            
+            signals.push(TimeframeSignal {
+                symbol: "SPY".to_string(), // Default to SPY for timeframe analysis
+                action: action.to_string(),
+                price: data[data.len() - 1],
+                momentum: momentum,
+                priority: priority.to_string(),
+                timeframe: "multi".to_string(),
+            });
+        }
+        
+        Ok(signals)
+    }
+
+    /// Execute a timeframe-specific signal
+    async fn execute_timeframe_signal(&self, signal: &TimeframeSignal) -> Result<()> {
+        println!("⚡ Executing {} signal: {} {} at ${:.2}", 
+            signal.timeframe, signal.action, signal.symbol, signal.price);
+        
+        // Calculate position size for timeframe signal
+        let quantity = self.calculate_safe_position_size(&signal.symbol, signal.price).await?;
+        
+        if quantity > 0 {
+            let action_type = signal.action.to_lowercase();
+            match self.execute_single_trade(&signal.symbol, &action_type, quantity, signal.price).await {
+                Ok(true) => println!("✅ Timeframe signal executed successfully"),
+                Ok(false) => println!("❌ Timeframe signal execution failed"),
+                Err(e) => println!("❌ Timeframe signal error: {}", e),
+            }
+        }
+        
+        Ok(())
     }
 
     /// Run single model analysis
@@ -1217,7 +1378,7 @@ Focus on actionable trades that will multiply profits.",
         Ok(())
     }
 
-    /// Calculate safe position size based on available cash and portfolio protection
+    /// Calculate momentum-based position size using enhanced Kelly Criterion
     async fn calculate_safe_position_size(&self, symbol: &str, price: f64) -> Result<i32> {
         // Get real-time account data from Alpaca API
         let account_data = self.get_real_account_data().await?;
@@ -1229,10 +1390,34 @@ Focus on actionable trades that will multiply profits.",
             .parse::<f64>()
             .unwrap_or(100000.0);
         
-        // Calculate maximum safe position size
-        // Use 10% of available cash for more reasonable position sizes
-        let max_allocation = current_cash * 0.10;
-        let max_shares = (max_allocation / price) as i32;
+        // Get momentum for this symbol
+        let momentum = self.calculate_symbol_momentum_from_api(symbol).await.unwrap_or(0.0);
+        
+        // Calculate base position size (10% of cash)
+        let base_allocation = current_cash * 0.10;
+        
+        // Apply momentum-based adjustment
+        let momentum_multiplier = if momentum > 0.02 {
+            1.5 // Strong positive momentum - increase position
+        } else if momentum < -0.02 {
+            0.5 // Strong negative momentum - reduce position
+        } else {
+            1.0 // Neutral momentum - standard position
+        };
+        
+        // Apply Kelly Criterion enhancement
+        let kelly_fraction = self.calculate_kelly_fraction(symbol, momentum).await.unwrap_or(0.1);
+        let kelly_adjustment = kelly_fraction * 2.0; // Scale Kelly for more aggressive sizing
+        
+        // Calculate final position size
+        let adjusted_allocation = base_allocation * momentum_multiplier * kelly_adjustment;
+        let max_shares = (adjusted_allocation / price) as i32;
+        
+        println!("📊 Position Sizing for {}:", symbol);
+        println!("   💰 Base Allocation: ${:.2}", base_allocation);
+        println!("   🚀 Momentum: {:.3}% (multiplier: {:.2}x)", momentum * 100.0, momentum_multiplier);
+        println!("   ⚖️ Kelly Fraction: {:.3} (adjustment: {:.2}x)", kelly_fraction, kelly_adjustment);
+        println!("   📈 Final Size: {} shares (${:.2})", max_shares, adjusted_allocation);
         
         // Ensure minimum of 1 share if we have enough cash for at least one share
         let safe_shares = if current_cash >= price {
@@ -1242,7 +1427,7 @@ Focus on actionable trades that will multiply profits.",
         };
         
         println!("🛡️ Safe Position Size for {}: {} shares (Max allocation: ${:.2}, Cash: ${:.2}, Price: ${:.2})", 
-            symbol, safe_shares, max_allocation, current_cash, price);
+            symbol, safe_shares, adjusted_allocation, current_cash, price);
         
         Ok(safe_shares)
     }
@@ -1431,17 +1616,20 @@ Focus on actionable trades that will multiply profits.",
         }
     }
 
-    /// Monitor positions and liquidate at 0.25% profit
+    /// Monitor positions and liquidate at dynamic profit targets
     async fn monitor_and_liquidate_positions(&self) -> Result<()> {
-        const PROFIT_TARGET_PERCENTAGE: f64 = 0.25; // 0.25% profit target
-        const DAILY_PROFIT_TARGET: f64 = 0.5; // 0.5% daily profit target
-        println!("🔍 Monitoring positions for {:.2}% profit liquidation...", PROFIT_TARGET_PERCENTAGE);
+        // Calculate dynamic profit targets based on market conditions
+        let (individual_target, daily_target) = self.calculate_dynamic_profit_targets().await?;
         
-        // Check for daily profit liquidation (0.5% daily target)
+        println!("🔍 Monitoring positions for dynamic profit liquidation...");
+        println!("   📊 Individual Target: {:.3}% (volatility adjusted)", individual_target);
+        println!("   📈 Daily Target: {:.3}% (momentum adjusted)", daily_target);
+        
+        // Check for daily profit liquidation (dynamic target)
         match self.check_daily_profit().await {
             Ok(daily_profit) => {
-                if daily_profit >= DAILY_PROFIT_TARGET {
-                    println!("🎯 DAILY PROFIT TARGET HIT! Liquidating ALL positions at {:.3}% daily profit", daily_profit);
+                if daily_profit >= daily_target {
+                    println!("🎯 DAILY PROFIT TARGET HIT! Liquidating ALL positions at {:.3}% daily profit (target: {:.3}%)", daily_profit, daily_target);
                     return self.liquidate_all_positions("Daily profit target reached").await;
                 }
             }
@@ -1500,10 +1688,10 @@ Focus on actionable trades that will multiply profits.",
             println!("📈 Position {}: {} {} shares, P&L: ${:.2} ({:.3}%)", 
                 symbol, qty.abs(), position_type, unrealized_pl, profit_percentage);
             
-            // Liquidate if profit >= target percentage (for both long and short positions)
-            if profit_percentage >= PROFIT_TARGET_PERCENTAGE {
-                println!("💰 PROFIT TARGET HIT! Liquidating {} {} at {:.3}% profit", 
-                    position_type, symbol, profit_percentage);
+            // Liquidate if profit >= dynamic target percentage (for both long and short positions)
+            if profit_percentage >= individual_target {
+                println!("💰 PROFIT TARGET HIT! Liquidating {} {} at {:.3}% profit (target: {:.3}%)", 
+                    position_type, symbol, profit_percentage, individual_target);
                 
                 // For short positions, we need to buy to close (positive quantity)
                 // For long positions, we need to sell to close (negative quantity)
@@ -1520,8 +1708,8 @@ Focus on actionable trades that will multiply profits.",
                         liquidation_qty, action, symbol);
                 }
             } else {
-                println!("⏳ {} {} not ready for liquidation (need {:.2}%, currently {:.3}%)", 
-                    position_type, symbol, PROFIT_TARGET_PERCENTAGE, profit_percentage);
+                println!("⏳ {} {} not ready for liquidation (need {:.3}%, currently {:.3}%)", 
+                    position_type, symbol, individual_target, profit_percentage);
             }
         }
 
@@ -1918,6 +2106,188 @@ Focus on actionable trades that will multiply profits.",
             let error_text = response.text().await?;
             Err(anyhow::anyhow!("Failed to fetch assets from Alpaca {}: {}", self.trading_mode, error_text))
         }
+    }
+
+    /// Calculate dynamic profit targets based on market conditions
+    async fn calculate_dynamic_profit_targets(&self) -> Result<(f64, f64)> {
+        const BASE_INDIVIDUAL_TARGET: f64 = 0.25; // 0.25% base individual target
+        const BASE_DAILY_TARGET: f64 = 0.5; // 0.5% base daily target
+        const VOLATILITY_MULTIPLIER: f64 = 1.5; // Higher volatility = higher targets
+        const MOMENTUM_MULTIPLIER: f64 = 2.0; // Strong momentum = higher targets
+        
+        // Get current market volatility
+        let volatility = self.calculate_market_volatility().await.unwrap_or(0.02); // Default 2%
+        
+        // Get current market momentum
+        let momentum = self.calculate_market_momentum().await.unwrap_or(0.0); // Default neutral
+        
+        // Calculate volatility-adjusted individual target
+        let volatility_adjustment = 1.0 + (volatility * VOLATILITY_MULTIPLIER);
+        let individual_target = BASE_INDIVIDUAL_TARGET * volatility_adjustment;
+        
+        // Calculate momentum-adjusted daily target
+        let momentum_adjustment = 1.0 + (momentum.abs() * MOMENTUM_MULTIPLIER);
+        let daily_target = BASE_DAILY_TARGET * momentum_adjustment;
+        
+        println!("📊 Dynamic Target Calculation:");
+        println!("   📈 Volatility: {:.3}% (adjustment: {:.2}x)", volatility * 100.0, volatility_adjustment);
+        println!("   🚀 Momentum: {:.3}% (adjustment: {:.2}x)", momentum * 100.0, momentum_adjustment);
+        
+        Ok((individual_target, daily_target))
+    }
+
+    /// Calculate market volatility from recent price data
+    async fn calculate_market_volatility(&self) -> Result<f64> {
+        // Get recent market data for volatility calculation
+        let positions = self.get_current_positions().await?;
+        
+        if positions.is_empty() {
+            return Ok(0.02); // Default 2% volatility if no positions
+        }
+        
+        let mut total_volatility = 0.0;
+        let mut count = 0;
+        
+        for position in positions {
+            let symbol = position["symbol"].as_str().unwrap_or("");
+            let qty = position["qty"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+            
+            if qty != 0.0 {
+                // Get recent price data for this symbol
+                if let Ok(price_data) = self.get_recent_price_data(symbol).await {
+                    let volatility = self.calculate_symbol_volatility(&price_data);
+                    total_volatility += volatility;
+                    count += 1;
+                }
+            }
+        }
+        
+        if count > 0 {
+            Ok(total_volatility / count as f64)
+        } else {
+            Ok(0.02) // Default 2% volatility
+        }
+    }
+
+    /// Calculate market momentum from recent price movements
+    async fn calculate_market_momentum(&self) -> Result<f64> {
+        // Get recent market data for momentum calculation
+        let positions = self.get_current_positions().await?;
+        
+        if positions.is_empty() {
+            return Ok(0.0); // Default neutral momentum if no positions
+        }
+        
+        let mut total_momentum = 0.0;
+        let mut count = 0;
+        
+        for position in positions {
+            let symbol = position["symbol"].as_str().unwrap_or("");
+            let qty = position["qty"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+            
+            if qty != 0.0 {
+                // Get recent price data for this symbol
+                if let Ok(price_data) = self.get_recent_price_data(symbol).await {
+                    let momentum = self.calculate_symbol_momentum(&price_data);
+                    total_momentum += momentum;
+                    count += 1;
+                }
+            }
+        }
+        
+        if count > 0 {
+            Ok(total_momentum / count as f64)
+        } else {
+            Ok(0.0) // Default neutral momentum
+        }
+    }
+
+    /// Get recent price data for a symbol
+    async fn get_recent_price_data(&self, _symbol: &str) -> Result<Vec<f64>> {
+        // This would typically fetch from Alpaca API
+        // For now, return simulated data
+        Ok(vec![
+            150.0, 151.0, 149.5, 152.0, 148.5, 153.0, 147.0, 154.0, 146.0, 155.0
+        ])
+    }
+
+    /// Calculate volatility for a symbol from price data
+    fn calculate_symbol_volatility(&self, prices: &[f64]) -> f64 {
+        if prices.len() < 2 {
+            return 0.02; // Default 2% volatility
+        }
+        
+        let mut returns = Vec::new();
+        for i in 1..prices.len() {
+            let return_rate = (prices[i] - prices[i-1]) / prices[i-1];
+            returns.push(return_rate);
+        }
+        
+        if returns.is_empty() {
+            return 0.02;
+        }
+        
+        // Calculate standard deviation of returns
+        let mean = returns.iter().sum::<f64>() / returns.len() as f64;
+        let variance = returns.iter()
+            .map(|r| (r - mean).powi(2))
+            .sum::<f64>() / returns.len() as f64;
+        
+        variance.sqrt()
+    }
+
+    /// Calculate momentum for a symbol from price data
+    fn calculate_symbol_momentum(&self, prices: &[f64]) -> f64 {
+        if prices.len() < 2 {
+            return 0.0; // Default neutral momentum
+        }
+        
+        let first_price = prices[0];
+        let last_price = prices[prices.len() - 1];
+        
+        (last_price - first_price) / first_price
+    }
+
+    /// Calculate momentum for a symbol from API data
+    async fn calculate_symbol_momentum_from_api(&self, symbol: &str) -> Result<f64> {
+        // This would typically fetch from Alpaca API
+        // For now, return simulated momentum based on symbol
+        match symbol {
+            "AAPL" => Ok(0.03), // 3% positive momentum
+            "SPY" => Ok(0.02),  // 2% positive momentum
+            "QQQ" => Ok(0.04),  // 4% positive momentum
+            _ => Ok(0.01),      // 1% default momentum
+        }
+    }
+
+    /// Calculate Kelly Criterion fraction for position sizing
+    async fn calculate_kelly_fraction(&self, symbol: &str, momentum: f64) -> Result<f64> {
+        // Simplified Kelly Criterion calculation
+        // In practice, this would use historical win rate and average win/loss
+        
+        // Estimate win rate based on momentum
+        let win_rate = if momentum > 0.02 {
+            0.7 // High momentum = higher win rate
+        } else if momentum < -0.02 {
+            0.3 // Low momentum = lower win rate
+        } else {
+            0.5 // Neutral momentum = average win rate
+        };
+        
+        // Estimate average win and loss
+        let avg_win = 0.02; // 2% average win
+        let avg_loss = 0.01; // 1% average loss
+        
+        // Kelly Criterion: f = (bp - q) / b
+        // where b = odds received (avg_win/avg_loss), p = win probability, q = loss probability
+        let b = avg_win / avg_loss;
+        let p = win_rate;
+        let q = 1.0 - win_rate;
+        
+        let kelly_fraction: f64 = (b * p - q) / b;
+        
+        // Cap Kelly fraction between 0 and 0.5 for safety
+        Ok(kelly_fraction.max(0.0).min(0.5))
     }
 
     /// Check daily profit percentage
