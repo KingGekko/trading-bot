@@ -601,7 +601,7 @@ Focus on actionable trades that will multiply profits.",
                 }).collect::<Vec<_>>().join("\n")
             }
         );
-
+            
         // Send portfolio analysis request to the API server
         let response = client
             .post(format!("http://localhost:{}/api/ollama/process", api_port))
@@ -702,7 +702,7 @@ Focus on actionable trades that will multiply profits.",
                 }).collect::<Vec<_>>().join("\n")
             }
         );
-
+            
         // Use portfolio analysis with multi-model conversation
         let client = reqwest::Client::new();
         let response = client
@@ -1107,23 +1107,11 @@ Focus on actionable trades that will multiply profits.",
                                 .unwrap_or(0.0);
                             println!("🔍 Available funds: ${:.2}", available_funds);
                             
-                            // Calculate position size based on confidence and available funds
-                            let position_size_pct = recommendation["position_size"].as_f64().unwrap_or(0.1);
-                            let allocation_amount = available_funds * position_size_pct * confidence;
-                            println!("🔍 Position size calculation: ${:.2} × {:.2} × {:.2} = ${:.2}", 
-                                available_funds, position_size_pct, confidence, allocation_amount);
-                            
                             // Use target price if available, otherwise use current market price
                             let execution_price = target_price.unwrap_or(150.0); // Default fallback
-                            let mut quantity = (allocation_amount / execution_price) as i32;
-                            println!("🔍 Quantity calculation: ${:.2} ÷ ${:.2} = {} shares", 
-                                allocation_amount, execution_price, quantity);
                             
-                            // If we have enough cash for at least 1 share, ensure we buy at least 1
-                            if quantity == 0 && allocation_amount >= execution_price {
-                                quantity = 1;
-                                println!("🔍 Adjusted quantity to 1 share (minimum viable trade)");
-                            }
+                            // Calculate safe position size using the new logic
+                            let quantity = self.calculate_safe_position_size(symbol, execution_price).await.unwrap_or(0);
                             
                             println!("🔍 Checking if quantity > 0: {} > 0 = {}", quantity, quantity > 0);
                             if quantity > 0 {
@@ -1240,30 +1228,32 @@ Focus on actionable trades that will multiply profits.",
             .parse::<f64>()
             .unwrap_or(100000.0);
         
-        // Get starting portfolio value for protection
-        let starting_value = self.get_starting_portfolio_value().await?;
-        
         // Calculate maximum safe position size
-        // Use only 5% of available cash to be conservative
-        let max_allocation = current_cash * 0.05;
+        // Use 10% of available cash for more reasonable position sizes
+        let max_allocation = current_cash * 0.10;
         let max_shares = (max_allocation / price) as i32;
         
-        // Ensure we don't go below starting portfolio value
-        let protection_buffer = (current_cash - starting_value).max(0.0);
-        let protected_allocation = protection_buffer * 0.1; // Use only 10% of protection buffer
-        let protected_shares = (protected_allocation / price) as i32;
+        // Ensure minimum of 1 share if we have enough cash for at least one share
+        let safe_shares = if current_cash >= price {
+            max_shares.max(1)
+        } else {
+            0
+        };
         
-        // Use the smaller of the two calculations
-        let safe_shares = std::cmp::min(max_shares, protected_shares).max(1);
-        
-        println!("🛡️ Safe Position Size for {}: {} shares (Max: {}, Protected: {}, Cash: ${:.2})", 
-            symbol, safe_shares, max_shares, protected_shares, current_cash);
+        println!("🛡️ Safe Position Size for {}: {} shares (Max allocation: ${:.2}, Cash: ${:.2}, Price: ${:.2})", 
+            symbol, safe_shares, max_allocation, current_cash, price);
         
         Ok(safe_shares)
     }
 
     /// Check portfolio protection to ensure portfolio doesn't go below starting value
-    async fn check_portfolio_protection(&self, action: &str, quantity: i32, price: f64) -> Result<()> {
+    async fn check_portfolio_protection(&self, action: &str, quantity: i32, price: f64, is_liquidation: bool) -> Result<()> {
+        // Skip portfolio protection for liquidations (profitable exits)
+        if is_liquidation {
+            println!("🛡️ Portfolio Protection: Skipped for liquidation (profitable exit)");
+            return Ok(());
+        }
+        
         // Get real-time account data from Alpaca API
         let account_data = self.get_real_account_data().await?;
         
@@ -1314,13 +1304,42 @@ Focus on actionable trades that will multiply profits.",
         Ok(())
     }
 
+    /// Execute a liquidation trade (bypasses portfolio protection for profitable exits)
+    async fn execute_liquidation_trade(&self, symbol: &str, quantity: i32, price: f64) -> Result<bool> {
+        println!("📈 Executing liquidation order: {} {} shares of {} at ${:.2}", 
+                 quantity, symbol, symbol, price);
+        
+        // Skip portfolio protection for liquidations (profitable exits)
+        // Check if market is open (for paper trading, we can trade anytime)
+        if self.trading_mode == "live" {
+            if !self.is_market_open().await? {
+                println!("⚠️ Market is closed. Skipping liquidation order execution.");
+                return Ok(false);
+            }
+        }
+        
+        // Execute the liquidation order using Alpaca API
+        let order_result = self.send_alpaca_order(symbol, "sell", quantity, price).await;
+        
+        match order_result {
+            Ok(_) => {
+                println!("✅ Liquidation order executed successfully");
+                Ok(true)
+            }
+            Err(e) => {
+                println!("❌ Liquidation order execution failed: {}", e);
+                Ok(false)
+            }
+        }
+    }
+
     /// Execute a single trade using Alpaca API
     async fn execute_single_trade(&self, symbol: &str, action: &str, quantity: i32, price: f64) -> Result<bool> {
         println!("📈 Executing {} order: {} {} shares of {} at ${:.2}", 
                  action, quantity, symbol, symbol, price);
         
         // Portfolio Protection: Check if trade would reduce portfolio below starting value
-        if let Err(e) = self.check_portfolio_protection(action, quantity, price).await {
+        if let Err(e) = self.check_portfolio_protection(action, quantity, price, false).await {
             println!("🛡️ Portfolio Protection: {}", e);
             return Ok(false);
         }
@@ -1433,8 +1452,8 @@ Focus on actionable trades that will multiply profits.",
             if profit_percentage >= PROFIT_TARGET_PERCENTAGE {
                 println!("💰 PROFIT TARGET HIT! Liquidating {} at {:.3}% profit", symbol, profit_percentage);
                 
-                // Execute liquidation order
-                if self.execute_single_trade(symbol, "sell", qty as i32, market_value / qty).await? {
+                // Execute liquidation order (bypass portfolio protection for profitable exits)
+                if self.execute_liquidation_trade(symbol, qty as i32, market_value / qty).await? {
                     println!("✅ Successfully liquidated {} shares of {} at {:.3}% profit", 
                         qty, symbol, profit_percentage);
                 } else {
