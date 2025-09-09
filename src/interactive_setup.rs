@@ -1434,7 +1434,35 @@ Focus on actionable trades that will multiply profits.",
     /// Monitor positions and liquidate at 0.25% profit
     async fn monitor_and_liquidate_positions(&self) -> Result<()> {
         const PROFIT_TARGET_PERCENTAGE: f64 = 0.25; // 0.25% profit target
+        const DAILY_PROFIT_TARGET: f64 = 0.5; // 0.5% daily profit target
         println!("🔍 Monitoring positions for {:.2}% profit liquidation...", PROFIT_TARGET_PERCENTAGE);
+        
+        // Check for daily profit liquidation (0.5% daily target)
+        match self.check_daily_profit().await {
+            Ok(daily_profit) => {
+                if daily_profit >= DAILY_PROFIT_TARGET {
+                    println!("🎯 DAILY PROFIT TARGET HIT! Liquidating ALL positions at {:.3}% daily profit", daily_profit);
+                    return self.liquidate_all_positions("Daily profit target reached").await;
+                }
+            }
+            Err(e) => {
+                println!("⚠️ Failed to check daily profit: {}", e);
+            }
+        }
+        
+        // Check for market close liquidation (5 minutes before close)
+        match self.is_market_closing_soon().await {
+            Ok(true) => {
+                println!("⏰ MARKET CLOSING SOON! Liquidating ALL positions 5 minutes before close");
+                return self.liquidate_all_positions("Market closing soon").await;
+            }
+            Ok(false) => {
+                // Market not closing soon, continue with normal monitoring
+            }
+            Err(e) => {
+                println!("⚠️ Failed to check market close time: {}", e);
+            }
+        }
         
         // Get current positions from Alpaca API
         let positions = self.get_current_positions().await?;
@@ -1890,6 +1918,119 @@ Focus on actionable trades that will multiply profits.",
             let error_text = response.text().await?;
             Err(anyhow::anyhow!("Failed to fetch assets from Alpaca {}: {}", self.trading_mode, error_text))
         }
+    }
+
+    /// Check daily profit percentage
+    async fn check_daily_profit(&self) -> Result<f64> {
+        // Get current account data
+        let account_data = self.get_real_account_data().await?;
+        let current_value = account_data["portfolio_value"]
+            .as_str()
+            .unwrap_or("100000")
+            .parse::<f64>()
+            .unwrap_or(100000.0);
+        
+        // Get starting portfolio value
+        let starting_value = self.get_starting_portfolio_value().await?;
+        
+        // Calculate daily profit percentage
+        let daily_profit = ((current_value - starting_value) / starting_value) * 100.0;
+        
+        println!("📊 Daily Profit Check: ${:.2} -> ${:.2} = {:.3}%", 
+            starting_value, current_value, daily_profit);
+        
+        Ok(daily_profit)
+    }
+
+    /// Check if market is closing soon (5 minutes before close)
+    async fn is_market_closing_soon(&self) -> Result<bool> {
+        // Get market hours from Alpaca API
+        let client = reqwest::Client::new();
+        let api_key = std::env::var("APCA_API_KEY_ID").unwrap_or_default();
+        let secret_key = std::env::var("APCA_API_SECRET_KEY").unwrap_or_default();
+        
+        if api_key.is_empty() || secret_key.is_empty() {
+            // If no API keys, assume market is open (for testing)
+            return Ok(false);
+        }
+
+        let base_url = if self.trading_mode == "live" {
+            "https://api.alpaca.markets"
+        } else {
+            "https://paper-api.alpaca.markets"
+        };
+
+        let response = client
+            .get(&format!("{}/v2/clock", base_url))
+            .header("APCA-API-KEY-ID", &api_key)
+            .header("APCA-API-SECRET-KEY", &secret_key)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let clock_data: Value = response.json().await?;
+            
+            if let Some(next_close) = clock_data["next_close"].as_str() {
+                // Parse the next close time
+                if let Ok(close_time) = chrono::DateTime::parse_from_rfc3339(next_close) {
+                    let now = chrono::Utc::now();
+                    let time_until_close = close_time.signed_duration_since(now);
+                    
+                    // Check if less than 5 minutes until close
+                    let five_minutes = chrono::Duration::minutes(5);
+                    if time_until_close <= five_minutes && time_until_close > chrono::Duration::zero() {
+                        println!("⏰ Market closes in {:.1} minutes", time_until_close.num_seconds() as f64 / 60.0);
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+        
+        Ok(false)
+    }
+
+    /// Liquidate all positions
+    async fn liquidate_all_positions(&self, reason: &str) -> Result<()> {
+        println!("🚨 LIQUIDATING ALL POSITIONS: {}", reason);
+        
+        // Get current positions from Alpaca API
+        let positions = self.get_current_positions().await?;
+        
+        if positions.is_empty() {
+            println!("📊 No positions to liquidate");
+            return Ok(());
+        }
+        
+        println!("📊 Liquidating {} positions", positions.len());
+        
+        for position in positions {
+            let symbol = position["symbol"].as_str().unwrap_or("UNKNOWN");
+            let qty = position["qty"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+            let market_value = position["market_value"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
+            
+            if qty != 0.0 {
+                let position_type = if qty > 0.0 { "LONG" } else { "SHORT" };
+                println!("📈 Liquidating {}: {} {} shares", symbol, qty.abs(), position_type);
+                
+                // For short positions, we need to buy to close (positive quantity)
+                // For long positions, we need to sell to close (negative quantity)
+                let liquidation_qty = if qty > 0.0 { qty as i32 } else { -qty as i32 };
+                
+                // Execute liquidation order (bypass portfolio protection for daily targets)
+                if self.execute_liquidation_trade(symbol, liquidation_qty, market_value.abs() / qty.abs()).await? {
+                    let action = if qty > 0.0 { "sell" } else { "buy" };
+                    println!("✅ Successfully liquidated {} {} shares of {} ({})", 
+                        liquidation_qty, action, symbol, reason);
+                } else {
+                    let action = if qty > 0.0 { "sell" } else { "buy" };
+                    println!("❌ Failed to liquidate {} {} shares of {} ({})", 
+                        liquidation_qty, action, symbol, reason);
+                }
+            }
+        }
+        
+        println!("🎯 All position liquidation completed: {}", reason);
+        Ok(())
     }
     
     /// Create sample JSON files for AI analysis
