@@ -549,20 +549,26 @@ impl InteractiveSetup {
         }
     }
 
-    /// Perform multi-timeframe analysis for enhanced trading decisions
+    /// Perform multi-timeframe analysis for enhanced trading decisions (Basic plan optimized)
     async fn perform_multi_timeframe_analysis(&self) -> Result<()> {
-        println!("🕐 MULTI-TIMEFRAME ANALYSIS");
-        println!("{}", "=".repeat(40));
+        println!("🕐 MULTI-TIMEFRAME ANALYSIS (Basic Plan - 15min max)");
+        println!("{}", "=".repeat(50));
         
-        // Analyze different timeframes
+        // Analyze different timeframes (Basic plan: 15-minute max lookback)
         let timeframes = vec![
-            ("1-minute", 1, "Scalping opportunities"),
-            ("5-minute", 5, "Short-term momentum"),
-            ("15-minute", 15, "Swing trade setups"),
-            ("1-hour", 60, "Trend confirmation"),
+            ("1-minute", 1, "Scalping opportunities (15-min window)"),
+            ("5-minute", 5, "Short-term momentum (15-min window)"),
+            ("15-minute", 15, "Current trend analysis"),
+            ("1-hour", 60, "Not available on Basic plan"),
         ];
         
         for (name, minutes, description) in timeframes {
+            // Skip 1-hour analysis on Basic plan
+            if minutes == 60 {
+                println!("📊 {} Analysis: {} (Skipped - Not available on Basic plan)", name, description);
+                continue;
+            }
+            
             println!("📊 {} Analysis ({}): {}", name, description, minutes);
             
             // Get timeframe-specific data
@@ -595,16 +601,16 @@ impl InteractiveSetup {
         Ok(())
     }
 
-    /// Get data for a specific timeframe
+    /// Get data for a specific timeframe (Basic plan: 15-minute max lookback)
     async fn get_timeframe_data(&self, minutes: u32) -> Result<Vec<f64>> {
-        // This would typically fetch from Alpaca API with specific timeframe
-        // For now, return simulated data based on timeframe
+        // Alpaca Basic plan limitation: 15-minute max historical data
+        // We'll simulate different timeframes within the 15-minute window
         let data_points = match minutes {
-            1 => 10,   // 1-minute: 10 data points
-            5 => 12,   // 5-minute: 12 data points  
-            15 => 16,  // 15-minute: 16 data points
-            60 => 24,  // 1-hour: 24 data points
-            _ => 10,
+            1 => 15,   // 1-minute: 15 data points (15 minutes of 1-min bars)
+            5 => 3,    // 5-minute: 3 data points (15 minutes of 5-min bars)
+            15 => 1,   // 15-minute: 1 data point (15 minutes of 15-min bars)
+            60 => 1,   // 1-hour: Not available on Basic plan, use 15-min as proxy
+            _ => 15,   // Default to 1-minute resolution
         };
         
         // Generate simulated price data
@@ -2108,12 +2114,14 @@ Focus on actionable trades that will multiply profits.",
         }
     }
 
-    /// Calculate dynamic profit targets based on market conditions
+    /// Calculate dynamic profit targets based on market conditions (Basic plan optimized)
     async fn calculate_dynamic_profit_targets(&self) -> Result<(f64, f64)> {
-        const BASE_INDIVIDUAL_TARGET: f64 = 0.25; // 0.25% base individual target
-        const BASE_DAILY_TARGET: f64 = 0.5; // 0.5% base daily target
-        const VOLATILITY_MULTIPLIER: f64 = 1.5; // Higher volatility = higher targets
-        const MOMENTUM_MULTIPLIER: f64 = 2.0; // Strong momentum = higher targets
+        // Basic plan limitations: 15-minute max historical data
+        // Use more conservative targets due to limited data
+        const BASE_INDIVIDUAL_TARGET: f64 = 0.20; // 0.20% base individual target (more conservative)
+        const BASE_DAILY_TARGET: f64 = 0.40; // 0.40% base daily target (more conservative)
+        const VOLATILITY_MULTIPLIER: f64 = 1.2; // Reduced multiplier for Basic plan
+        const MOMENTUM_MULTIPLIER: f64 = 1.5; // Reduced multiplier for Basic plan
         
         // Get current market volatility
         let volatility = self.calculate_market_volatility().await.unwrap_or(0.02); // Default 2%
@@ -2136,7 +2144,7 @@ Focus on actionable trades that will multiply profits.",
         Ok((individual_target, daily_target))
     }
 
-    /// Calculate market volatility from recent price data
+    /// Calculate market volatility from recent price data (Basic plan: 15-minute max)
     async fn calculate_market_volatility(&self) -> Result<f64> {
         // Get recent market data for volatility calculation
         let positions = self.get_current_positions().await?;
@@ -2153,7 +2161,7 @@ Focus on actionable trades that will multiply profits.",
             let qty = position["qty"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
             
             if qty != 0.0 {
-                // Get recent price data for this symbol
+                // Get recent price data for this symbol (15-minute window)
                 if let Ok(price_data) = self.get_recent_price_data(symbol).await {
                     let volatility = self.calculate_symbol_volatility(&price_data);
                     total_volatility += volatility;
@@ -2165,11 +2173,12 @@ Focus on actionable trades that will multiply profits.",
         if count > 0 {
             Ok(total_volatility / count as f64)
         } else {
-            Ok(0.02) // Default 2% volatility
+            // Use a more conservative volatility estimate for Basic plan
+            Ok(0.015) // Default 1.5% volatility (more conservative for limited data)
         }
     }
 
-    /// Calculate market momentum from recent price movements
+    /// Calculate market momentum from recent price movements (Basic plan: 15-minute max)
     async fn calculate_market_momentum(&self) -> Result<f64> {
         // Get recent market data for momentum calculation
         let positions = self.get_current_positions().await?;
@@ -2186,7 +2195,7 @@ Focus on actionable trades that will multiply profits.",
             let qty = position["qty"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
             
             if qty != 0.0 {
-                // Get recent price data for this symbol
+                // Get recent price data for this symbol (15-minute window)
                 if let Ok(price_data) = self.get_recent_price_data(symbol).await {
                     let momentum = self.calculate_symbol_momentum(&price_data);
                     total_momentum += momentum;
@@ -2196,7 +2205,9 @@ Focus on actionable trades that will multiply profits.",
         }
         
         if count > 0 {
-            Ok(total_momentum / count as f64)
+            // Scale momentum down for Basic plan due to limited data
+            let avg_momentum = total_momentum / count as f64;
+            Ok(avg_momentum * 0.7) // Scale down by 30% for conservative approach
         } else {
             Ok(0.0) // Default neutral momentum
         }
