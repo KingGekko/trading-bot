@@ -1772,22 +1772,22 @@ Focus on actionable trades that will multiply profits.",
         // Fallback to static file
         let asset_universe_file = "trading_portfolio/asset_universe.json";
         if std::path::Path::new(asset_universe_file).exists() {
-            let content = tokio::fs::read_to_string(asset_universe_file).await?;
-            let data: Value = serde_json::from_str(&content)?;
-            
-            let mut tradeable_assets = Vec::new();
-            if let Some(assets) = data["assets"].as_array() {
-                for asset in assets {
-                    if let Some(symbol) = asset["symbol"].as_str() {
-                        if let Some(tradeable) = asset["tradeable"].as_bool() {
-                            if tradeable {
-                                tradeable_assets.push(symbol.to_string());
-                            }
+        let content = tokio::fs::read_to_string(asset_universe_file).await?;
+        let data: Value = serde_json::from_str(&content)?;
+        
+        let mut tradeable_assets = Vec::new();
+        if let Some(assets) = data["assets"].as_array() {
+            for asset in assets {
+                if let Some(symbol) = asset["symbol"].as_str() {
+                    if let Some(tradeable) = asset["tradeable"].as_bool() {
+                        if tradeable {
+                            tradeable_assets.push(symbol.to_string());
                         }
                     }
                 }
             }
-            
+        }
+
             if !tradeable_assets.is_empty() {
                 println!("✅ Found {} assets from static file", tradeable_assets.len());
                 return Ok(tradeable_assets);
@@ -1814,8 +1814,8 @@ Focus on actionable trades that will multiply profits.",
             "BA".to_string(), "CAT".to_string(), "GE".to_string()
         ];
         
-        // Limit the number of assets to analyze (configurable)
-        let max_assets = 20; // Increase this to trade more assets
+        // Limit the number of assets to analyze (Basic Plan has ~30 assets)
+        let max_assets = 30; // Match Basic Plan limitations
         let mut final_assets = tradeable_assets;
         if final_assets.len() > max_assets {
             final_assets.truncate(max_assets);
@@ -1842,12 +1842,17 @@ Focus on actionable trades that will multiply profits.",
             "https://paper-api.alpaca.markets"
         };
 
-        // Fetch assets from Alpaca API
+        // Fetch assets from Alpaca API (optimized for Basic Plan)
         let response = client
             .get(&format!("{}/v2/assets", base_url))
             .header("APCA-API-KEY-ID", &api_key)
             .header("APCA-API-SECRET-KEY", &secret_key)
-            .query(&[("status", "active"), ("attributes", "tradable")])
+            .query(&[
+                ("status", "active"), 
+                ("attributes", "tradable"),
+                ("class", "us_equity"),  // Only US equities for Basic Plan
+                ("exchange", "NASDAQ,NYSE,ARCA")  // Major exchanges only
+            ])
             .send()
             .await?;
 
@@ -1867,13 +1872,13 @@ Focus on actionable trades that will multiply profits.",
                 }
             }
             
-            // Sort and limit to most liquid assets
+            // Sort and limit to most liquid assets (Basic Plan has ~30 assets)
             tradeable_assets.sort();
-            if tradeable_assets.len() > 50 {
-                tradeable_assets.truncate(50);
+            if tradeable_assets.len() > 30 {
+                tradeable_assets.truncate(30);
             }
             
-            Ok(tradeable_assets)
+        Ok(tradeable_assets)
         } else {
             let error_text = response.text().await?;
             Err(anyhow::anyhow!("Failed to fetch assets from Alpaca: {}", error_text))
