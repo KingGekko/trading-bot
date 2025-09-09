@@ -1361,8 +1361,12 @@ Focus on actionable trades that will multiply profits.",
 
     /// Execute a liquidation trade (bypasses portfolio protection for profitable exits)
     async fn execute_liquidation_trade(&self, symbol: &str, quantity: i32, price: f64) -> Result<bool> {
+        // Determine action based on quantity sign
+        let action = if quantity > 0 { "sell" } else { "buy" };
+        let abs_quantity = quantity.abs();
+        
         println!("📈 Executing liquidation order: {} {} shares of {} at ${:.2}", 
-                 quantity, symbol, symbol, price);
+                 abs_quantity, action, symbol, price);
         
         // Skip portfolio protection for liquidations (profitable exits)
         // Check if market is open (for paper trading, we can trade anytime)
@@ -1374,7 +1378,7 @@ Focus on actionable trades that will multiply profits.",
         }
         
         // Execute the liquidation order using Alpaca API
-        let order_result = self.send_alpaca_order(symbol, "sell", quantity, price).await;
+        let order_result = self.send_alpaca_order(symbol, action, abs_quantity, price).await;
         
         match order_result {
             Ok(_) => {
@@ -1449,35 +1453,47 @@ Focus on actionable trades that will multiply profits.",
             let cost_basis = position["cost_basis"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
             let unrealized_pl = position["unrealized_pl"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
             
-            // Only monitor long positions (positive quantity)
-            if qty <= 0.0 {
+            // Monitor ALL positions (long, short, calls, puts, etc.)
+            // Skip only if quantity is exactly 0 (no position)
+            if qty == 0.0 {
                 continue;
             }
             
-            // Calculate profit percentage
-            let profit_percentage = if cost_basis > 0.0 {
-                (unrealized_pl / cost_basis) * 100.0
+            // Determine position type and side
+            let position_type = if qty > 0.0 { "LONG" } else { "SHORT" };
+            let side = if qty > 0.0 { "buy" } else { "sell" };
+            
+            // Calculate profit percentage (use absolute values for short positions)
+            let profit_percentage = if cost_basis.abs() > 0.0 {
+                (unrealized_pl / cost_basis.abs()) * 100.0
             } else {
                 0.0
             };
             
-            println!("📈 Position {}: {} shares, P&L: ${:.2} ({:.3}%)", 
-                symbol, qty, unrealized_pl, profit_percentage);
+            println!("📈 Position {}: {} {} shares, P&L: ${:.2} ({:.3}%)", 
+                symbol, qty.abs(), position_type, unrealized_pl, profit_percentage);
             
-            // Liquidate if profit >= target percentage
+            // Liquidate if profit >= target percentage (for both long and short positions)
             if profit_percentage >= PROFIT_TARGET_PERCENTAGE {
-                println!("💰 PROFIT TARGET HIT! Liquidating {} at {:.3}% profit", symbol, profit_percentage);
+                println!("💰 PROFIT TARGET HIT! Liquidating {} {} at {:.3}% profit", 
+                    position_type, symbol, profit_percentage);
+                
+                // For short positions, we need to buy to close (positive quantity)
+                // For long positions, we need to sell to close (negative quantity)
+                let liquidation_qty = if qty > 0.0 { qty as i32 } else { -qty as i32 };
+                let liquidation_side = if qty > 0.0 { "sell" } else { "buy" };
                 
                 // Execute liquidation order (bypass portfolio protection for profitable exits)
-                if self.execute_liquidation_trade(symbol, qty as i32, market_value / qty).await? {
-                    println!("✅ Successfully liquidated {} shares of {} at {:.3}% profit", 
-                        qty, symbol, profit_percentage);
+                if self.execute_liquidation_trade(symbol, liquidation_qty, market_value.abs() / qty.abs()).await? {
+                    println!("✅ Successfully liquidated {} {} shares of {} at {:.3}% profit", 
+                        liquidation_qty, liquidation_side, symbol, profit_percentage);
                 } else {
-                    println!("❌ Failed to liquidate {} shares of {}", qty, symbol);
+                    println!("❌ Failed to liquidate {} {} shares of {}", 
+                        liquidation_qty, liquidation_side, symbol);
                 }
             } else {
-                println!("⏳ {} not ready for liquidation (need {:.2}%, currently {:.3}%)", 
-                    symbol, PROFIT_TARGET_PERCENTAGE, profit_percentage);
+                println!("⏳ {} {} not ready for liquidation (need {:.2}%, currently {:.3}%)", 
+                    position_type, symbol, PROFIT_TARGET_PERCENTAGE, profit_percentage);
             }
         }
 
@@ -1649,9 +1665,11 @@ Focus on actionable trades that will multiply profits.",
                     let unrealized_pl = position["unrealized_pl"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
                     let cost_basis = position["cost_basis"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
                     
-                    if qty > 0.0 {
-                        let profit_percentage = if cost_basis > 0.0 {
-                            (unrealized_pl / cost_basis) * 100.0
+                    // Display ALL positions (long, short, calls, puts, etc.)
+                    if qty != 0.0 {
+                        let position_type = if qty > 0.0 { "LONG" } else { "SHORT" };
+                        let profit_percentage = if cost_basis.abs() > 0.0 {
+                            (unrealized_pl / cost_basis.abs()) * 100.0
                         } else {
                             0.0
                         };
@@ -1662,8 +1680,8 @@ Focus on actionable trades that will multiply profits.",
                             "⏳ Monitoring"
                         };
                         
-                        println!("     • {}: {} shares, P&L: ${:.2} ({:.3}%) {}", 
-                            symbol, qty, unrealized_pl, profit_percentage, status);
+                        println!("     • {}: {} {} shares, P&L: ${:.2} ({:.3}%) {}", 
+                            symbol, qty.abs(), position_type, unrealized_pl, profit_percentage, status);
                     }
                 }
             } else {
