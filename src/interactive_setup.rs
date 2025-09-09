@@ -1116,11 +1116,12 @@ Focus on actionable trades that will multiply profits.",
                             println!("🔍 Checking if quantity > 0: {} > 0 = {}", quantity, quantity > 0);
                             if quantity > 0 {
                                 let action_type = if action == "BUY" { "buy" } else { "sell" };
+                                let allocation_amount = quantity as f64 * execution_price;
                                 
                                 println!("🎯 Executing {}: {} shares of {} at ${:.2} (confidence: {:.2})", 
                                     action_type, quantity, symbol, execution_price, confidence);
                                 println!("   💰 Allocation: ${:.2} ({}% of ${:.2} available cash)", 
-                                    allocation_amount, position_size_pct * 100.0, available_funds);
+                                    allocation_amount, (allocation_amount / available_funds * 100.0), available_funds);
                                 println!("   📊 Position Size: {} shares × ${:.2} = ${:.2}", 
                                     quantity, execution_price, quantity as f64 * execution_price);
                                 
@@ -1304,6 +1305,60 @@ Focus on actionable trades that will multiply profits.",
         Ok(())
     }
 
+    /// Send order to Alpaca API
+    async fn send_alpaca_order(&self, symbol: &str, action: &str, quantity: i32, price: f64) -> Result<()> {
+        let client = reqwest::Client::new();
+        let api_key = std::env::var("APCA_API_KEY_ID").unwrap_or_default();
+        let secret_key = std::env::var("APCA_API_SECRET_KEY").unwrap_or_default();
+        
+        if api_key.is_empty() || secret_key.is_empty() {
+            println!("⚠️ Alpaca API keys not configured. Simulating order execution.");
+            return Ok(()); // Return success for simulated execution
+        }
+
+        let base_url = if self.trading_mode == "live" {
+            "https://api.alpaca.markets"
+        } else {
+            "https://paper-api.alpaca.markets"
+        };
+
+        // Create order request according to Alpaca API documentation
+        let order_request = serde_json::json!({
+            "symbol": symbol,
+            "qty": quantity.abs(),
+            "side": if action.to_lowercase().contains("buy") { "buy" } else { "sell" },
+            "type": "market",
+            "time_in_force": "day"
+        });
+
+        println!("📤 Sending order to Alpaca:");
+        println!("   Symbol: {}", symbol);
+        println!("   Quantity: {} shares", quantity.abs());
+        println!("   Side: {}", if action.to_lowercase().contains("buy") { "buy" } else { "sell" });
+        println!("   Type: market");
+        println!("   Estimated Value: ${:.2}", quantity.abs() as f64 * price);
+
+        let response = client
+            .post(&format!("{}/v2/orders", base_url))
+            .header("APCA-API-KEY-ID", &api_key)
+            .header("APCA-API-SECRET-KEY", &secret_key)
+            .header("Content-Type", "application/json")
+            .json(&order_request)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let order_response: Value = response.json().await?;
+            let order_id = order_response["id"].as_str().unwrap_or("unknown");
+            println!("✅ Order executed successfully! Order ID: {}", order_id);
+            Ok(())
+        } else {
+            let error_text = response.text().await?;
+            println!("❌ Order execution failed: {}", error_text);
+            Err(anyhow::anyhow!("Order execution failed: {}", error_text))
+        }
+    }
+
     /// Execute a liquidation trade (bypasses portfolio protection for profitable exits)
     async fn execute_liquidation_trade(&self, symbol: &str, quantity: i32, price: f64) -> Result<bool> {
         println!("📈 Executing liquidation order: {} {} shares of {} at ${:.2}", 
@@ -1355,59 +1410,20 @@ Focus on actionable trades that will multiply profits.",
         // Execute real orders in paper trading mode
         if self.trading_mode == "paper" {
             println!("📝 Paper trading mode - Executing real paper trading orders");
-            // Continue with order execution
         }
 
-        // For live trading, execute real orders
-        let client = reqwest::Client::new();
-        let api_key = std::env::var("APCA_API_KEY_ID").unwrap_or_default();
-        let secret_key = std::env::var("APCA_API_SECRET_KEY").unwrap_or_default();
+        // Execute the order using the shared Alpaca API method
+        let order_result = self.send_alpaca_order(symbol, action, quantity, price).await;
         
-        if api_key.is_empty() || secret_key.is_empty() {
-            println!("⚠️ Alpaca API keys not configured. Simulating order execution.");
-            return Ok(true); // Return true for simulated execution
-        }
-
-        let base_url = if self.trading_mode == "live" {
-            "https://api.alpaca.markets"
-        } else {
-            "https://paper-api.alpaca.markets"
-        };
-
-        // Create order request according to Alpaca API documentation
-        let order_request = serde_json::json!({
-            "symbol": symbol,
-            "qty": quantity.abs(),
-            "side": if action.to_lowercase().contains("buy") { "buy" } else { "sell" },
-            "type": "market",
-            "time_in_force": "day"
-        });
-
-        println!("📤 Sending order to Alpaca:");
-        println!("   Symbol: {}", symbol);
-        println!("   Quantity: {} shares", quantity.abs());
-        println!("   Side: {}", if action.to_lowercase().contains("buy") { "buy" } else { "sell" });
-        println!("   Type: market");
-        println!("   Estimated Value: ${:.2}", quantity.abs() as f64 * price);
-
-        let response = client
-            .post(&format!("{}/v2/orders", base_url))
-            .header("APCA-API-KEY-ID", &api_key)
-            .header("APCA-API-SECRET-KEY", &secret_key)
-            .header("Content-Type", "application/json")
-            .json(&order_request)
-            .send()
-            .await?;
-
-        if response.status().is_success() {
-            let order_response: Value = response.json().await?;
-            let order_id = order_response["id"].as_str().unwrap_or("unknown");
-            println!("✅ Order executed successfully! Order ID: {}", order_id);
-            Ok(true)
-        } else {
-            let error_text = response.text().await?;
-            println!("❌ Order execution failed: {}", error_text);
-            Ok(false)
+        match order_result {
+            Ok(_) => {
+                println!("✅ Order executed successfully");
+                Ok(true)
+            }
+            Err(e) => {
+                println!("❌ Order execution failed: {}", e);
+                Ok(false)
+            }
         }
     }
 
