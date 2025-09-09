@@ -3,10 +3,8 @@ use serde_json::Value;
 use std::io::{self, Write};
 use std::process::Command;
 use tokio::time::{sleep, Duration};
-use regex::Regex;
-
 use chrono;
-use crate::ollama::{Config, ConsensusEngine, ConsensusRequest, AnalysisType, UrgencyLevel, ModelRole, ModelConfig, OllamaClient};
+use crate::ollama::{Config, ConsensusEngine, ConsensusRequest, AnalysisType, UrgencyLevel, ModelRole, OllamaClient};
 
 #[derive(Debug)]
 struct AIRecommendation {
@@ -3019,9 +3017,10 @@ Focus on actionable trades that will multiply profits.",
             println!("2. Adjust model weights");
             println!("3. Change model roles");
             println!("4. Set consensus threshold");
-            println!("5. Continue with current settings");
+            println!("5. Manage conversations");
+            println!("6. Continue with current settings");
             
-            print!("Select option (1-5): ");
+            print!("Select option (1-6): ");
             io::stdout().flush()?;
             
             let mut input = String::new();
@@ -3041,7 +3040,10 @@ Focus on actionable trades that will multiply profits.",
                 "4" => {
                     Self::set_consensus_threshold_internal(consensus_engine).await?;
                 },
-                "5" => println!("✅ Continuing with current settings..."),
+                "5" => {
+                    self.manage_conversations().await?;
+                },
+                "6" => println!("✅ Continuing with current settings..."),
                 _ => println!("❌ Invalid option, continuing with current settings..."),
             }
         }
@@ -3356,6 +3358,128 @@ Focus on actionable trades that will multiply profits.",
             Ok(Some(consensus))
         } else {
             Ok(None)
+        }
+    }
+
+    /// Manage conversation history
+    async fn manage_conversations(&mut self) -> Result<()> {
+        if let Some(ref mut consensus_engine) = self.consensus_engine {
+            loop {
+                println!("\n💬 Conversation Management:");
+                println!("1. View conversation status");
+                println!("2. Clear all conversations");
+                println!("3. Clear specific model conversation");
+                println!("4. View conversation history");
+                println!("5. Back to main menu");
+                
+                print!("Select option (1-5): ");
+                io::stdout().flush()?;
+                
+                let mut input = String::new();
+                io::stdin().read_line(&mut input)?;
+                let choice = input.trim();
+                
+                match choice {
+                    "1" => {
+                        Self::show_conversation_status_internal(consensus_engine, &self.models);
+                    }
+                    "2" => {
+                        print!("⚠️  Clear ALL conversation history? (yes/no): ");
+                        io::stdout().flush()?;
+                        let mut confirm = String::new();
+                        io::stdin().read_line(&mut confirm)?;
+                        if confirm.trim().to_lowercase() == "yes" {
+                            consensus_engine.clear_all_conversations();
+                        } else {
+                            println!("❌ Operation cancelled.");
+                        }
+                    }
+                    "3" => {
+                        Self::clear_specific_conversation_internal(consensus_engine, &self.models).await?;
+                    }
+                    "4" => {
+                        Self::view_conversation_history_internal(consensus_engine, &self.models);
+                    }
+                    "5" => {
+                        println!("✅ Returning to main menu...");
+                        break;
+                    }
+                    _ => {
+                        println!("❌ Invalid option. Please try again.");
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Show conversation status for all models
+    fn show_conversation_status_internal(consensus_engine: &crate::ollama::ConsensusEngine, models: &[String]) {
+        println!("\n📊 Conversation Status:");
+        let conversation_manager = consensus_engine.get_conversation_manager();
+        
+        for model_name in models {
+            if let Some(conversation) = conversation_manager.get_conversation(model_name) {
+                println!("  {}: {} messages", model_name, conversation.len());
+            } else {
+                println!("  {}: No conversation", model_name);
+            }
+        }
+    }
+
+    /// Clear specific model conversation
+    async fn clear_specific_conversation_internal(consensus_engine: &mut crate::ollama::ConsensusEngine, models: &[String]) -> Result<()> {
+        println!("\nAvailable models:");
+        for (i, model_name) in models.iter().enumerate() {
+            println!("  {}. {}", i + 1, model_name);
+        }
+        
+        print!("Select model number to clear: ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        
+        if let Ok(index) = input.trim().parse::<usize>() {
+            if index > 0 && index <= models.len() {
+                let model_name = &models[index - 1];
+                print!("Clear conversation for {}? (yes/no): ", model_name);
+                io::stdout().flush()?;
+                
+                let mut confirm = String::new();
+                io::stdin().read_line(&mut confirm)?;
+                if confirm.trim().to_lowercase() == "yes" {
+                    consensus_engine.clear_model_conversation(model_name);
+                } else {
+                    println!("❌ Operation cancelled.");
+                }
+            } else {
+                println!("❌ Invalid model number.");
+            }
+        } else {
+            println!("❌ Invalid input.");
+        }
+        
+        Ok(())
+    }
+
+    /// View conversation history
+    fn view_conversation_history_internal(consensus_engine: &crate::ollama::ConsensusEngine, models: &[String]) {
+        println!("\n📜 Conversation History:");
+        let conversation_manager = consensus_engine.get_conversation_manager();
+        
+        for model_name in models {
+            if let Some(conversation) = conversation_manager.get_conversation(model_name) {
+                println!("\n--- {} ---", model_name);
+                for (i, message) in conversation.iter().enumerate() {
+                    let role = match message.role {
+                        crate::ollama::conversation_manager::MessageRole::System => "System",
+                        crate::ollama::conversation_manager::MessageRole::User => "User",
+                        crate::ollama::conversation_manager::MessageRole::Assistant => "Assistant",
+                    };
+                    println!("  {}: {} ({} chars)", i + 1, role, message.content.len());
+                }
+            }
         }
     }
 }

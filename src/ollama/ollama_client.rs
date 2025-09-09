@@ -323,6 +323,46 @@ impl OllamaClient {
         }
     }
 
+    /// Chat with a model using the conversations endpoint
+    pub async fn chat_with_model(
+        &self,
+        model: &str,
+        messages: Vec<crate::ollama::conversation_manager::ConversationMessage>,
+        temperature: f32,
+        max_tokens: i32,
+    ) -> Result<String> {
+        let request = serde_json::json!({
+            "model": model,
+            "messages": messages,
+            "stream": false,
+            "options": {
+                "temperature": temperature,
+                "num_predict": max_tokens,
+                "top_k": 20,
+                "top_p": 0.9,
+                "repeat_penalty": 1.1
+            }
+        });
+        
+        let response = self.client
+            .post(&format!("{}/api/chat", self.base_url))
+            .json(&request)
+            .send()
+            .await?;
+        
+        if response.status().is_success() {
+            let chat_response: serde_json::Value = response.json().await?;
+            if let Some(message) = chat_response["message"]["content"].as_str() {
+                Ok(message.to_string())
+            } else {
+                Err(anyhow::anyhow!("Invalid response format from Ollama chat API"))
+            }
+        } else {
+            let error_text = response.text().await?;
+            Err(anyhow::anyhow!("Ollama chat API error: {}", error_text))
+        }
+    }
+
 
 
     pub async fn generate_with_timing(&self, model: &str, prompt: &str) -> Result<(String, OllamaReceipt)> {

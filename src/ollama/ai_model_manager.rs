@@ -299,6 +299,11 @@ impl AIModelManager {
             })
             .collect()
     }
+
+    /// Get all model names
+    pub fn get_all_model_names(&self) -> Vec<String> {
+        self.models.keys().cloned().collect()
+    }
 }
 
 impl Default for AIModelManager {

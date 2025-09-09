@@ -3,6 +3,7 @@ pub mod ollama_config;
 pub mod ollama_receipt;
 pub mod ai_model_manager;
 pub mod consensus_engine;
+pub mod conversation_manager;
 
 
 // Re-export the main types for easier importing

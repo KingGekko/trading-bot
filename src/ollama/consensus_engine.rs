@@ -1,4 +1,4 @@
-use crate::ollama::{ai_model_manager::*, ollama_client::OllamaClient};
+use crate::ollama::{ai_model_manager::*, ollama_client::OllamaClient, conversation_manager::ConversationManager};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use anyhow::Result;
@@ -7,6 +7,7 @@ use anyhow::Result;
 pub struct ConsensusEngine {
     model_manager: AIModelManager,
     ollama_client: OllamaClient,
+    conversation_manager: ConversationManager,
     consensus_history: Vec<ConsensusResult>,
     max_history: usize,
 }
@@ -49,6 +50,7 @@ impl ConsensusEngine {
         Self {
             model_manager: AIModelManager::new(),
             ollama_client,
+            conversation_manager: ConversationManager::new(20),
             consensus_history: Vec::new(),
             max_history: 100,
         }
@@ -57,7 +59,14 @@ impl ConsensusEngine {
     /// Initialize with available models
     pub async fn initialize(&mut self, available_models: Vec<String>) -> Result<()> {
         // Auto-assign roles to available models
-        self.model_manager.auto_assign_roles(available_models)?;
+        self.model_manager.auto_assign_roles(available_models.clone())?;
+        
+        // Initialize conversations for each model
+        for model_name in &available_models {
+            if let Some(model_config) = self.model_manager.get_model(model_name) {
+                self.conversation_manager.initialize_conversation(model_name, &model_config.role);
+            }
+        }
         
         println!("🤖 AI Model Manager Initialized:");
         let role_summary = self.model_manager.get_role_summary();
@@ -65,6 +74,7 @@ impl ConsensusEngine {
             println!("   {:?}: {} models", role, count);
         }
         
+        println!("💬 Conversation contexts initialized for all models");
         Ok(())
     }
 
@@ -83,7 +93,10 @@ impl ConsensusEngine {
         let mut individual_responses = HashMap::new();
         let mut responses = Vec::new();
         
-        for model_config in &models_to_use {
+        // Clone model configs to avoid borrow issues
+        let model_configs: Vec<ModelConfig> = models_to_use.iter().map(|c| (*c).clone()).collect();
+        
+        for model_config in &model_configs {
             match self.get_model_response(model_config, &request).await {
                 Ok(response) => {
                     individual_responses.insert(model_config.name.clone(), response.clone());
@@ -199,23 +212,35 @@ impl ConsensusEngine {
         }
     }
 
-    /// Get individual model response
+    /// Get individual model response using conversation context
     async fn get_model_response(
-        &self,
+        &mut self,
         model_config: &ModelConfig,
         request: &ConsensusRequest,
     ) -> Result<ModelResponse> {
-        let prompt = self.build_prompt_for_role(&model_config.role, request);
+        let user_message = self.build_prompt_for_role(&model_config.role, request);
         
-        // Generate response using Ollama client
+        // Add user message to conversation
+        self.conversation_manager.add_user_message(&model_config.name, user_message);
+        
+        // Get conversation for this model
+        let conversation = self.conversation_manager
+            .get_conversation(&model_config.name)
+            .ok_or_else(|| anyhow::anyhow!("No conversation found for model: {}", model_config.name))?
+            .clone();
+        
+        // Generate response using conversation context
         let response = self.ollama_client
-            .generate_with_params(
+            .chat_with_model(
                 &model_config.name,
-                &prompt,
-                model_config.temperature,
-                model_config.max_tokens,
+                conversation.clone(),
+                model_config.temperature as f32,
+                model_config.max_tokens as i32,
             )
             .await?;
+        
+        // Add assistant response to conversation
+        self.conversation_manager.add_assistant_message(&model_config.name, response.clone());
         
         // Parse response and extract decision components
         let (decision, confidence, reasoning) = self.parse_model_response(&response, &model_config.role);
@@ -504,5 +529,24 @@ impl ConsensusEngine {
     /// Get model manager mutable reference
     pub fn get_model_manager_mut(&mut self) -> &mut AIModelManager {
         &mut self.model_manager
+    }
+
+    /// Clear conversation history for all models
+    pub fn clear_all_conversations(&mut self) {
+        for model_name in self.model_manager.get_all_model_names() {
+            self.conversation_manager.clear_conversation(&model_name);
+        }
+        println!("🧹 Cleared conversation history for all models");
+    }
+
+    /// Clear conversation history for a specific model
+    pub fn clear_model_conversation(&mut self, model_name: &str) {
+        self.conversation_manager.clear_conversation(model_name);
+        println!("🧹 Cleared conversation history for model: {}", model_name);
+    }
+
+    /// Get conversation manager reference
+    pub fn get_conversation_manager(&self) -> &ConversationManager {
+        &self.conversation_manager
     }
 }
