@@ -1756,59 +1756,128 @@ Focus on actionable trades that will multiply profits.",
     async fn scan_tradeable_assets(&self) -> Result<Vec<String>> {
         println!("🔍 Scanning for tradeable assets...");
         
-        // Load asset universe
-        let asset_universe_file = "trading_portfolio/asset_universe.json";
-        if !std::path::Path::new(asset_universe_file).exists() {
-            println!("⚠️ Asset universe file not found. Creating sample assets...");
-            return Ok(vec!["AAPL".to_string(), "SPY".to_string(), "TSLA".to_string()]);
+        // First, try to fetch real assets from Alpaca API
+        match self.fetch_alpaca_assets().await {
+            Ok(alpaca_assets) => {
+                if !alpaca_assets.is_empty() {
+                    println!("✅ Found {} assets from Alpaca API", alpaca_assets.len());
+                    return Ok(alpaca_assets);
+                }
+            }
+            Err(e) => {
+                println!("⚠️ Failed to fetch assets from Alpaca API: {}", e);
+            }
         }
-
-        let content = tokio::fs::read_to_string(asset_universe_file).await?;
-        let data: Value = serde_json::from_str(&content)?;
         
-        let mut tradeable_assets = Vec::new();
-        if let Some(assets) = data["assets"].as_array() {
-            for asset in assets {
-                if let Some(symbol) = asset["symbol"].as_str() {
-                    if let Some(tradeable) = asset["tradeable"].as_bool() {
-                        if tradeable {
-                            tradeable_assets.push(symbol.to_string());
+        // Fallback to static file
+        let asset_universe_file = "trading_portfolio/asset_universe.json";
+        if std::path::Path::new(asset_universe_file).exists() {
+            let content = tokio::fs::read_to_string(asset_universe_file).await?;
+            let data: Value = serde_json::from_str(&content)?;
+            
+            let mut tradeable_assets = Vec::new();
+            if let Some(assets) = data["assets"].as_array() {
+                for asset in assets {
+                    if let Some(symbol) = asset["symbol"].as_str() {
+                        if let Some(tradeable) = asset["tradeable"].as_bool() {
+                            if tradeable {
+                                tradeable_assets.push(symbol.to_string());
+                            }
                         }
                     }
                 }
             }
+            
+            if !tradeable_assets.is_empty() {
+                println!("✅ Found {} assets from static file", tradeable_assets.len());
+                return Ok(tradeable_assets);
+            }
         }
-
-        if tradeable_assets.is_empty() {
-            // Fallback to expanded tradeable assets
-            tradeable_assets = vec![
-                // Major ETFs
-                "SPY".to_string(), "QQQ".to_string(), "IWM".to_string(), "VTI".to_string(),
-                // Tech Giants
-                "AAPL".to_string(), "MSFT".to_string(), "GOOGL".to_string(), "AMZN".to_string(),
-                "META".to_string(), "NVDA".to_string(), "TSLA".to_string(),
-                // Financial
-                "JPM".to_string(), "BAC".to_string(), "WFC".to_string(),
-                // Healthcare
-                "JNJ".to_string(), "PFE".to_string(), "UNH".to_string(),
-                // Consumer
-                "KO".to_string(), "PEP".to_string(), "WMT".to_string(),
-                // Energy
-                "XOM".to_string(), "CVX".to_string(),
-                // Industrial
-                "BA".to_string(), "CAT".to_string(), "GE".to_string()
-            ];
-        }
-
+        
+        // Final fallback to hardcoded assets
+        println!("⚠️ Using hardcoded asset fallback...");
+        let tradeable_assets = vec![
+            // Major ETFs
+            "SPY".to_string(), "QQQ".to_string(), "IWM".to_string(), "VTI".to_string(),
+            // Tech Giants
+            "AAPL".to_string(), "MSFT".to_string(), "GOOGL".to_string(), "AMZN".to_string(),
+            "META".to_string(), "NVDA".to_string(), "TSLA".to_string(),
+            // Financial
+            "JPM".to_string(), "BAC".to_string(), "WFC".to_string(),
+            // Healthcare
+            "JNJ".to_string(), "PFE".to_string(), "UNH".to_string(),
+            // Consumer
+            "KO".to_string(), "PEP".to_string(), "WMT".to_string(),
+            // Energy
+            "XOM".to_string(), "CVX".to_string(),
+            // Industrial
+            "BA".to_string(), "CAT".to_string(), "GE".to_string()
+        ];
+        
         // Limit the number of assets to analyze (configurable)
         let max_assets = 20; // Increase this to trade more assets
-        if tradeable_assets.len() > max_assets {
-            tradeable_assets.truncate(max_assets);
+        let mut final_assets = tradeable_assets;
+        if final_assets.len() > max_assets {
+            final_assets.truncate(max_assets);
             println!("📊 Limited to top {} assets for analysis", max_assets);
         }
         
-        println!("✅ Found {} tradeable assets: {:?}", tradeable_assets.len(), tradeable_assets);
-        Ok(tradeable_assets)
+        println!("✅ Found {} tradeable assets: {:?}", final_assets.len(), final_assets);
+        Ok(final_assets)
+    }
+    
+    /// Fetch real tradeable assets from Alpaca API
+    async fn fetch_alpaca_assets(&self) -> Result<Vec<String>> {
+        let client = reqwest::Client::new();
+        let api_key = std::env::var("APCA_API_KEY_ID").unwrap_or_default();
+        let secret_key = std::env::var("APCA_API_SECRET_KEY").unwrap_or_default();
+        
+        if api_key.is_empty() || secret_key.is_empty() {
+            return Err(anyhow::anyhow!("Alpaca API keys not configured"));
+        }
+
+        let base_url = if self.trading_mode == "live" {
+            "https://api.alpaca.markets"
+        } else {
+            "https://paper-api.alpaca.markets"
+        };
+
+        // Fetch assets from Alpaca API
+        let response = client
+            .get(&format!("{}/v2/assets", base_url))
+            .header("APCA-API-KEY-ID", &api_key)
+            .header("APCA-API-SECRET-KEY", &secret_key)
+            .query(&[("status", "active"), ("attributes", "tradable")])
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let assets: Value = response.json().await?;
+            let mut tradeable_assets = Vec::new();
+            
+            if let Some(assets_array) = assets.as_array() {
+                for asset in assets_array {
+                    if let Some(symbol) = asset["symbol"].as_str() {
+                        if let Some(tradeable) = asset["tradable"].as_bool() {
+                            if tradeable {
+                                tradeable_assets.push(symbol.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Sort and limit to most liquid assets
+            tradeable_assets.sort();
+            if tradeable_assets.len() > 50 {
+                tradeable_assets.truncate(50);
+            }
+            
+            Ok(tradeable_assets)
+        } else {
+            let error_text = response.text().await?;
+            Err(anyhow::anyhow!("Failed to fetch assets from Alpaca: {}", error_text))
+        }
     }
     
     /// Create sample JSON files for AI analysis
