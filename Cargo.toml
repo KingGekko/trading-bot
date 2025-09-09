@@ -1,12 +1,12 @@
 [package]
 name = "trading_bot"
-version = "0.1.0"
+version = "1.5.0"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
-description = "A Rust-based trading bot with Ollama AI integration and protobuf logging"
+description = "Advanced Rust trading bot v1.5 with multi-model AI consensus, adaptive timing, options integration, sector rotation analysis, and market regime adaptation"
 license = "MIT"
 repository = "https://github.com/yourusername/trading_bot"
-keywords = ["trading", "bot", "ai", "ollama", "rust", "protobuf"]
+keywords = ["trading", "bot", "ai", "ollama", "rust", "protobuf", "consensus", "adaptive-timing", "options", "sector-rotation", "market-regime"]
 categories = ["command-line-utilities", "api-bindings", "data-structures"]
 
 [dependencies]

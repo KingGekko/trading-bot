@@ -7,8 +7,19 @@ use crate::market_data::{Asset, Position};
 
 pub mod enhanced_decision_engine;
 pub mod ai_decision_engine;
+pub mod adaptive_timing;
+pub mod options_integration;
+pub mod advanced_indicators;
+pub mod sector_rotation;
+pub mod market_regime_adaptation;
+
 pub use enhanced_decision_engine::{EnhancedDecisionEngine, TradingAction};
 pub use ai_decision_engine::AIDecisionEngine;
+pub use adaptive_timing::{AdaptiveTimingManager, MarketSession, AIProcessingMetrics};
+pub use options_integration::{OptionsStrategyManager, OptionsStrategy, OptionsStrategyRecommendation};
+pub use advanced_indicators::{AdvancedIndicatorsManager, AdvancedIndicator, AdvancedIndicatorData};
+pub use sector_rotation::{SectorRotationManager, SectorRotationPhase, SectorRotationAnalysis, SectorPerformance, MarketSector};
+pub use market_regime_adaptation::{MarketRegimeAdaptationManager, MarketRegime, RegimeCharacteristics};
 
 /// Advanced Trading Strategy with Modern Portfolio Theory, Kelly Criterion, and CAPM
 #[derive(Debug, Clone)]
@@ -190,7 +201,7 @@ impl AdvancedTradingStrategy {
     /// Calculate optimal portfolio allocation with portfolio protection
     pub fn calculate_optimal_allocation(
         &self,
-        market_data: &HashMap<String, MarketDataPoint>,
+        _market_data: &HashMap<String, MarketDataPoint>,
         account_data: &AccountData,
         historical_data: &[MarketDataPoint],
     ) -> Result<Vec<PortfolioAllocation>> {
@@ -200,7 +211,7 @@ impl AdvancedTradingStrategy {
         let mut expected_returns = HashMap::new();
         let mut volatilities = HashMap::new();
         
-        for (symbol, data) in market_data {
+        for (symbol, data) in _market_data {
             let expected_return = self.calculate_expected_return(data, historical_data)?;
             let volatility = self.calculate_volatility(symbol, historical_data)?;
             
@@ -212,7 +223,7 @@ impl AdvancedTradingStrategy {
         let optimal_weights = self.apply_modern_portfolio_theory(
             &expected_returns,
             &volatilities,
-            market_data,
+            _market_data,
         )?;
         
         // Apply Kelly Criterion for position sizing
@@ -231,7 +242,7 @@ impl AdvancedTradingStrategy {
         
         // Generate allocations with stop losses and profit targets
         for (symbol, weight) in protected_weights {
-            if let Some(data) = market_data.get(&symbol) {
+            if let Some(data) = _market_data.get(&symbol) {
                 let allocation = self.create_allocation(
                     &symbol,
                     weight,
@@ -470,7 +481,7 @@ impl AdvancedTradingStrategy {
         &self,
         expected_returns: &HashMap<String, f64>,
         volatilities: &HashMap<String, f64>,
-        market_data: &HashMap<String, MarketDataPoint>,
+        _market_data: &HashMap<String, MarketDataPoint>,
     ) -> Result<HashMap<String, f64>> {
         let mut weights = HashMap::new();
         let total_assets = expected_returns.len() as f64;

@@ -1445,7 +1445,7 @@ async fn main() -> Result<()> {
         let data_dir = "trading_portfolio";
         let portfolio_file = format!("{}/trading_portfolio.json", data_dir);
         let portfolio_content = tokio::fs::read_to_string(&portfolio_file).await?;
-        let portfolio_data: Value = serde_json::from_str(&portfolio_content)?;
+        let _portfolio_data: Value = serde_json::from_str(&portfolio_content)?;
         
         // Create sample market data for demonstration
         let mut market_data = std::collections::HashMap::new();

@@ -350,7 +350,7 @@ impl ConsensusEngine {
     }
 
     /// Calculate consensus from individual responses
-    fn calculate_consensus(&self, responses: &[ModelResponse], request: &ConsensusRequest) -> ConsensusResult {
+    fn calculate_consensus(&self, responses: &[ModelResponse], _request: &ConsensusRequest) -> ConsensusResult {
         if responses.is_empty() {
             return ConsensusResult {
                 final_decision: "HOLD".to_string(),

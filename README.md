@@ -1,20 +1,26 @@
-# 🚀 Elite Trading Bot - AI-Powered Automated Trading System
+# 🚀 Elite Trading Bot v1.5 - Advanced AI-Powered Trading System
 
-A sophisticated Rust-based trading bot with AI-enhanced decision making, real-time market data processing, and comprehensive portfolio management.
+A sophisticated Rust-based trading bot with multi-model AI consensus, adaptive timing, options integration, sector rotation analysis, and market regime adaptation.
 
 ## ✨ Key Features
 
-### 🤖 **AI-Enhanced Trading**
+### 🤖 **AI-Enhanced Trading v1.5**
+- **Multi-Model AI Consensus** - Multiple AI models working together for better decisions
+- **Specialized Model Roles** - Technical Analysis, Sentiment Analysis, Risk Management
+- **Conversation Management** - Context-aware AI interactions with conversation history
 - **Elite Quantitative Trading Analyst** - Custom AI prompt for profit multiplication
-- **Multi-Model AI Analysis** - Single or multi-model AI decision engines
 - **Mathematical + AI Fusion** - Combines Modern Portfolio Theory with AI insights
 - **Real-Time Decision Making** - Continuous AI-powered trading recommendations
 
-### 📊 **Advanced Trading Strategy**
+### 📊 **Advanced Trading Strategy v1.5**
+- **Adaptive Timing System** - Dynamic cycle duration based on AI processing speed and market sessions
+- **Options Integration** - Covered calls, protective puts, straddles, strangles (Live mode only)
+- **Advanced Technical Indicators** - Ichimoku Cloud, Volume Profile, VWAP
+- **Sector Rotation Analysis** - 11 major sectors with rotation phase detection (Live mode only)
+- **Market Regime Adaptation** - Strategy adaptation based on market conditions
 - **Modern Portfolio Theory (MPT)** - Optimal portfolio allocation
 - **Kelly Criterion** - Optimal position sizing
 - **Capital Asset Pricing Model (CAPM)** - Expected return calculation
-- **Market Regime Analysis** - Bull/Bear/Sideways market detection
 - **Risk Management** - Sharpe Ratio, VaR, Maximum Drawdown protection
 
 ### 🎯 **Interactive Setup Wizard**

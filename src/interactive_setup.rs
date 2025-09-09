@@ -5,6 +5,10 @@ use std::process::Command;
 use tokio::time::{sleep, Duration};
 use chrono;
 use crate::ollama::{Config, ConsensusEngine, ConsensusRequest, AnalysisType, UrgencyLevel, ModelRole, OllamaClient};
+use crate::trading_strategy::{
+    AdaptiveTimingManager, OptionsStrategyManager, AdvancedIndicatorsManager,
+    SectorRotationManager, MarketRegimeAdaptationManager
+};
 
 #[derive(Debug)]
 struct AIRecommendation {
@@ -32,6 +36,11 @@ pub struct InteractiveSetup {
     pub models: Vec<String>,
     pub config: Config,
     pub consensus_engine: Option<ConsensusEngine>,
+    pub adaptive_timing: AdaptiveTimingManager,
+    pub options_manager: OptionsStrategyManager,
+    pub advanced_indicators: AdvancedIndicatorsManager,
+    pub sector_rotation: SectorRotationManager,
+    pub market_regime: MarketRegimeAdaptationManager,
 }
 
 impl InteractiveSetup {
@@ -82,6 +91,11 @@ impl InteractiveSetup {
                 }
             }),
             consensus_engine: None,
+            adaptive_timing: AdaptiveTimingManager::new(),
+            options_manager: OptionsStrategyManager::new(String::new()),
+            advanced_indicators: AdvancedIndicatorsManager::new(String::new()),
+            sector_rotation: SectorRotationManager::new(String::new()),
+            market_regime: MarketRegimeAdaptationManager::new(String::new()),
         }
     }
 
@@ -128,6 +142,9 @@ impl InteractiveSetup {
             self.initialize_consensus_engine().await?;
             self.show_model_selection().await?;
         }
+
+        // Step 3.6: Initialize Phase 3 managers
+        self.initialize_phase3_managers().await?;
         
         // Step 4: Start all servers
         self.start_servers().await?;
@@ -503,7 +520,14 @@ impl InteractiveSetup {
         let mut iteration = 0;
         loop {
             iteration += 1;
-            println!("🔄 Trading Iteration #{}", iteration);
+            
+            // Calculate optimal cycle duration based on AI performance and market session
+            let cycle_duration = self.adaptive_timing.calculate_optimal_cycle_duration();
+            let _session = self.adaptive_timing.get_current_session();
+            
+            println!("🔄 Trading Iteration #{} | {}", 
+                iteration, 
+                self.adaptive_timing.get_timing_status());
             println!("{}", "-".repeat(20));
             
             // Check if market is open (for live trading)
@@ -548,9 +572,12 @@ impl InteractiveSetup {
             // Multi-timeframe analysis
             self.perform_multi_timeframe_analysis().await?;
             
-            // Wait before next iteration
-            println!("⏳ Waiting 30 seconds before next analysis...");
-            sleep(Duration::from_secs(30)).await;
+            // Perform Phase 3 advanced analysis
+            self.perform_phase3_analysis().await?;
+            
+            // Wait before next iteration using adaptive timing
+            println!("⏳ Waiting {} seconds before next analysis...", cycle_duration.as_secs());
+            sleep(cycle_duration).await;
             println!();
         }
     }
@@ -617,6 +644,121 @@ impl InteractiveSetup {
         }
         
         println!("✅ Multi-timeframe analysis completed");
+        Ok(())
+    }
+
+    /// Perform Phase 3 advanced analysis
+    async fn perform_phase3_analysis(&mut self) -> Result<()> {
+        println!("\n🚀 PHASE 3: ADVANCED ANALYSIS");
+        println!("{}", "=".repeat(40));
+        
+        // Get current market session
+        let session = self.adaptive_timing.get_current_session();
+        println!("📊 Current Market Session: {:?}", session);
+        
+        // Show session-specific recommendations
+        let recommendations = self.adaptive_timing.get_session_analysis_recommendations();
+        for rec in recommendations {
+            println!("  • {}", rec);
+        }
+        
+        // Ultra-high frequency analysis (live mode only)
+        if self.adaptive_timing.should_enable_ultra_high_freq(&self.trading_mode) {
+            println!("\n⚡ ULTRA-HIGH FREQUENCY ANALYSIS");
+            let ultra_recs = self.adaptive_timing.get_ultra_high_freq_recommendations();
+            for rec in ultra_recs {
+                println!("  • {}", rec);
+            }
+        }
+        
+        // Advanced technical indicators
+        if self.advanced_indicators.is_enabled() {
+            println!("\n📈 ADVANCED TECHNICAL INDICATORS");
+            // Simulate price data for analysis
+            let price_data = vec![100.0, 101.0, 99.5, 102.0, 101.5, 103.0, 102.5, 104.0];
+            let volume_data = vec![1000.0, 1200.0, 800.0, 1500.0, 1100.0, 1300.0, 900.0, 1400.0];
+            
+            if let Ok(indicators) = self.advanced_indicators.calculate_advanced_indicators("AAPL", &price_data, &volume_data).await {
+                for indicator in indicators {
+                    println!("  • {:?}: {:?} (strength: {:.1}%)", 
+                        indicator.indicator_type, 
+                        indicator.signal, 
+                        indicator.strength * 100.0);
+                }
+            }
+        }
+        
+        // Options analysis (live mode only)
+        if self.options_manager.is_enabled() {
+            println!("\n📊 OPTIONS ANALYSIS");
+            if let Ok(options_recs) = self.options_manager.analyze_options_opportunities("AAPL", 150.0).await {
+                for rec in options_recs.iter().take(3) { // Show top 3
+                    println!("  • {}: {} (conf: {:.1}%)", 
+                        format!("{:?}", rec.strategy), 
+                        rec.recommendation, 
+                        rec.confidence * 100.0);
+                }
+            }
+        }
+        
+        // Sector rotation analysis
+        if self.sector_rotation.is_enabled() {
+            println!("\n🔄 SECTOR ROTATION ANALYSIS");
+            // Simulate sector data
+            let sector_performances = vec![
+                crate::trading_strategy::SectorPerformance {
+                    sector: crate::trading_strategy::MarketSector::Technology,
+                    symbol: "AAPL".to_string(),
+                    current_price: 150.0,
+                    change_1d: 0.02,
+                    change_5d: 0.05,
+                    change_1m: 0.08,
+                    volume: 1000000,
+                    relative_strength: 0.8,
+                    momentum_score: 0.7,
+                    volatility: 0.25,
+                },
+            ];
+            
+            if let Ok(_) = self.sector_rotation.update_sector_data(sector_performances).await {
+                if let Ok(analysis) = self.sector_rotation.analyze_sector_rotation().await {
+                    println!("  • Current Phase: {:?} (conf: {:.1}%)", 
+                        analysis.current_phase, 
+                        analysis.phase_confidence * 100.0);
+                    println!("  • Market Regime: {}", analysis.market_regime);
+                    println!("  • Leading Sectors: {:?}", analysis.leading_sectors);
+                }
+            }
+        }
+        
+        // Market regime adaptation
+        if self.market_regime.is_enabled() {
+            println!("\n🎯 MARKET REGIME ADAPTATION");
+            // Simulate market data
+            let mut market_data = std::collections::HashMap::new();
+            market_data.insert("AAPL".to_string(), 150.0);
+            market_data.insert("MSFT".to_string(), 300.0);
+            market_data.insert("GOOGL".to_string(), 2500.0);
+            
+            if let Ok(regime) = self.market_regime.analyze_market_regime(&market_data).await {
+                println!("  • Current Regime: {:?} (conf: {:.1}%)", 
+                    regime.regime, 
+                    regime.confidence * 100.0);
+                println!("  • Regime Score: {:.2}", regime.regime_score);
+                println!("  • Duration: {} days", regime.duration_days);
+                
+                // Show regime-specific recommendations
+                let regime_recs = self.market_regime.get_regime_recommendations();
+                for rec in regime_recs.iter().take(3) { // Show top 3
+                    println!("  • {}", rec);
+                }
+            }
+        }
+        
+        // Show AI performance metrics
+        println!("\n🤖 AI PERFORMANCE METRICS");
+        println!("  • {}", self.adaptive_timing.get_performance_summary());
+        
         Ok(())
     }
 
@@ -1292,7 +1434,7 @@ Focus on actionable trades that will multiply profits.",
                             println!("🔍 Action is BUY/SELL, proceeding with trade execution...");
                             // Get target price or use current market price
                             let target_price = recommendation["target_price"].as_f64();
-                            let stop_loss = recommendation["stop_loss"].as_f64();
+                            let _stop_loss = recommendation["stop_loss"].as_f64();
                             let confidence = recommendation["confidence"].as_f64().unwrap_or(0.5);
                             
                             // Get real available cash from account
@@ -1905,7 +2047,7 @@ Focus on actionable trades that will multiply profits.",
             let starting_value = self.get_starting_portfolio_value().await?;
             
             let current_value = portfolio_value.parse::<f64>().unwrap_or(0.0);
-            let current_cash = cash.parse::<f64>().unwrap_or(0.0);
+            let _current_cash = cash.parse::<f64>().unwrap_or(0.0);
             
             // Calculate protection status
             let protection_status = if current_value >= starting_value {
@@ -2135,7 +2277,7 @@ Focus on actionable trades that will multiply profits.",
                     if let Some(symbol) = asset["symbol"].as_str() {
                         // Check if asset is both tradable and shortable (Basic Plan supports both)
                         let tradeable = asset["tradable"].as_bool().unwrap_or(false);
-                        let shortable = asset["shortable"].as_bool().unwrap_or(false);
+                        let _shortable = asset["shortable"].as_bool().unwrap_or(false);
                         
                         if tradeable {
                             tradeable_assets.push(symbol.to_string());
@@ -2335,7 +2477,7 @@ Focus on actionable trades that will multiply profits.",
     }
 
     /// Calculate Kelly Criterion fraction for position sizing
-    async fn calculate_kelly_fraction(&self, symbol: &str, momentum: f64) -> Result<f64> {
+    async fn calculate_kelly_fraction(&self, _symbol: &str, momentum: f64) -> Result<f64> {
         // Simplified Kelly Criterion calculation
         // In practice, this would use historical win rate and average win/loss
         
@@ -2971,6 +3113,33 @@ Focus on actionable trades that will multiply profits.",
             self.consensus_engine = Some(consensus_engine);
             
             println!("✅ Multi-Model Consensus Engine initialized!");
+        }
+        
+        Ok(())
+    }
+
+    /// Initialize Phase 3 managers
+    async fn initialize_phase3_managers(&mut self) -> Result<()> {
+        println!("\n🚀 Initializing Phase 3: Advanced Features");
+        
+        // Update managers with trading mode
+        self.options_manager = OptionsStrategyManager::new(self.trading_mode.clone());
+        self.advanced_indicators = AdvancedIndicatorsManager::new(self.trading_mode.clone());
+        self.sector_rotation = SectorRotationManager::new(self.trading_mode.clone());
+        self.market_regime = MarketRegimeAdaptationManager::new(self.trading_mode.clone());
+        
+        // Show Phase 3 status
+        println!("✅ {}", self.adaptive_timing.get_timing_status());
+        println!("✅ {}", self.options_manager.get_status());
+        println!("✅ {}", self.advanced_indicators.get_status());
+        println!("✅ {}", self.sector_rotation.get_status());
+        println!("✅ {}", self.market_regime.get_status());
+        
+        // Show ultra-high frequency status
+        if self.adaptive_timing.should_enable_ultra_high_freq(&self.trading_mode) {
+            println!("⚡ Ultra-High Frequency Analysis: ENABLED (Live mode + Fast AI)");
+        } else {
+            println!("⚡ Ultra-High Frequency Analysis: DISABLED (Paper mode or slow AI)");
         }
         
         Ok(())

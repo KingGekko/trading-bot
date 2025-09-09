@@ -1,5 +1,5 @@
 use crate::trading_strategy::{MarketDataPoint, AccountData, Position};
-use crate::market_data::{TechnicalIndicators, MarketDataPoint as TechMarketDataPoint};
+use crate::market_data::TechnicalIndicators;
 use crate::ollama::OllamaClient;
 use serde_json::{json, Value};
 use anyhow::Result;
@@ -114,7 +114,7 @@ impl AIDecisionEngine {
 
         let mut technical_analysis = String::new();
         
-        for (symbol, indicators) in technical_indicators {
+        for (_symbol, indicators) in technical_indicators {
             technical_analysis.push_str(&format!("{}\n", indicators.to_ai_analysis()));
         }
 
@@ -237,7 +237,7 @@ Provide your response in a structured format with clear sections and specific ac
         for math_decision in mathematical_decisions {
             // Parse AI response for this symbol (simplified - in real implementation, you'd parse the structured response)
             let ai_confidence_boost = self.extract_ai_confidence_boost(&ai_response, &math_decision.symbol);
-            let ai_reasoning = self.extract_ai_reasoning(&ai_response, &math_decision.symbol);
+            let _ai_reasoning = self.extract_ai_reasoning(&ai_response, &math_decision.symbol);
             let ai_risk_assessment = self.extract_ai_risk_assessment(&ai_response, &math_decision.symbol);
 
             // Combine mathematical confidence with AI insights

@@ -1,7 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Technical indicators calculated from 15-minute historical data
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,7 +58,7 @@ impl TechnicalIndicators {
         }
 
         let latest_point = &data_points[data_points.len() - 1];
-        let current_price = latest_point.close;
+        let _current_price = latest_point.close;
         
         // Sort data points by timestamp to ensure chronological order
         let mut sorted_data = data_points.to_vec();
