@@ -281,6 +281,48 @@ impl OllamaClient {
         }
     }
 
+    /// Generate text with custom parameters for consensus engine
+    pub async fn generate_with_params(
+        &self, 
+        model: &str, 
+        prompt: &str, 
+        temperature: f64, 
+        max_tokens: u32
+    ) -> Result<String> {
+        let request = GenerateRequest {
+            model: model.to_string(),
+            prompt: prompt.to_string(),
+            stream: false,
+            options: GenerateOptions {
+                num_predict: max_tokens as i32,
+                temperature: temperature as f32,
+                top_k: 20,
+                top_p: 0.9,
+                num_ctx: 2048,
+                num_batch: 16,
+                num_thread: -1,
+                repeat_penalty: 1.1,
+                mirostat: 0,
+                mirostat_eta: 0.0,
+                mirostat_tau: 0.0,
+            },
+        };
+        
+        let response = self.client
+            .post(&format!("{}/api/generate", self.base_url))
+            .json(&request)
+            .send()
+            .await?;
+        
+        if response.status().is_success() {
+            let generate_response: GenerateResponse = response.json().await?;
+            Ok(generate_response.response)
+        } else {
+            let error_text = response.text().await?;
+            Err(anyhow::anyhow!("Ollama API error: {}", error_text))
+        }
+    }
+
 
 
     pub async fn generate_with_timing(&self, model: &str, prompt: &str) -> Result<(String, OllamaReceipt)> {

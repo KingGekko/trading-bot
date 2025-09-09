@@ -6,7 +6,7 @@ use tokio::time::{sleep, Duration};
 use regex::Regex;
 
 use chrono;
-use crate::ollama::Config;
+use crate::ollama::{Config, ConsensusEngine, ConsensusRequest, AnalysisType, UrgencyLevel, ModelRole, ModelConfig, OllamaClient};
 
 #[derive(Debug)]
 struct AIRecommendation {
@@ -33,6 +33,7 @@ pub struct InteractiveSetup {
     pub selected_model: String,
     pub models: Vec<String>,
     pub config: Config,
+    pub consensus_engine: Option<ConsensusEngine>,
 }
 
 impl InteractiveSetup {
@@ -82,6 +83,7 @@ impl InteractiveSetup {
                     max_prompt_length: 4000,
                 }
             }),
+            consensus_engine: None,
         }
     }
 
@@ -121,6 +123,12 @@ impl InteractiveSetup {
         // Step 3: Model Selection (if single mode)
         if self.model_mode == "single" {
             self.select_model().await?;
+        }
+        
+        // Step 3.5: Initialize consensus engine (if multi mode)
+        if self.model_mode == "multi" {
+            self.initialize_consensus_engine().await?;
+            self.show_model_selection().await?;
         }
         
         // Step 4: Start all servers
@@ -2945,5 +2953,409 @@ Focus on actionable trades that will multiply profits.",
         println!();
         
         Ok(())
+    }
+
+    /// Initialize consensus engine with available models
+    async fn initialize_consensus_engine(&mut self) -> Result<()> {
+        if self.model_mode == "multi" {
+            println!("🤖 Initializing Multi-Model Consensus Engine...");
+            
+            // Create Ollama client
+            let ollama_client = OllamaClient::new(&self.config.ollama_base_url, 60);
+            
+            // Create consensus engine
+            let mut consensus_engine = ConsensusEngine::new(ollama_client);
+            
+            // Initialize with available models
+            consensus_engine.initialize(self.models.clone()).await?;
+            
+            // Store the consensus engine
+            self.consensus_engine = Some(consensus_engine);
+            
+            println!("✅ Multi-Model Consensus Engine initialized!");
+        }
+        
+        Ok(())
+    }
+
+    /// Show model selection interface for multi-model mode
+    async fn show_model_selection(&mut self) -> Result<()> {
+        if self.model_mode != "multi" {
+            return Ok(());
+        }
+        
+        println!("\n🎯 MULTI-MODEL CONFIGURATION");
+        println!("{}", "=".repeat(40));
+        
+        if let Some(ref mut consensus_engine) = self.consensus_engine {
+            let model_manager = consensus_engine.get_model_manager();
+            let role_summary = model_manager.get_role_summary();
+            
+            println!("📊 Model Role Assignments:");
+            for (role, count) in role_summary {
+                println!("   {:?}: {} models", role, count);
+            }
+            
+            println!("\n🔧 Model Configuration:");
+            for model_name in &self.models {
+                if let Some(config) = model_manager.get_model(model_name) {
+                    println!("   {} ({:?}): Weight={:.2}, Temp={:.2}, Enabled={}", 
+                        config.name, config.role, config.weight, config.temperature, config.enabled);
+                }
+            }
+            
+            // Allow user to modify model configurations
+            self.configure_models().await?;
+        }
+        
+        Ok(())
+    }
+
+    /// Configure individual models
+    async fn configure_models(&mut self) -> Result<()> {
+        if let Some(ref mut consensus_engine) = self.consensus_engine {
+            println!("\n⚙️  Model Configuration Options:");
+            println!("1. Enable/Disable models");
+            println!("2. Adjust model weights");
+            println!("3. Change model roles");
+            println!("4. Set consensus threshold");
+            println!("5. Continue with current settings");
+            
+            print!("Select option (1-5): ");
+            io::stdout().flush()?;
+            
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            let choice = input.trim();
+            
+            match choice {
+                "1" => {
+                    Self::toggle_models_internal(consensus_engine, &self.models).await?;
+                },
+                "2" => {
+                    Self::adjust_weights_internal(consensus_engine, &self.models).await?;
+                },
+                "3" => {
+                    Self::change_roles_internal(consensus_engine, &self.models).await?;
+                },
+                "4" => {
+                    Self::set_consensus_threshold_internal(consensus_engine).await?;
+                },
+                "5" => println!("✅ Continuing with current settings..."),
+                _ => println!("❌ Invalid option, continuing with current settings..."),
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Toggle model enable/disable (internal)
+    async fn toggle_models_internal(consensus_engine: &mut ConsensusEngine, models: &[String]) -> Result<()> {
+        let model_manager = consensus_engine.get_model_manager_mut();
+        println!("\n🔧 Toggle Model Status:");
+        
+        for model_name in models {
+            if let Some(config) = model_manager.get_model(model_name) {
+                println!("{} ({:?}): {}", 
+                    config.name, config.role, 
+                    if config.enabled { "ENABLED" } else { "DISABLED" });
+            }
+        }
+        
+        print!("Enter model name to toggle (or 'done'): ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let model_name = input.trim();
+        
+        if model_name != "done" {
+            if let Some(config) = model_manager.get_model(model_name) {
+                let new_enabled = !config.enabled;
+                model_manager.set_model_enabled(model_name, new_enabled)?;
+                println!("✅ {} is now {}", model_name, if new_enabled { "ENABLED" } else { "DISABLED" });
+            } else {
+                println!("❌ Model '{}' not found", model_name);
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Toggle model enable/disable
+    async fn toggle_models(&self, model_manager: &mut crate::ollama::AIModelManager) -> Result<()> {
+        println!("\n🔧 Toggle Model Status:");
+        
+        for model_name in &self.models {
+            if let Some(config) = model_manager.get_model(model_name) {
+                println!("{} ({:?}): {}", 
+                    config.name, config.role, 
+                    if config.enabled { "ENABLED" } else { "DISABLED" });
+            }
+        }
+        
+        print!("Enter model name to toggle (or 'done'): ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let model_name = input.trim();
+        
+        if model_name != "done" {
+            if let Some(config) = model_manager.get_model(model_name) {
+                let new_enabled = !config.enabled;
+                model_manager.set_model_enabled(model_name, new_enabled)?;
+                println!("✅ {} is now {}", model_name, if new_enabled { "ENABLED" } else { "DISABLED" });
+            } else {
+                println!("❌ Model '{}' not found", model_name);
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Adjust model weights (internal)
+    async fn adjust_weights_internal(consensus_engine: &mut ConsensusEngine, models: &[String]) -> Result<()> {
+        let model_manager = consensus_engine.get_model_manager_mut();
+        println!("\n⚖️  Adjust Model Weights (0.0-1.0):");
+        
+        for model_name in models {
+            if let Some(config) = model_manager.get_model(model_name) {
+                println!("{} ({:?}): Weight={:.2}", config.name, config.role, config.weight);
+            }
+        }
+        
+        print!("Enter model name to adjust weight (or 'done'): ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let model_name = input.trim();
+        
+        if model_name != "done" {
+            print!("Enter new weight (0.0-1.0): ");
+            io::stdout().flush()?;
+            
+            let mut weight_input = String::new();
+            io::stdin().read_line(&mut weight_input)?;
+            
+            if let Ok(weight) = weight_input.trim().parse::<f64>() {
+                if let Some(config) = model_manager.get_model(model_name).cloned() {
+                    let mut new_config = config.clone();
+                    new_config.weight = weight.clamp(0.0, 1.0);
+                    model_manager.update_model(model_name, new_config)?;
+                    println!("✅ {} weight updated to {:.2}", model_name, weight.clamp(0.0, 1.0));
+                } else {
+                    println!("❌ Model '{}' not found", model_name);
+                }
+            } else {
+                println!("❌ Invalid weight value");
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Adjust model weights
+    async fn adjust_weights(&self, model_manager: &mut crate::ollama::AIModelManager) -> Result<()> {
+        println!("\n⚖️  Adjust Model Weights (0.0-1.0):");
+        
+        for model_name in &self.models {
+            if let Some(config) = model_manager.get_model(model_name) {
+                println!("{} ({:?}): Weight={:.2}", config.name, config.role, config.weight);
+            }
+        }
+        
+        print!("Enter model name to adjust weight (or 'done'): ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let model_name = input.trim();
+        
+        if model_name != "done" {
+            print!("Enter new weight (0.0-1.0): ");
+            io::stdout().flush()?;
+            
+            let mut weight_input = String::new();
+            io::stdin().read_line(&mut weight_input)?;
+            
+            if let Ok(weight) = weight_input.trim().parse::<f64>() {
+                if let Some(config) = model_manager.get_model(model_name).cloned() {
+                    let mut new_config = config.clone();
+                    new_config.weight = weight.clamp(0.0, 1.0);
+                    model_manager.update_model(model_name, new_config)?;
+                    println!("✅ {} weight updated to {:.2}", model_name, weight.clamp(0.0, 1.0));
+                } else {
+                    println!("❌ Model '{}' not found", model_name);
+                }
+            } else {
+                println!("❌ Invalid weight value");
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Change model roles (internal)
+    async fn change_roles_internal(consensus_engine: &mut ConsensusEngine, models: &[String]) -> Result<()> {
+        let model_manager = consensus_engine.get_model_manager_mut();
+        println!("\n🎭 Change Model Roles:");
+        println!("Available roles: TechnicalAnalysis, SentimentAnalysis, RiskManagement, MarketRegime, MomentumAnalysis, GeneralPurpose");
+        
+        for model_name in models {
+            if let Some(config) = model_manager.get_model(model_name) {
+                println!("{}: {:?}", config.name, config.role);
+            }
+        }
+        
+        print!("Enter model name to change role (or 'done'): ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let model_name = input.trim();
+        
+        if model_name != "done" {
+            print!("Enter new role: ");
+            io::stdout().flush()?;
+            
+            let mut role_input = String::new();
+            io::stdin().read_line(&mut role_input)?;
+            let role_str = role_input.trim();
+            
+            if let Ok(role) = Self::parse_model_role(role_str) {
+                if let Some(config) = model_manager.get_model(model_name).cloned() {
+                    let mut new_config = config.clone();
+                    new_config.role = role.clone();
+                    model_manager.update_model(model_name, new_config)?;
+                    println!("✅ {} role updated to {:?}", model_name, role);
+                } else {
+                    println!("❌ Model '{}' not found", model_name);
+                }
+            } else {
+                println!("❌ Invalid role. Use: TechnicalAnalysis, SentimentAnalysis, RiskManagement, MarketRegime, MomentumAnalysis, GeneralPurpose");
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Change model roles
+    async fn change_roles(&self, model_manager: &mut crate::ollama::AIModelManager) -> Result<()> {
+        println!("\n🎭 Change Model Roles:");
+        println!("Available roles: TechnicalAnalysis, SentimentAnalysis, RiskManagement, MarketRegime, MomentumAnalysis, GeneralPurpose");
+        
+        for model_name in &self.models {
+            if let Some(config) = model_manager.get_model(model_name) {
+                println!("{}: {:?}", config.name, config.role);
+            }
+        }
+        
+        print!("Enter model name to change role (or 'done'): ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let model_name = input.trim();
+        
+        if model_name != "done" {
+            print!("Enter new role: ");
+            io::stdout().flush()?;
+            
+            let mut role_input = String::new();
+            io::stdin().read_line(&mut role_input)?;
+            let role_str = role_input.trim();
+            
+            if let Ok(role) = Self::parse_model_role(role_str) {
+                if let Some(config) = model_manager.get_model(model_name).cloned() {
+                    let mut new_config = config.clone();
+                    new_config.role = role.clone();
+                    model_manager.update_model(model_name, new_config)?;
+                    println!("✅ {} role updated to {:?}", model_name, role);
+                } else {
+                    println!("❌ Model '{}' not found", model_name);
+                }
+            } else {
+                println!("❌ Invalid role. Use: TechnicalAnalysis, SentimentAnalysis, RiskManagement, MarketRegime, MomentumAnalysis, GeneralPurpose");
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Parse model role from string
+    fn parse_model_role(role_str: &str) -> Result<ModelRole> {
+        match role_str {
+            "TechnicalAnalysis" => Ok(ModelRole::TechnicalAnalysis),
+            "SentimentAnalysis" => Ok(ModelRole::SentimentAnalysis),
+            "RiskManagement" => Ok(ModelRole::RiskManagement),
+            "MarketRegime" => Ok(ModelRole::MarketRegime),
+            "MomentumAnalysis" => Ok(ModelRole::MomentumAnalysis),
+            "GeneralPurpose" => Ok(ModelRole::GeneralPurpose),
+            _ => Err(anyhow::anyhow!("Invalid role: {}", role_str)),
+        }
+    }
+
+    /// Set consensus threshold (internal)
+    async fn set_consensus_threshold_internal(consensus_engine: &mut ConsensusEngine) -> Result<()> {
+        let model_manager = consensus_engine.get_model_manager_mut();
+        println!("\n🎯 Set Consensus Threshold (0.0-1.0):");
+        println!("Current threshold: {:.2}", model_manager.get_consensus_threshold());
+        
+        print!("Enter new threshold: ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        
+        if let Ok(threshold) = input.trim().parse::<f64>() {
+            model_manager.set_consensus_threshold(threshold);
+            println!("✅ Consensus threshold updated to {:.2}", threshold);
+        } else {
+            println!("❌ Invalid threshold value");
+        }
+        
+        Ok(())
+    }
+
+    /// Set consensus threshold
+    async fn set_consensus_threshold(&self, model_manager: &mut crate::ollama::AIModelManager) -> Result<()> {
+        println!("\n🎯 Set Consensus Threshold (0.0-1.0):");
+        println!("Current threshold: {:.2}", model_manager.get_consensus_threshold());
+        
+        print!("Enter new threshold: ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        
+        if let Ok(threshold) = input.trim().parse::<f64>() {
+            model_manager.set_consensus_threshold(threshold);
+            println!("✅ Consensus threshold updated to {:.2}", threshold);
+        } else {
+            println!("❌ Invalid threshold value");
+        }
+        
+        Ok(())
+    }
+
+    /// Get consensus decision for trading
+    async fn get_consensus_decision(&mut self, market_data: &str, portfolio_data: &str, analysis_type: AnalysisType) -> Result<Option<crate::ollama::ConsensusResult>> {
+        if let Some(ref mut consensus_engine) = self.consensus_engine {
+            let request = ConsensusRequest {
+                market_data: market_data.to_string(),
+                portfolio_data: portfolio_data.to_string(),
+                trading_context: format!("Trading mode: {}, Analysis: {:?}", self.trading_mode, analysis_type),
+                analysis_type,
+                symbols: vec!["AAPL".to_string(), "MSFT".to_string(), "GOOGL".to_string()], // Default symbols
+                urgency: UrgencyLevel::Medium,
+            };
+            
+            let consensus = consensus_engine.get_consensus(request).await?;
+            Ok(Some(consensus))
+        } else {
+            Ok(None)
+        }
     }
 }
