@@ -1126,7 +1126,7 @@ pub async fn multi_model_conversation(
             "total_conversation_ms": total_time.as_millis(),
             "models_per_round": payload.models.len(),
             "total_responses": conversation_history.len(),
-            "average_response_time_ms": total_time.as_millis() / conversation_history.len() as u128
+            "average_response_time_ms": if conversation_history.is_empty() { 0 } else { total_time.as_millis() / conversation_history.len() as u128 }
         }
     })))
 }
